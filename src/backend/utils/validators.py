@@ -1,4 +1,4 @@
-from backend.models.matrix import Matrix
+from src.backend.models.matrix import Matrix
 from fractions import Fraction
 from typing import Any
 

@@ -1,10 +1,10 @@
 import json
 from fractions import Fraction
 
-from backend.solvers.linear_systems import GaussSolver
-from backend.utils.validators import MatrixValidator
-from backend.utils.formatters import matrix_to_latex
-from backend.models.matrix import Matrix
+from src.backend.solvers.linear_systems import GaussSolver
+from src.backend.utils.validators import MatrixValidator
+from src.backend.utils.formatters import matrix_to_latex
+from src.backend.models.matrix import Matrix
 
 class MatrixController:
     @staticmethod

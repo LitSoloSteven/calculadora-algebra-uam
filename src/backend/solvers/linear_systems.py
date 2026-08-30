@@ -1,5 +1,5 @@
 from fractions import Fraction
-from backend.models.matrix import Matrix
+from src.backend.models.matrix import Matrix
 
 class GaussSolver:
     def __init__(self, augmented_matrix: Matrix, eps: float = 1e-9):
