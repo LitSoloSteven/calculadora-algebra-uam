@@ -42,8 +42,11 @@ class MatrixController:
 
         # 3. Preparar los pasos intermedios en LaTeX para la UI
         pasos_latex = []
-        for paso_matriz in matrices_intermedias:
-            pasos_latex.append(matrix_to_latex(paso_matriz))
+        for paso in resultado["steps"]:
+            pasos_latex.append({
+                "descripcion": paso["description"], 
+                "matriz": matrix_to_latex(paso["matrix"])
+            })
 
         # 4. Validar y generar el reporte de comprobación Ax = b (si hay solución única)
         reporte_comprobacion = []
