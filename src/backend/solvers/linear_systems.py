@@ -75,8 +75,8 @@ class GaussSolver:
         x = [0.0 if abs(val) < self.eps else round(val, 6) for val in x]
 
         return {
-            "status": "UNIQUE_SOLUTION",
-            "message": "Sistema compatible determinado (Solución única encontrada).",
+            "status": status,
+            "message": message,
             "echelon_matrix": self.matrix,
             "solution": x,
             "steps": self.steps
@@ -97,12 +97,12 @@ class GaussSolver:
             all_zeros = all(abs(self.matrix.get(r, c)) < self.eps for c in range(num_vars))
             nonzero_b = abs(self.matrix.get(r, num_vars)) >= self.eps
             if all_zeros and nonzero_b:
-                return "NO_SOLUTION", "Sistema Incompatible (Sin solución)."
+                return "NO_SOLUTION", "Sistema Inconsistente: Sin Solución."
 
         if rank < num_vars:
-            return "INFINITE_SOLUTIONS", "Sistema Compatible Indeterminado (Infinitas soluciones)."
+            return "INFINITE_SOLUTIONS", "Sistema Consistente Indeterminado: Presenta Infinitas Soluciones"
 
-        return "UNIQUE_SOLUTION", "OK"
+        return "UNIQUE_SOLUTION", "Sistema Consistente Determinado: Presenta Solución Única."
 
     def _log_step(self, description: str, current_matrix: Matrix):
         self.steps.append({
