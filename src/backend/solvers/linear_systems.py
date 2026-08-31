@@ -65,12 +65,35 @@ class GaussSolver:
 
         num_vars = n - 1
         x = [0.0] * num_vars
+        back_sub_steps = []
 
         for i in range(num_vars - 1, -1, -1):
-            sum_ax = sum(self.matrix.get(i, j) * x[j] for j in range(i + 1, num_vars))
             b_i = self.matrix.get(i, num_vars)
             a_ii = self.matrix.get(i, i)
-            x[i] = (b_i - sum_ax) / a_ii
+            
+            terms = []
+            sum_ax = 0.0
+            for j in range(i + 1, num_vars):
+                coeff = self.matrix.get(i, j)
+                if abs(coeff) > self.eps:
+                    val_j = x[j]
+                    sum_ax += coeff * val_j
+                    terms.append(f"({self._format_factor(coeff)})({self._format_factor(val_j)})")
+            
+            x[i] = (b_i - sum_ax) / a_ii if abs(a_ii) > self.eps else 0.0
+            
+            var_str = f"x_{{{i + 1}}}"
+            b_str = self._format_factor(b_i)
+            a_str = self._format_factor(a_ii)
+            res_str = self._format_factor(x[i])
+            
+            if not terms:
+                step_latex = f"{var_str} = \\frac{{{b_str}}}{{{a_str}}} = {res_str}"
+            else:
+                sub_str = " + ".join(terms)
+                step_latex = f"{var_str} = \\frac{{{b_str} - ({sub_str})}}{{{a_str}}} = {res_str}"
+            
+            back_sub_steps.append(step_latex)
 
         x = [0.0 if abs(val) < self.eps else round(val, 6) for val in x]
 
@@ -79,7 +102,8 @@ class GaussSolver:
             "message": message,
             "echelon_matrix": self.matrix,
             "solution": x,
-            "steps": self.steps
+            "steps": self.steps,
+            "back_substitution_steps": back_sub_steps
         }
 
     def _format_factor(self, val: float) -> str:
