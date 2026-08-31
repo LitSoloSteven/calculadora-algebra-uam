@@ -92,12 +92,12 @@ class CalculatorUI:
                         ui.label(paso["descripcion"]).classes('text-md font-semibold text-gray-700 mb-1')
                         ui.label(f'$$ {paso["matriz"]} $$').classes('text-xl overflow-x-auto max-w-full')
                         
-            if respuesta.get("solution"):
-                ui.label('Traducción de matriz final a ecuaciones:').classes('font-bold mt-4 text-lg w-full text-center')
+            if respuesta.get("back_substitution_steps"):
+                ui.label('Sustitución hacia atrás (Despeje de variables):').classes('font-bold mt-4 text-lg w-full text-center')
                 with ui.card().classes('w-full p-4 bg-yellow-50 mb-4 items-center'):
-                    ui.label("A partir de la matriz escalonada, reconstruimos y despejamos el sistema:").classes('mb-2 text-gray-700 text-center')
-                    for idx in reversed(range(len(respuesta["solution"]))):
-                        ui.label(f'$$ 1x_{{{idx+1}}} = {respuesta["solution"][idx]} $$').classes('text-lg')
+                    ui.label("A partir de la matriz escalonada, despejamos cada variable paso a paso:").classes('mb-2 text-gray-700 text-center')
+                    for paso in respuesta["back_substitution_steps"]:
+                        ui.label(f'$$ {paso} $$').classes('text-lg my-1')
                     
             if respuesta.get("verification_steps_latex"):
                 ui.label('Comprobación').classes('font-bold mt-4 w-full text-center')
