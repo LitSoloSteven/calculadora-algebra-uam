@@ -30,8 +30,18 @@ class GaussSolver:
                 self.matrix.swap_rows(pivot_row, max_row)
                 self._log_step(f"Intercambio: Fila {pivot_row + 1} ↔ Fila {max_row + 1}", self.matrix)
 
+            # Normalizar el elemento de la diagonal principal a 1
+            pivot_val = self.matrix.get(pivot_row, col)
+            if abs(pivot_val) >= self.eps and abs(pivot_val - 1.0) > self.eps:
+                scale = 1.0 / pivot_val
+                for c in range(col, n):
+                    current_val = self.matrix.get(pivot_row, c)
+                    self.matrix.set(pivot_row, c, current_val * scale)
+                self._log_step(f"Fila {pivot_row + 1} = (1 / {self._format_factor(pivot_val)}) * Fila {pivot_row + 1}", self.matrix)
+
+            # Hacer ceros por debajo del pivote
             for r in range(pivot_row + 1, m):
-                factor = self.matrix.get(r, col) / self.matrix.get(pivot_row, col)
+                factor = self.matrix.get(r, col)
                 if abs(factor) > self.eps:
                     self.matrix.add_scaled_row(r, pivot_row, -factor)
                     self.matrix.set(r, col, 0.0)
