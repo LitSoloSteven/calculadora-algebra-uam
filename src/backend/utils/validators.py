@@ -74,7 +74,7 @@ class MatrixValidator:
         report = []
 
         for i in range(len(A)):
-            lhs = 0.0 # Usamos float nativo para ser compatibles con tu solver
+            lhs = 0.0 
             terms = []
 
             for j in range(len(x)):
@@ -89,17 +89,17 @@ class MatrixValidator:
                     terms.append(f"({coeff})·({var_val})")
 
             rhs = float(b[i])
-            lhs = round(lhs, 6) # Evitar errores de precisión flotante
+            lhs = round(lhs, 6)
             rhs = round(rhs, 6)
             
             if as_latex:
                 substitution_str = " + ".join(terms)
-                status_icon = r"\checkmark" if lhs == rhs else r"\times"
-                report.append(rf"Ecuación {i + 1}: {substitution_str} = {lhs} \quad \text{{{status_icon}}}")
+                status_text = r"\text{Correcto}" if lhs == rhs else r"\text{Incorrecto}"
+                report.append(rf"Ecuación {i + 1}: {substitution_str} = {lhs} \quad ({status_text})")
             else:
                 substitution_str = " + ".join(terms)
-                status_icon = "✓" if lhs == rhs else "✗"
-                report.append(f"Ecuación {i + 1}: {substitution_str} = {lhs}  {status_icon} (b_{i + 1} = {rhs})")
+                status_text = "Correcto" if lhs == rhs else "Incorrecto"
+                report.append(f"Ecuación {i + 1}: {substitution_str} = {lhs}  {status_text} (b_{i + 1} = {rhs})")
 
             if lhs != rhs:
                 is_valid = False
