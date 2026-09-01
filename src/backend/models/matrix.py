@@ -4,13 +4,14 @@ class Matrix:
     def __init__(self, rows: int, cols: int, data: list[list[float]] | None = None):
         self.rows = rows
         self.cols = cols
-        
+        # Si no se proveen datos, inicializa una matriz de ceros
         if data is not None:
             self.data = data
         else:
             self.data = [[0.0 for _ in range(cols)] for _ in range(rows)]
-
+       
     def get(self, row: int, col: int) -> float:
+         #Obtiene el valor de una celda específica.
         return self.data[row][col]
 
     def set(self, row: int, col: int, value: float) -> None:
@@ -33,9 +34,11 @@ class Matrix:
         for row in self.data:
             formatted_row = []
             for val in row:
+                # Limpia residuos de punto flotante cercanos a cero
                 if abs(val) < 1e-9:
                     formatted_row.append(f"{'0':>6}")
                 else:
+                    # Intenta convertir a fracción para mayor legibilidad
                     frac = Fraction(val).limit_denominator(100)
                     if abs(float(frac) - val) < 1e-4:
                         if frac.denominator == 1:
