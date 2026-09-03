@@ -68,7 +68,8 @@ class MatrixValidator:
         A: list[list[Any]], 
         x: list[Any], 
         b: list[Any],
-        as_latex: bool = False
+        as_latex: bool = False,
+        tolerance: float = 1e-4
     ) -> tuple[bool, list[str]]:
         is_valid = True
         report = []
@@ -89,19 +90,23 @@ class MatrixValidator:
                     terms.append(f"({coeff})·({var_val})")
 
             rhs = float(b[i])
-            lhs = round(lhs, 6)
-            rhs = round(rhs, 6)
+            
+            # Se evalúa la igualdad utilizando un margen de tolerancia
+            is_eq_correct = abs(lhs - rhs) < tolerance
+            
+            # Para la representación visual, se redondea lhs
+            lhs_display = round(lhs, 6)
             
             if as_latex:
                 substitution_str = " + ".join(terms)
-                status_text = r"\text{Correcto}" if lhs == rhs else r"\text{Incorrecto}"
-                report.append(rf"Ecuación {i + 1}: {substitution_str} = {lhs} \quad ({status_text})")
+                status_text = r"\text{Correcto}" if is_eq_correct else r"\text{Incorrecto}"
+                report.append(rf"Ecuación {i + 1}: {substitution_str} = {lhs_display} \quad ({status_text})")
             else:
                 substitution_str = " + ".join(terms)
-                status_text = "Correcto" if lhs == rhs else "Incorrecto"
-                report.append(f"Ecuación {i + 1}: {substitution_str} = {lhs}  {status_text} (b_{i + 1} = {rhs})")
+                status_text = "Correcto" if is_eq_correct else "Incorrecto"
+                report.append(f"Ecuación {i + 1}: {substitution_str} = {lhs_display}  {status_text} (b_{i + 1} = {rhs})")
 
-            if lhs != rhs:
+            if not is_eq_correct:
                 is_valid = False
 
         return is_valid, report
