@@ -1,4 +1,4 @@
-from src.backend.solvers.linear_systems import GaussSolver
+from src.backend.solvers.linear_systems.gauss import GaussSolver
 
 class GaussJordanSolver(GaussSolver):
     def _eliminate_backward(self, pivot_cols):

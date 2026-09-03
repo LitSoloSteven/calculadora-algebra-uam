@@ -1,7 +1,7 @@
 import json
 from fractions import Fraction
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.linear_systems import GaussSolver
+from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.utils.formatters import matrix_to_latex
 
 class MatrixController:
