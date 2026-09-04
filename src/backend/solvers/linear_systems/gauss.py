@@ -37,9 +37,8 @@ class GaussSolver:
 
     def _eliminate_forward(self):
         """
-        Realiza la eliminación gaussiana con pivoteo parcial.
-        Deja la matriz en forma escalonada por filas (con unos en los pivotes).
-        Devuelve el rango (número de pivotes) y la lista de columnas pivote.
+        Realiza la eliminación gaussiana.
+        Prioriza encontrar un 1 en la columna pivote; si no existe, usa pivoteo parcial.
         """
         m = self.matrix.rows
         n = self.matrix.cols
@@ -49,23 +48,35 @@ class GaussSolver:
         self._log_step("Matriz inicial aumentada [A|b]:", self.matrix)
 
         for col in range(min(m, n - 1)):
-            # Pivoteo parcial
-            max_row = pivot_row
-            max_val = abs(self.matrix.get(pivot_row, col))
-            for r in range(pivot_row + 1, m):
-                val = abs(self.matrix.get(r, col))
-                if val > max_val:
-                    max_val = val
-                    max_row = r
+            target_row = -1
 
-            if max_val < self.eps:
-                continue
+            # 1. Criterio Primario: Buscar si hay alguna fila >= pivot_row con un '1' en la columna actual
+            for r in range(pivot_row, m):
+                if abs(self.matrix.get(r, col) - 1.0) < self.eps:
+                    target_row = r
+                    break
 
-            if max_row != pivot_row:
-                self.matrix.swap_rows(pivot_row, max_row)
-                self._log_step(f"Intercambio: Fila {pivot_row + 1} ↔ Fila {max_row + 1}", self.matrix)
+            # 2. Criterio Secundario: Si no se encontró un 1, usar pivoteo parcial (máximo valor absoluto)
+            if target_row == -1:
+                max_row = pivot_row
+                max_val = abs(self.matrix.get(pivot_row, col))
+                for r in range(pivot_row + 1, m):
+                    val = abs(self.matrix.get(r, col))
+                    if val > max_val:
+                        max_val = val
+                        max_row = r
 
-            # Normalizar fila pivote
+                # Si el valor más grande es prácticamente cero, la columna no tiene pivote
+                if max_val < self.eps:
+                    continue
+                target_row = max_row
+
+            # Realizar el intercambio si la fila elegida no es la actual
+            if target_row != pivot_row:
+                self.matrix.swap_rows(pivot_row, target_row)
+                self._log_step(f"Intercambio: Fila {pivot_row + 1} ↔ Fila {target_row + 1}", self.matrix)
+
+            # Normalizar fila pivote (hacer que el pivote sea 1 si aún no lo es)
             pivot_val = self.matrix.get(pivot_row, col)
             if abs(pivot_val) >= self.eps and abs(pivot_val - 1.0) > self.eps:
                 scale = 1.0 / pivot_val
@@ -88,7 +99,6 @@ class GaussSolver:
                 break
 
         return pivot_row, pivot_cols   # (rank, pivot_columns)
-
     def _back_substitute(self, num_vars):
         """
         Realiza la sustitución regresiva para obtener la solución única.
