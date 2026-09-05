@@ -127,3 +127,11 @@ class MatrixValidator:
                 is_valid = False
 
         return is_valid, report
+    
+    @staticmethod
+    def validate_raw_data(raw_data: Any) -> tuple[bool, str]:
+        if raw_data is None:
+            return False, "Los datos de la matriz no pueden ser nulos."
+        if isinstance(raw_data, list) and len(raw_data) == 0:
+            return False, "La matriz no puede estar vacía."
+        return True, "Datos válidos."
