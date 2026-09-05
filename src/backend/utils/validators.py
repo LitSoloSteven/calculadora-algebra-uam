@@ -64,6 +64,27 @@ class MatrixValidator:
         return matrix.cols == matrix.rows + 1
 
     @staticmethod
+    def validate_variable_coherence(parsed_equations: list[tuple[dict[str, float], float]]) -> tuple[bool, str]:
+        """
+        Verifica que las ecuaciones estén interrelacionadas y no formen sistemas disjuntos o inconexos.
+        """
+        if len(parsed_equations) <= 1:
+            return True, "Coherencia de variables válida."
+
+        for idx, (eq_coeffs, _) in enumerate(parsed_equations, 1):
+            eq_vars = set(eq_coeffs.keys())
+            other_vars = set().union(*[e[0].keys() for i, e in enumerate(parsed_equations) if i != idx - 1])
+            
+            # Si una ecuación no comparte ninguna variable con el resto del sistema
+            if not eq_vars.intersection(other_vars):
+                return False, (
+                    f"Línea {idx}: Las variables {sorted(list(eq_vars))} "
+                    f"no tienen relación ni comparten columnas con el resto de ecuaciones."
+                )
+
+        return True, "Coherencia de variables válida."
+
+    @staticmethod
     def verify_solution(
         A: list[list[Any]], 
         x: list[Any], 
@@ -90,11 +111,7 @@ class MatrixValidator:
                     terms.append(f"({coeff})·({var_val})")
 
             rhs = float(b[i])
-            
-            # Se evalúa la igualdad utilizando un margen de tolerancia
             is_eq_correct = abs(lhs - rhs) < tolerance
-            
-            # Para la representación visual, se redondea lhs
             lhs_display = round(lhs, 6)
             
             if as_latex:
