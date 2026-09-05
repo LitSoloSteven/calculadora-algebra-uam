@@ -1,16 +1,17 @@
 from nicegui import ui
 
 def create_navbar():
-    with ui.footer().classes('bg-transparent p-6 flex justify-center items-center z-50').style('border: none;'):
-        with ui.row().classes('neu-flat px-8 py-3 items-center gap-8'):
+    # Trasladado a un header superior (desktop layout optimizado)
+    with ui.header().classes('panel-card px-6 py-3 flex justify-between items-center z-50 mt-4 mx-6').props('flat bordered'):
+        with ui.row().classes('items-center gap-4'):
+            ui.label('Álgebra UAM').classes('text-xl font-medium tracking-wide').style('color: var(--text-main); font-weight: 500;')
             
-            ui.button(icon='calculate', on_click=lambda: ui.navigate.to('/gauss'), color=None) \
-                .classes('neu-btn w-14 h-14 rounded-full').tooltip('Gauss')
+        with ui.row().classes('items-center gap-4'):
+            ui.button(icon='calculate', on_click=lambda: ui.navigate.to('/gauss')) \
+                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Eliminación de Gauss"').tooltip('Eliminación de Gauss')
                 
-            ui.button(icon='functions', on_click=lambda: ui.navigate.to('/gauss-jordan'), color=None) \
-                .classes('neu-btn w-14 h-14 rounded-full').tooltip('Gauss-Jordan')
+            ui.button(icon='functions', on_click=lambda: ui.navigate.to('/gauss-jordan')) \
+                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Gauss-Jordan"').tooltip('Gauss-Jordan')
                 
-            ui.button(icon='palette', on_click=lambda: ui.run_javascript("toggleTheme()"), color=None) \
-                .classes('neu-btn w-14 h-14 rounded-full').tooltip('Cambiar Tema')
-                
-            ui.label('Álgebra UAM').classes('text-lg font-bold tracking-wide ml-4')
+            ui.button(icon='palette', on_click=lambda: ui.run_javascript("toggleTheme()")) \
+                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Cambiar Tema"').tooltip('Cambiar Tema')
