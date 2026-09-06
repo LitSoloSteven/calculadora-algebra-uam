@@ -1,3 +1,41 @@
+# Secretos y variables de entorno
 .env
+.env.*
+!.env.example
+
+# Bytecode y caché de Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Entornos virtuales (cubre todas las convenciones comunes)
 venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Configuraciones de editores / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos del sistema operativo (Windows / macOS)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Logs y bases de datos locales / temporales
+*.log
+*.sqlite3
+*.tmp
+
+# Pruebas y cobertura (si llegan a usar pytest)
+.pytest_cache/
+.coverage
+htmlcov/
