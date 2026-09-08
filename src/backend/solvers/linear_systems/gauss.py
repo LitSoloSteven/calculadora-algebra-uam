@@ -1,5 +1,6 @@
 from fractions import Fraction
 from src.backend.models.matrix import Matrix
+import math
 
 class GaussSolver:
     def __init__(self, augmented_matrix: Matrix, eps: float = 1e-9):
@@ -56,42 +57,55 @@ class GaussSolver:
                     target_row = r
                     break
 
-            # 2. Criterio Secundario: Si no se encontró un 1, usar pivoteo parcial (máximo valor absoluto)
+            # 2. Criterio Secundario: Buscar el MENOR valor absoluto distinto de cero
             if target_row == -1:
-                max_row = pivot_row
-                max_val = abs(self.matrix.get(pivot_row, col))
-                for r in range(pivot_row + 1, m):
+                min_row = -1
+                min_val = float('inf')
+                
+                for r in range(pivot_row, m):
                     val = abs(self.matrix.get(r, col))
-                    if val > max_val:
-                        max_val = val
-                        max_row = r
+                    if val > self.eps and val < min_val:
+                        min_val = val
+                        min_row = r
 
-                # Si el valor más grande es prácticamente cero, la columna no tiene pivote
-                if max_val < self.eps:
+                if min_row == -1:
                     continue
-                target_row = max_row
+                    
+                target_row = min_row
 
             # Realizar el intercambio si la fila elegida no es la actual
             if target_row != pivot_row:
                 self.matrix.swap_rows(pivot_row, target_row)
                 self._log_step(f"Intercambio: Fila {pivot_row + 1} ↔ Fila {target_row + 1}", self.matrix)
 
-            # Normalizar fila pivote (hacer que el pivote sea 1 si aún no lo es)
-            pivot_val = self.matrix.get(pivot_row, col)
-            if abs(pivot_val) >= self.eps and abs(pivot_val - 1.0) > self.eps:
-                scale = 1.0 / pivot_val
-                for c in range(col, n):
-                    current_val = self.matrix.get(pivot_row, c)
-                    self.matrix.set(pivot_row, c, current_val * scale)
-                self._log_step(f"Fila {pivot_row + 1} = (1 / {self._format_factor(pivot_val)}) * Fila {pivot_row + 1}", self.matrix)
-
-            # Eliminar debajo del pivote
+            # Eliminar debajo del pivote usando MCM (números enteros)
+            pivote = self.matrix.get(pivot_row, col)
             for r in range(pivot_row + 1, m):
-                factor = self.matrix.get(r, col)
-                if abs(factor) > self.eps:
-                    self.matrix.add_scaled_row(r, pivot_row, -factor)
-                    self.matrix.set(r, col, 0.0)
-                    self._log_step(f"Fila {r + 1} = Fila {r + 1} - ({self._format_factor(factor)}) * Fila {pivot_row + 1}", self.matrix)
+                objetivo = self.matrix.get(r, col)
+                if abs(objetivo) > self.eps:
+                    # 1. Calcular el MCM
+                    mcm_val = math.lcm(int(abs(pivote)), int(abs(objetivo)))
+                    
+                    # 2. Calcular factores multiplicativos
+                    mult_pivote = mcm_val // abs(pivote)
+                    mult_objetivo = mcm_val // abs(objetivo)
+                    
+                    # 3. Determinar el signo
+                    signo = -1 if (pivote * objetivo) > 0 else 1
+                    
+                    # 4. Modificar TODA la fila objetivo iterando columna por columna
+                    for c in range(n):
+                        val_obj = self.matrix.get(r, c)
+                        val_piv = self.matrix.get(pivot_row, c)
+                        nuevo_valor = (val_obj * mult_objetivo) + (val_piv * mult_pivote * signo)
+                        self.matrix.set(r, c, nuevo_valor)
+                        
+                    # 5. Registrar el paso con notación matemática formal
+                    signo_str = "+" if signo == 1 else "-"
+                    self._log_step(
+                        f"Fila {r+1} = {mult_objetivo} * Fila {r+1} {signo_str} {mult_pivote} * Fila {pivot_row+1}", 
+                        self.matrix
+                    )
 
             pivot_cols.append(col)
             pivot_row += 1
@@ -99,6 +113,7 @@ class GaussSolver:
                 break
 
         return pivot_row, pivot_cols   # (rank, pivot_columns)
+
     def _back_substitute(self, num_vars):
         """
         Realiza la sustitución regresiva para obtener la solución única.
