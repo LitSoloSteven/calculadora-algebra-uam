@@ -12,6 +12,10 @@ def create_navbar():
                 
             ui.button(icon='functions', on_click=lambda: ui.navigate.to('/gauss-jordan')) \
                 .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Gauss-Jordan"').tooltip('Gauss-Jordan')
+            
+            # === NUEVO BOTÓN DE LA IA ===
+            ui.button(icon='smart_toy', on_click=lambda: ui.navigate.to('/ia')) \
+                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Tutor IA"').tooltip('Tutor IA')
                 
             ui.button(icon='palette', on_click=lambda: ui.run_javascript("toggleTheme()")) \
                 .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Cambiar Tema"').tooltip('Cambiar Tema')

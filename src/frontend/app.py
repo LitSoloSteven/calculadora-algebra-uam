@@ -2,6 +2,9 @@ from nicegui import ui
 from src.frontend.views.linear_systems.view_gauss import GaussUI
 from src.frontend.views.linear_systems.view_gauss_jordan import GaussJordanUI
 
+# Importamos tu clase de IA
+from src.ai.openrouter_ai import OpenRouterIA
+
 def setup_theme():
     ui.add_head_html('''
         <!-- Configuración e importación de MathJax -->
@@ -104,6 +107,26 @@ def setup_theme():
                 transition: all 0.3s ease;
             }
 
+            /* === ESTILOS Y COLORES PARA LAS BURBUJAS DEL CHAT === */
+            .q-message-text {
+                font-size: 1.15rem !important;
+                line-height: 1.5 !important;
+            }
+            
+            /* Tu burbuja (Derecha / Enviado) - Verde claro vibrante y legible */
+            .q-message-sent .q-message-text,
+            .q-message-text--sent {
+                background-color: #4ade80 !important;
+                color: #0f172a !important;
+            }
+            
+            /* Burbuja de la IA (Izquierda / Recibido) - Blanco nítido */
+            .q-message-received .q-message-text,
+            .q-message-text--received {
+                background-color: #ffffff !important;
+                color: #262B42 !important;
+            }
+
             /* === INPUTS DE MATRIZ INVERTIDOS === */
             .matrix-input .q-field__control {
                 background: var(--input-bg) !important;
@@ -181,66 +204,30 @@ def setup_theme():
             
             .badge-warning { background: var(--badge-warn-bg) !important; color: var(--badge-warn-text) !important; transition: all 0.3s ease; }
             .badge-warning .q-icon { color: var(--badge-warn-text) !important; }
-            /* === TOGGLE NEUMÓRFICO === */
+            
             .neo-toggle {
                 background: var(--bg-panel) !important;
                 border-radius: var(--radius-btn) !important;
                 padding: 4px !important;
-                /* Sombra interna para crear la profundidad del carril */
                 box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.05) !important;
                 border: none !important;
             }
             body.dark-theme .neo-toggle {
                 box-shadow: inset 4px 4px 8px rgba(0,0,0,0.3), inset -4px -4px 8px rgba(255,255,255,0.02) !important;
             }
-           /* === TABS NEUMÓRFICOS (PÍLDORA DESLIZANTE) === */
             .neo-tabs {
                 background: var(--bg-panel) !important;
-                border-radius: 999px !important;
-                padding: 4px !important;
-                box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.05) !important;
-            }
-            body.dark-theme .neo-tabs {
-                box-shadow: inset 4px 4px 8px rgba(0,0,0,0.3), inset -4px -4px 8px rgba(255,255,255,0.02) !important;
-            }
-            .neo-tabs .q-tab {
-                border-radius: 999px !important;
-                min-height: 40px !important;
-                padding: 0 24px !important;
-                color: var(--text-sec) !important;
-                font-weight: 600 !important;
-                transition: color 0.3s ease !important;
-                z-index: 1 !important;
-            }
-            /* === TABS NEUMÓRFICOS (PÍLDORA DESLIZANTE CON REBOTE) === */
-            .neo-tabs {
-                background: var(--bg-panel) !important;
-                border-radius: 999px !important;
-                padding: 4px !important;
-                box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.05) !important;
-                width: 320px !important; /* Fuerza a que sea un interruptor de tamaño fijo */
-            }
-            body.dark-theme .neo-tabs {
-                box-shadow: inset 4px 4px 8px rgba(0,0,0,0.3), inset -4px -4px 8px rgba(255,255,255,0.02) !important;
-            }
-            .neo-tabs .q-tabs__content {
-                width: 100% !important; /* Expande el contenido al borde del interruptor */
-            }
-      /* === TABS NEUMÓRFICOS (PÍLDORA CON CORTE RECTO AL CENTRO) === */
-            .neo-tabs {
-                background: var(--bg-panel) !important;
-                border-radius: 999px !important; /* Vuelve a ser una píldora (ovalado) */
+                border-radius: 999px !important; 
                 padding: 0 !important;
                 box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.05) !important;
                 width: 320px !important;
-                overflow: hidden !important; /* El secreto: el contenedor ovalado recorta todo lo que sobresalga */
+                overflow: hidden !important; 
             }
             body.dark-theme .neo-tabs {
                 box-shadow: inset 4px 4px 8px rgba(0,0,0,0.3), inset -4px -4px 8px rgba(255,255,255,0.02) !important;
             }
             .neo-tabs .q-tabs__content { width: 100% !important; }
             
-            /* Las pestañas individuales */
             .neo-tabs .q-tab {
                 min-height: 44px !important;
                 flex: 1 !important;
@@ -249,35 +236,29 @@ def setup_theme():
                 font-weight: 600 !important;
                 transition: color 0.3s ease !important;
                 z-index: 1 !important;
-                border-radius: 0 !important; /* Recto al centro. El contenedor lo redondeará por fuera */
+                border-radius: 0 !important; 
             }
             .neo-tabs .q-tab--active { color: var(--btn-primary-text) !important; }
             
-            /* Sombra al pasar el ratón (Hover) y efecto onda */
-            .neo-tabs .q-focus-helper {
-                border-radius: 0 !important; /* La sombra ahora es recta al centro y ovalada por fuera */
-            }
+            .neo-tabs .q-focus-helper { border-radius: 0 !important; }
             
-            /* El indicador (fondo animado) */
             .neo-tabs .q-tab__indicator {
                 height: 100% !important;
                 top: 0 !important;
                 background: var(--btn-primary-bg) !important;
                 z-index: -1 !important;
-                border-radius: 0 !important; /* Plano al centro, recortado ovalado por el contenedor */
+                border-radius: 0 !important; 
                 box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
-                transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important; /* Efecto Spring Bounce */
+                transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important; 
             }
             .q-tab-panels { background: transparent !important; }
 
-            /* === ANIMACIÓN DE REBOTE PARA LOS PANELES DE ABAJO === */
             .q-transition--slide-left-enter-active,
             .q-transition--slide-left-leave-active,
             .q-transition--slide-right-enter-active,
             .q-transition--slide-right-leave-active {
                 transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
             }
-        </style>
         </style>
         
         <script>
@@ -307,5 +288,52 @@ def gauss_jordan_page():
     app_ui = GaussJordanUI()
     app_ui.build()
 
+@ui.page('/ia')
+def vista_ia():
+    setup_theme()
+    motor_ia = OpenRouterIA()
+
+    with ui.column().classes('w-full max-w-3xl mx-auto items-center q-pa-md mt-10'):
+        ui.label('Tutor IA - OpenRouter').classes('text-3xl font-bold mb-6 text-main')
+        
+        # Contenedor del chat estilo WhatsApp
+        chat_area = ui.column().classes('w-full panel-card q-pa-md mb-6 gap-3').style('min-height: 400px; max-height: 500px; overflow-y: auto;')
+        
+        with chat_area:
+            # Mensaje inicial de bienvenida de la IA a la izquierda (sent=False)
+            ui.chat_message(
+                text="¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", 
+                name="Tutor IA", 
+                sent=False
+            )
+        
+        # Input y botón
+        with ui.row().classes('w-full items-center justify-center gap-4'):
+            pregunta_input = ui.input(placeholder='Pregúntale a la IA sobre matrices...').classes('flex-grow matrix-input text-lg')
+            
+            def enviar_pregunta():
+                texto = pregunta_input.value.strip()
+                if not texto: 
+                    return
+                
+                pregunta_input.value = ''
+                
+                # Tu mensaje en burbuja a la derecha (sent=True)
+                with chat_area:
+                    ui.chat_message(text=texto, name="Tú", sent=True)
+                    mensaje_carga = ui.chat_message(text="Analizando...", name="Tutor IA", sent=False)
+                
+                # Consumo de la API
+                respuesta = motor_ia.analizar_sistema(texto)
+                
+                # Ocultamos o removemos el mensaje de carga y mostramos la respuesta de la IA a la izquierda (sent=False)
+                mensaje_carga.set_visibility(False)
+                with chat_area:
+                    ui.chat_message(text=respuesta, name="Tutor IA", sent=False)
+
+            ui.button('Enviar', on_click=enviar_pregunta).classes('btn-primary q-px-xl q-py-sm')
+        
+        ui.button('Volver a la Calculadora', on_click=lambda: ui.navigate.to('/gauss')).classes('btn-ghost mt-6')
+
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run(title="Calculadora Álgebra Lineal UAM")
+    ui.run(title="Calculadora Álgebra Lineal UAM")  

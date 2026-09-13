@@ -32,7 +32,7 @@ def system_to_latex(matrix: Matrix, sorted_vars: list[str] | None = None, eps: f
     Convierte una matriz aumentada [A|b] a una representación LaTeX del sistema de ecuaciones
     utilizando el entorno \\begin{cases} ... \\end{cases}.
     """
-    num_vars = matrix.cols - 1
+    num_vars = matrix.cols - 1 
     if sorted_vars is None or len(sorted_vars) != num_vars:
         sorted_vars = [f"x_{{{i+1}}}" for i in range(num_vars)]
 

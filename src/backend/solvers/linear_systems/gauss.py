@@ -25,15 +25,18 @@ class GaussSolver:
         n = self.matrix.cols
         num_vars = n - 1
 
+        # 1. Verificar inconsistencias (filas de ceros con término independiente distinto de 0)
         for r in range(m):
             all_zeros = all(abs(self.matrix.get(r, c)) < self.eps for c in range(num_vars))
             nonzero_b = abs(self.matrix.get(r, num_vars)) >= self.eps
             if all_zeros and nonzero_b:
                 return "NO_SOLUTION", "Sistema Inconsistente: Sin Solución."
 
-        if rank < num_vars:
-            return "INFINITE_SOLUTIONS", "Sistema Consistente Indeterminado: Presenta Infinitas Soluciones"
+        # 2. Filtro estricto para variables libres o matrices subdeterminadas (rectangulares)
+        if rank < num_vars or m < num_vars:
+            return "INFINITE_SOLUTIONS", "Sistema Consistente Indeterminado: Presenta Infinitas Soluciones."
 
+        # 3. Si pasa todos los filtros, es única
         return "UNIQUE_SOLUTION", "Sistema Consistente Determinado: Presenta Solución Única."
 
     def _eliminate_forward(self):
