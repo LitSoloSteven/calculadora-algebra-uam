@@ -135,3 +135,28 @@ class MatrixValidator:
         if isinstance(raw_data, list) and len(raw_data) == 0:
             return False, "La matriz no puede estar vacía."
         return True, "Datos válidos."
+    
+
+def validate_same_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
+    """
+    Valida que dos matrices tengan exactamente las mismas dimensiones (m x n)
+    para operaciones de suma y resta.
+    """
+    if matrix_a.rows != matrix_b.rows or matrix_a.cols != matrix_b.cols:
+        raise ValueError(
+            f"Dimensiones incompatibles para suma/resta: "
+            f"Matriz A ({matrix_a.rows}×{matrix_a.cols}) vs Matriz B ({matrix_b.rows}×{matrix_b.cols}). "
+            f"Ambas matrices deben tener exactamente el mismo tamaño."
+        )
+
+def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
+    """
+    Valida que el número de columnas de A (n) sea igual al número de filas de B (p).
+    La matriz resultante tendrá tamaño (m x q).
+    """
+    if matrix_a.cols != matrix_b.rows:
+        raise ValueError(
+            f"Dimensiones incompatibles para multiplicación: "
+            f"Matriz A ({matrix_a.rows}×{matrix_a.cols}) × Matriz B ({matrix_b.rows}×{matrix_b.cols}). "
+            f"El número de columnas de A ({matrix_a.cols}) debe ser igual al número de filas de B ({matrix_b.rows})."
+        )
