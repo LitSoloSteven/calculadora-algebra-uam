@@ -269,16 +269,26 @@ class LinearSystemsUI:
         with ui.expansion('Visualización Gráfica', icon='insights').classes('w-full panel-card mt-4').props('header-class="font-bold text-main" default-opened'):
             try:
                 import plotly.graph_objects as go
-                import numpy as np
             except ImportError:
                 ui.label('Instalando dependencias gráficas... intente de nuevo en unos segundos.').classes('text-warning')
                 return
+
+            def _linspace(start, stop, num):
+                if num == 1:
+                    return [start]
+                step = (stop - start) / (num - 1)
+                return [start + i * step for i in range(num)]
+
+            def _meshgrid(x, y):
+                X = [[x_val for x_val in x] for _ in y]
+                Y = [[y_val for _ in x] for y_val in y]
+                return X, Y
 
             fig = go.Figure()
             colors = ['#FF3366', '#33CC99', '#3399FF', '#FF9933', '#9933FF']
             
             if n == 2:
-                x_vals = np.linspace(-10, 10, 100)
+                x_vals = _linspace(-10, 10, 100)
                 for i in range(m):
                     try:
                         a, b, c = float(matrix_A[i][0]), float(matrix_A[i][1]), float(vector_b[i])
@@ -286,7 +296,7 @@ class LinearSystemsUI:
                         continue
                         
                     if abs(b) > 1e-6:
-                        y_vals = (c - a * x_vals) / b
+                        y_vals = [(c - a * x) / b for x in x_vals]
                         fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name=f'Eq {i+1}', line=dict(color=colors[i % len(colors)], width=3)))
                     elif abs(a) > 1e-6:
                         x_line = [c/a, c/a]
@@ -308,9 +318,9 @@ class LinearSystemsUI:
                 )
                 
             elif n == 3:
-                x = np.linspace(-10, 10, 10)
-                y = np.linspace(-10, 10, 10)
-                X, Y = np.meshgrid(x, y)
+                x = _linspace(-10, 10, 10)
+                y = _linspace(-10, 10, 10)
+                X, Y = _meshgrid(x, y)
                 
                 for i in range(m):
                     try:
@@ -319,17 +329,17 @@ class LinearSystemsUI:
                         continue
                         
                     if abs(c_z) > 1e-6:
-                        Z = (d - a * X - b * Y) / c_z
+                        Z = [[(d - a * X[r][c] - b * Y[r][c]) / c_z for c in range(len(X[0]))] for r in range(len(X))]
                         fig.add_trace(go.Surface(z=Z, x=X, y=Y, name=f'Eq {i+1}', showscale=False, opacity=0.7, colorscale=[[0, colors[i % len(colors)]], [1, colors[i % len(colors)]]]))
                     elif abs(b) > 1e-6:
-                        Z_mesh = np.linspace(-10, 10, 10)
-                        X_mesh, Z_grid = np.meshgrid(x, Z_mesh)
-                        Y_grid = (d - a * X_mesh) / b
+                        Z_mesh = _linspace(-10, 10, 10)
+                        X_mesh, Z_grid = _meshgrid(x, Z_mesh)
+                        Y_grid = [[(d - a * X_mesh[r][c]) / b for c in range(len(X_mesh[0]))] for r in range(len(X_mesh))]
                         fig.add_trace(go.Surface(z=Z_grid, x=X_mesh, y=Y_grid, name=f'Eq {i+1}', showscale=False, opacity=0.7, colorscale=[[0, colors[i % len(colors)]], [1, colors[i % len(colors)]]]))
                     elif abs(a) > 1e-6:
-                        Z_mesh = np.linspace(-10, 10, 10)
-                        Y_mesh, Z_grid = np.meshgrid(y, Z_mesh)
-                        X_grid = (d - b * Y_mesh) / a
+                        Z_mesh = _linspace(-10, 10, 10)
+                        Y_mesh, Z_grid = _meshgrid(y, Z_mesh)
+                        X_grid = [[(d - b * Y_mesh[r][c]) / a for c in range(len(Y_mesh[0]))] for r in range(len(Y_mesh))]
                         fig.add_trace(go.Surface(z=Z_grid, x=X_grid, y=Y_mesh, name=f'Eq {i+1}', showscale=False, opacity=0.7, colorscale=[[0, colors[i % len(colors)]], [1, colors[i % len(colors)]]]))
                 
                 if respuesta.get("status") == "UNIQUE_SOLUTION" and respuesta.get("solution"):
