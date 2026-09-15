@@ -73,6 +73,7 @@ class MatrixController:
             response_payload = {
                 "status": result.get("status"),
                 "classification": result.get("message"),
+                "message": result.get("message"),
                 "solution": solution,
                 "intermediate_steps_latex": intermediate_steps_latex,
                 "back_substitution_steps": result.get("back_substitution_steps", []),
