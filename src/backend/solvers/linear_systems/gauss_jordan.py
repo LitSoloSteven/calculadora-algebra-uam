@@ -1,3 +1,4 @@
+from fractions import Fraction
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.utils.formatters import format_fraction_str
@@ -16,7 +17,10 @@ class GaussJordanSolver(GaussSolver):
 
         self._log_step("Matriz inicial aumentada [A|b]:", self.matrix)
 
-        for col in range(min(m, n - 1)):
+        for col in range(n - 1):
+            if pivot_row >= m:
+                break
+
             max_row = pivot_row
             max_val = abs(self.matrix.get(pivot_row, col))
             for r in range(pivot_row + 1, m):
@@ -48,16 +52,14 @@ class GaussJordanSolver(GaussSolver):
 
             pivot_cols.append(col)
             pivot_row += 1
-            if pivot_row >= m:
-                break
 
         rank = pivot_row
 
         # Normalizar pivotes a 1 (Forma Escalonada Reducida)
         for r, c in enumerate(pivot_cols):
             pivot_val = self.matrix.get(r, c)
-            if abs(pivot_val) >= self.eps and abs(pivot_val - 1.0) > self.eps:
-                scale = 1.0 / pivot_val
+            if abs(pivot_val) >= self.eps and abs(pivot_val - 1) > self.eps:
+                scale = Fraction(1) / Fraction(pivot_val)
                 row = self._get_row(r)
                 normalized_row = [elem * scale for elem in row]
                 self._set_row(r, normalized_row)

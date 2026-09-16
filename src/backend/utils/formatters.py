@@ -11,7 +11,7 @@ def format_fraction_str(val: float | Fraction) -> str:
         if frac.denominator == 1:
             return str(frac.numerator)
         return f"{frac.numerator}/{frac.denominator}"
-    return f"{val:.4f}".rstrip('0').rstrip('.')
+    return f"{float(val):.4f}".rstrip('0').rstrip('.')
 
 def number_to_latex(val: float | Fraction, eps: float = 1e-6) -> str:
     """Convierte un número a su representación en LaTeX centralizada (fracción o decimal)."""
@@ -28,7 +28,7 @@ def number_to_latex(val: float | Fraction, eps: float = 1e-6) -> str:
         sign = "-" if num < 0 else ""
         return f"{sign}\\frac{{{abs(num)}}}{{{den}}}"
     
-    return f"{val:.4f}".rstrip('0').rstrip('.')
+    return f"{float(val):.4f}".rstrip('0').rstrip('.')
 
 def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
     """Convierte términos algebraicos a una cadena paramétrica limpia."""
