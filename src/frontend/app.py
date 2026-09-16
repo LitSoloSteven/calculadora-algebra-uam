@@ -1,5 +1,7 @@
 from nicegui import ui
 from src.frontend.views.linear_systems.view_linear_systems import LinearSystemsUI
+from src.ai.openrouter_ai import OpenRouterIA
+from src.frontend.views.numeric_systems.view_numeric_systems import NumericSystemsUI
 
 def setup_theme():
     ui.add_head_html('''
@@ -521,6 +523,59 @@ def matrix_ops_page():
     setup_theme()
     app_ui = MatrixOpsUI()
     app_ui.build()
+
+
+
+# ---> AQUÍ PEGÁS LO NUEVO <---
+@ui.page('/conversor')
+def conversor_page():
+    setup_theme()
+    app_ui = NumericSystemsUI()
+    app_ui.build()
+# ------------------------------
+
+@ui.page('/ia')
+def vista_ia():
+    setup_theme()
+    motor_ia = OpenRouterIA()
+    
+    with ui.column().classes('w-full max-w-3xl mx-auto items-center q-pa-md mt-10'):
+        ui.label('Tutor IA - OpenRouter').classes('text-3xl font-bold mb-6 text-main')
+        
+        # Contenedor del chat estilo WhatsApp
+        chat_area = ui.column().classes('w-full panel-card q-pa-md mb-6 gap-3').style('min-height: 400px; max-height: 500px; overflow-y: auto;')
+        
+        with chat_area:
+            ui.chat_message(
+                text="¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", 
+                name="Tutor IA", 
+                sent=False
+            )
+        
+        # Input y botón
+        with ui.row().classes('w-full items-center justify-center gap-4'):
+            pregunta_input = ui.input(placeholder='Pregúntale a la IA sobre matrices...').classes('flex-grow matrix-input text-lg')
+            
+            def enviar_pregunta():
+                texto = pregunta_input.value.strip()
+                if not texto: 
+                    return
+                
+                pregunta_input.value = ''
+                
+                with chat_area:
+                    ui.chat_message(text=texto, name="Tú", sent=True)
+                    mensaje_carga = ui.chat_message(text="Analizando...", name="Tutor IA", sent=False)
+                
+                respuesta = motor_ia.analizar_sistema(texto)
+                
+                mensaje_carga.set_visibility(False)
+                with chat_area:
+                    ui.chat_message(text=respuesta, name="Tutor IA", sent=False)
+
+            ui.button('Enviar', on_click=enviar_pregunta).classes('btn-primary q-px-xl q-py-sm')
+        
+        ui.button('Volver a la Calculadora', on_click=lambda: ui.navigate.to('/sistemas-lineales')).classes('btn-ghost mt-6')
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(title="Calculadora Álgebra Lineal UAM",
