@@ -7,7 +7,7 @@ class SystemParser:
     TERM_REGEX = re.compile(r'([+-]?)\s*([\d\.\/]*)\s*([a-zA-Z][a-zA-Z0-9_]*)')
 
     @classmethod
-    def parse_system(cls, raw_text: str, strict_variables: bool = True) -> tuple[bool, Matrix | None, list[str], str]:
+    def parse_system(cls, raw_text: str, strict_variables: bool = False) -> tuple[bool, Matrix | None, list[str], str]:
         """
         Procesa el texto ingresado y retorna:
         (éxito: bool, matriz_aumentada: Matrix, lista_variables: list[str], mensaje: str)
@@ -44,8 +44,13 @@ class SystemParser:
         if not all_variables:
             return False, None, [], "No se detectaron variables válidas en el sistema."
 
-        sorted_vars = sorted(list(all_variables))
+        def natural_sort_key(s):
+            # Divide el string en fragmentos de texto y números. 
+            # Convierte los fragmentos numéricos a enteros para un orden matemático real.
+            return [int(texto) if texto.isdigit() else texto.lower() for texto in re.split(r'(\d+)', s)]
 
+        sorted_vars = sorted(list(all_variables), key=natural_sort_key)
+        
         # Delegado a MatrixValidator
         if strict_variables:
             is_coherent, err_coherence = MatrixValidator.validate_variable_coherence(parsed_equations)
