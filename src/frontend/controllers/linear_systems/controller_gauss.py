@@ -3,6 +3,7 @@ from fractions import Fraction
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.utils.formatters import matrix_to_latex
+from src.backend.utils.validators import MatrixValidator
 
 class MatrixController:
     @staticmethod
@@ -17,22 +18,22 @@ class MatrixController:
                 return json.dumps({"status": "error", "message": "La matriz está vacía."})
             n = len(matrix_A_raw[0])
 
-            # Construir la matriz aumentada [A | b] soportando fracciones, enteros y decimales
+            # Construir la matriz aumentada [A | b] usando MatrixValidator
             augmented_data = []
             for i in range(m):
                 fila = []
                 for j in range(n):
                     val_str = matrix_A_raw[i][j].strip() if matrix_A_raw[i][j] else '0'
-                    try:
-                        fila.append(float(Fraction(val_str)))
-                    except Exception:
-                        fila.append(0.0)
+                    success, val, err = MatrixValidator.parse_number(val_str)
+                    if not success:
+                        return json.dumps({"status": "error", "message": f"Error en A[{i+1},{j+1}]: {err}"})
+                    fila.append(val)
                 
                 b_val_str = vector_b_raw[i].strip() if i < len(vector_b_raw) and vector_b_raw[i] else '0'
-                try:
-                    fila.append(float(Fraction(b_val_str)))
-                except Exception:
-                    fila.append(0.0)
+                success, b_val, err = MatrixValidator.parse_number(b_val_str)
+                if not success:
+                    return json.dumps({"status": "error", "message": f"Error en b[{i+1}]: {err}"})
+                fila.append(b_val)
                 
                 augmented_data.append(fila)
 
@@ -48,31 +49,31 @@ class MatrixController:
                     "matriz": matrix_to_latex(step["matrix"])
                 })
 
-            # Generar los pasos de comprobación si se obtuvo una solución única
+            # Generar los pasos de comprobación reutilizando MatrixValidator.verify_solution
             verification_steps_latex = []
             solution = result.get("solution")
             if solution and result.get("status") == "UNIQUE_SOLUTION":
-                for i in range(len(matrix_A_raw)):
-                    terms = []
-                    row_sum = 0.0
-                    for j in range(n):
-                        val_str = matrix_A_raw[i][j].strip() if matrix_A_raw[i][j] else '0'
-                        coeff = float(Fraction(val_str)) if val_str != '' else 0.0
-                        x_val = solution[j]
-                        row_sum += coeff * x_val
-                        terms.append(f"({coeff:.1f}) \\cdot ({x_val:.1f})")
-                    
-                    b_val_str = vector_b_raw[i].strip() if i < len(vector_b_raw) and vector_b_raw[i] else '0'
-                    b_val = float(Fraction(b_val_str)) if b_val_str != '' else 0.0
-                    
-                    expr_str = " + ".join(terms)
-                    is_correct = abs(row_sum - b_val) < 1e-4
-                    correct_label = "Correcto" if is_correct else "Incorrecto"
-                    verification_steps_latex.append(f"Ecuación_{{ {i+1} }} : {expr_str} = {row_sum:.1f} \\quad \\text{{({correct_label})}}")
+                A_vals = [[augmented_data[i][j] for j in range(n)] for i in range(m)]
+                b_vals = [augmented_data[i][n] for i in range(m)]
+                
+                x_vals = []
+                for s in solution:
+                    try:
+                        x_vals.append(float(Fraction(str(s))))
+                    except Exception:
+                        x_vals.append(0.0)
+
+                _, verification_steps_latex = MatrixValidator.verify_solution(
+                    A=A_vals,
+                    x=x_vals,
+                    b=b_vals,
+                    as_latex=True
+                )
 
             response_payload = {
                 "status": result.get("status"),
                 "classification": result.get("message"),
+                "message": result.get("message"),
                 "solution": solution,
                 "intermediate_steps_latex": intermediate_steps_latex,
                 "back_substitution_steps": result.get("back_substitution_steps", []),

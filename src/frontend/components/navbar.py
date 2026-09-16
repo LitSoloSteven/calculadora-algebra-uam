@@ -1,17 +1,25 @@
 from nicegui import ui
 
 def create_navbar():
-    # Trasladado a un header superior (desktop layout optimizado)
-    with ui.header().classes('panel-card px-6 py-3 flex justify-between items-center z-50 mt-4 mx-6').props('flat bordered'):
-        with ui.row().classes('items-center gap-4'):
-            ui.label('Álgebra UAM').classes('text-xl font-medium tracking-wide').style('color: var(--text-main); font-weight: 500;')
+    # Header flotante estilo píldora neumórfica
+    with ui.header().classes('px-6 py-4 flex justify-center w-full bg-transparent').props('reveal'):
+        with ui.row().classes('panel-card rounded-full px-8 py-2 flex items-center justify-between gap-8'):
             
-        with ui.row().classes('items-center gap-4'):
-            ui.button(icon='calculate', on_click=lambda: ui.navigate.to('/gauss')) \
-                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Eliminación de Gauss"').tooltip('Eliminación de Gauss')
-                
-            ui.button(icon='functions', on_click=lambda: ui.navigate.to('/gauss-jordan')) \
-                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Gauss-Jordan"').tooltip('Gauss-Jordan')
-                
-            ui.button(icon='palette', on_click=lambda: ui.run_javascript("toggleTheme()")) \
-                .classes('btn-ghost w-10 h-10 rounded-full p-0').props('ripple=false flat aria-label="Cambiar Tema"').tooltip('Cambiar Tema')
+            # Secciones principales
+            with ui.row().classes('items-center gap-4'):
+                ui.button(icon='calculate', on_click=lambda: ui.navigate.to('/sistemas-lineales')) \
+                    .classes('btn-neo-icon text-main').props('ripple=false flat aria-label="Sistemas Lineales"').tooltip('Sistemas Lineales')
+                    
+                ui.button(icon='grid_view', on_click=lambda: ui.navigate.to('/operaciones-matrices')) \
+                    .classes('btn-neo-icon text-main').props('ripple=false flat aria-label="Operaciones con Matrices"').tooltip('Operaciones con Matrices')
+                    
+            # Separador vertical sutil
+            ui.html('<div class="h-6 w-px opacity-20" style="background-color: var(--text-sec);"></div>')
+            
+            # Acciones
+            with ui.row().classes('items-center'):
+                with ui.button(icon='palette').classes('btn-neo-icon text-main').props('ripple=false flat').tooltip('Seleccionar Tema'):
+                    with ui.menu().classes('p-2'):
+                        ui.menu_item('Tema Claro', on_click=lambda: ui.run_javascript("setTheme('claro')")).classes('rounded-lg mb-1')
+                        ui.menu_item('Tema Aqua', on_click=lambda: ui.run_javascript("setTheme('aqua')")).classes('rounded-lg mb-1')
+                        ui.menu_item('Tema Oscuro', on_click=lambda: ui.run_javascript("setTheme('oscuro')")).classes('rounded-lg')

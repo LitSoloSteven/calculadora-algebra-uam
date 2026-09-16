@@ -4,6 +4,7 @@ from src.backend.utils.validators import (
     validate_multiplication_dimensions
 )
 from src.backend.utils.formatters import format_fraction_str
+from src.backend.utils.formatters import format_fraction_str, number_to_latex
 
 class MatrixOpsSolver:
     """
@@ -26,7 +27,6 @@ class MatrixOpsSolver:
         """Suma elemento a elemento: C_{i,j} = A_{i,j} + B_{i,j}"""
         self.steps = []
 
-        # 1. Validación de dimensiones
         try:
             validate_same_dimensions(matrix_a, matrix_b)
         except ValueError as e:
@@ -50,15 +50,19 @@ class MatrixOpsSolver:
                 sum_val = val_a + val_b
                 result.set(r, c, sum_val)
 
-                a_str = format_fraction_str(val_a)
-                b_str = format_fraction_str(val_b)
-                res_str = format_fraction_str(sum_val)
+                a_plain = format_fraction_str(val_a)
+                b_plain = format_fraction_str(val_b)
+                res_plain = format_fraction_str(sum_val)
 
-                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} + B_{{{r+1},{c+1}}} = ({a_str}) + ({b_str}) = {res_str}"
+                a_tex = number_to_latex(val_a)
+                b_tex = number_to_latex(val_b)
+                res_tex = number_to_latex(sum_val)
+
+                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} + B_{{{r+1},{c+1}}} = ({a_tex}) + ({b_tex}) = {res_tex}"
                 latex_details.append(detail_latex)
 
                 self._log_step(
-                    f"Celda ({r+1}, {c+1}): {a_str} + {b_str} = {res_str}",
+                    f"Celda ({r+1}, {c+1}): {a_plain} + {b_plain} = {res_plain}",
                     current_matrix=result,
                     detail_latex=detail_latex
                 )
@@ -75,7 +79,6 @@ class MatrixOpsSolver:
         """Resta elemento a elemento: C_{i,j} = A_{i,j} - B_{i,j}"""
         self.steps = []
 
-        # 1. Validación de dimensiones
         try:
             validate_same_dimensions(matrix_a, matrix_b)
         except ValueError as e:
@@ -99,15 +102,19 @@ class MatrixOpsSolver:
                 diff_val = val_a - val_b
                 result.set(r, c, diff_val)
 
-                a_str = format_fraction_str(val_a)
-                b_str = format_fraction_str(val_b)
-                res_str = format_fraction_str(diff_val)
+                a_plain = format_fraction_str(val_a)
+                b_plain = format_fraction_str(val_b)
+                res_plain = format_fraction_str(diff_val)
 
-                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} - B_{{{r+1},{c+1}}} = ({a_str}) - ({b_str}) = {res_str}"
+                a_tex = number_to_latex(val_a)
+                b_tex = number_to_latex(val_b)
+                res_tex = number_to_latex(diff_val)
+
+                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} - B_{{{r+1},{c+1}}} = ({a_tex}) - ({b_tex}) = {res_tex}"
                 latex_details.append(detail_latex)
 
                 self._log_step(
-                    f"Celda ({r+1}, {c+1}): {a_str} - {b_str} = {res_str}",
+                    f"Celda ({r+1}, {c+1}): {a_plain} - {b_plain} = {res_plain}",
                     current_matrix=result,
                     detail_latex=detail_latex
                 )
@@ -124,7 +131,6 @@ class MatrixOpsSolver:
         """Multiplicación matricial: C_{i,j} = sum_k (A_{i,k} * B_{k,j})"""
         self.steps = []
 
-        # 1. Validación de dimensiones (A: m x n, B: n x q)
         try:
             validate_multiplication_dimensions(matrix_a, matrix_b)
         except ValueError as e:
@@ -157,16 +163,20 @@ class MatrixOpsSolver:
                     prod = val_a * val_b
                     cell_sum += prod
 
-                    a_str = format_fraction_str(val_a)
-                    b_str = format_fraction_str(val_b)
-                    terms_plain.append(f"({a_str})·({b_str})")
-                    terms_latex.append(f"({a_str})({b_str})")
+                    a_plain = format_fraction_str(val_a)
+                    b_plain = format_fraction_str(val_b)
+                    terms_plain.append(f"({a_plain})·({b_plain})")
+
+                    a_tex = number_to_latex(val_a)
+                    b_tex = number_to_latex(val_b)
+                    terms_latex.append(f"({a_tex})({b_tex})")
 
                 result.set(r, c, cell_sum)
-                res_str = format_fraction_str(cell_sum)
+                res_plain = format_fraction_str(cell_sum)
+                res_tex = number_to_latex(cell_sum)
 
-                expr_plain = " + ".join(terms_plain) + f" = {res_str}"
-                expr_latex = f"C_{{{r+1},{c+1}}} = " + " + ".join(terms_latex) + f" = {res_str}"
+                expr_plain = " + ".join(terms_plain) + f" = {res_plain}"
+                expr_latex = f"C_{{{r+1},{c+1}}} = " + " + ".join(terms_latex) + f" = {res_tex}"
                 latex_details.append(expr_latex)
 
                 self._log_step(

@@ -8,13 +8,18 @@ class EquationGrid:
         self.n = default_n
         self.contenedor_matriz = None
         self.shape_label = None
+        self._cache_A = {}  # Guardar (row, col) -> value
+        self._cache_b = {}  # Guardar row -> value
+        self.on_data_change = None
 
     def inject_scripts(self):
         ui.add_head_html('''
             <script>
-            // Navegación con teclado
-            document.addEventListener('keydown', function(e) {
-                let active = document.activeElement;
+            if (!window.__matrix_listeners_active) {
+                window.__matrix_listeners_active = true;
+                // Navegación con teclado
+                document.addEventListener('keydown', function(e) {
+                    let active = document.activeElement;
                 if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
                 let r = parseInt(active.dataset.row), c = parseInt(active.dataset.col);
                 if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -47,6 +52,7 @@ class EquationGrid:
                     });
                 });
             });
+            }
             </script>
         ''')
 
@@ -64,20 +70,24 @@ class EquationGrid:
             self.contenedor_matriz = ui.column().classes('overflow-auto panel-card p-4 flex-1').style('max-height: 60vh;')
             
             # Controles inline de filas (Se añade color=None)
-            with ui.column().classes('gap-2 mt-12'):
-                ui.button(icon='add', on_click=lambda: self.adjust_size(delta_m=1), color=None).classes('btn-ghost w-8 h-8 p-0').props('ripple=false').tooltip('Añadir Ecuación')
-                ui.button(icon='remove', on_click=lambda: self.adjust_size(delta_m=-1), color=None).classes('btn-ghost w-8 h-8 p-0').props('ripple=false').tooltip('Eliminar Ecuación')
+            with ui.column().classes('gap-2 mt-12 items-center justify-center mr-2'):
+                ui.button(icon='add', on_click=lambda: self.adjust_size(delta_m=1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Añadir Ecuación')
+                ui.button(icon='remove', on_click=lambda: self.adjust_size(delta_m=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Quitar Ecuación')
 
         # Controles inline de columnas (Se añade color=None)
-        with ui.row().classes('w-full justify-center gap-2 mt-2'):
-            ui.button(icon='add', on_click=lambda: self.adjust_size(delta_n=1), color=None).classes('btn-ghost w-8 h-8 p-0').props('ripple=false').tooltip('Añadir Variable')
-            ui.button(icon='remove', on_click=lambda: self.adjust_size(delta_n=-1), color=None).classes('btn-ghost w-8 h-8 p-0').props('ripple=false').tooltip('Eliminar Variable')
+        with ui.row().classes('w-full justify-center gap-2 mt-4'):
+            ui.button(icon='add', on_click=lambda: self.adjust_size(delta_n=1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Añadir Variable')
+            ui.button(icon='remove', on_click=lambda: self.adjust_size(delta_n=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Quitar Variable')
             
         self.generar_cuadricula()
 
     def generar_cuadricula(self):
-        backup_A = [[c.value for c in fila] for fila in self.entradas_A] if self.entradas_A else []
-        backup_b = [c.value for c in self.entradas_b] if self.entradas_b else []
+        # Actualizar caché antes de destruir
+        for i, fila in enumerate(self.entradas_A):
+            for j, celda in enumerate(fila):
+                if celda.value: self._cache_A[(i, j)] = celda.value
+        for i, celda in enumerate(self.entradas_b):
+            if celda.value: self._cache_b[i] = celda.value
 
         self.contenedor_matriz.clear()
         self.entradas_A.clear()
@@ -101,15 +111,25 @@ class EquationGrid:
                     with ui.row().classes('items-center gap-2 mb-2 no-wrap'):
                         fila_A = []
                         for j in range(self.n):
-                            val = backup_A[i][j] if i < len(backup_A) and j < len(backup_A[i]) else ''
-                            celda = ui.input(value=val, placeholder='0').classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless')
+                            val = self._cache_A.get((i, j), '')
+                            
+                            def update_cache_A(e, r=i, c=j):
+                                self._cache_A[(r, c)] = e.value
+                                if self.on_data_change: self.on_data_change()
+                                
+                            celda = ui.input(value=val, placeholder='0', on_change=update_cache_A).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
                             fila_A.append(celda)
                             
                         self.entradas_A.append(fila_A)
                         ui.label('=').classes('w-8 text-center math-label text-xl')
                         
-                        val_b = backup_b[i] if i < len(backup_b) else ''
-                        celda_b = ui.input(value=val_b, placeholder='0').classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless')
+                        val_b = self._cache_b.get(i, '')
+                        
+                        def update_cache_b(e, r=i):
+                            self._cache_b[r] = e.value
+                            if self.on_data_change: self.on_data_change()
+                            
+                        celda_b = ui.input(value=val_b, placeholder='0', on_change=update_cache_b).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
                         self.entradas_b.append(celda_b)
 
     def get_matrix_data(self):
@@ -117,7 +137,74 @@ class EquationGrid:
         vector_b_vals = [(celda.value.strip() if celda.value else '0') for celda in self.entradas_b]
         return matrix_A_vals, vector_b_vals
 
+    def is_strictly_empty(self):
+        for fila in self.entradas_A:
+            for celda in fila:
+                if celda.value and str(celda.value).strip() != '': return False
+        for celda in self.entradas_b:
+            if celda.value and str(celda.value).strip() != '': return False
+        return True
+
     def clear(self):
+        self._cache_A.clear()
+        self._cache_b.clear()
         for fila in self.entradas_A:
             for celda in fila: celda.value = ''
         for celda in self.entradas_b: celda.value = ''
+
+    def export_to_equations(self):
+        """Genera una lista de strings de ecuaciones desde la matriz actual."""
+        ecuaciones = []
+        matrix_A, vector_b = self.get_matrix_data()
+        
+        for i, row in enumerate(matrix_A):
+            terms = []
+            for j, val in enumerate(row):
+                if val and val != '0':
+                    sign = "-" if val.startswith("-") else "+"
+                    val_abs = val.lstrip("+-").strip()
+                    
+                    if val_abs == "1" or val_abs == "":
+                        term = f"x{j+1}"
+                    else:
+                        term = f"{val_abs}x{j+1}"
+                        
+                    if not terms and sign == "+":
+                        terms.append(term)
+                    elif not terms and sign == "-":
+                        terms.append(f"-{term}")
+                    else:
+                        terms.append(f"{sign} {term}")
+                        
+            if not terms:
+                if vector_b[i] and vector_b[i] != '0':
+                    ecuaciones.append(f"0 = {vector_b[i]}")
+            else:
+                eq_str = " ".join(terms) + f" = {vector_b[i]}"
+                ecuaciones.append(eq_str)
+                
+        return ecuaciones
+
+    def import_from_parsed(self, parsed_matrix, variables):
+        """Reconstruye la cuadrícula desde una matriz parseada."""
+        m = parsed_matrix.rows
+        n = parsed_matrix.cols - 1
+        
+        self.m = m
+        self.n = n
+        
+        # Llenar el caché primero para que generar_cuadricula lo use
+        self._cache_A.clear()
+        self._cache_b.clear()
+        
+        for i in range(self.m):
+            for j in range(self.n):
+                val = parsed_matrix.data[i][j]
+                str_val = f"{int(val)}" if isinstance(val, float) and val.is_integer() else f"{val}"
+                if str_val != "0": self._cache_A[(i, j)] = str_val
+                
+            b_val = parsed_matrix.data[i][-1]
+            str_b_val = f"{int(b_val)}" if isinstance(b_val, float) and b_val.is_integer() else f"{b_val}"
+            if str_b_val != "0": self._cache_b[i] = str_b_val
+            
+        self.generar_cuadricula()

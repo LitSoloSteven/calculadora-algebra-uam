@@ -13,12 +13,10 @@ class MatrixValidator:
             if not val_clean:
                 return False, 0.0, "El campo está vacío."
             try:
-                # Fraction maneja '1/3', '-5/2', '0.5', '4', etc.
                 parsed_val = float(Fraction(val_clean))
                 return True, parsed_val, ""
-            except ValueError:
-                return False, 0.0, f"'{val}' no es una fracción o número válido."
-                
+            except (ValueError, ZeroDivisionError):
+                return False, 0.0, f"El valor ingresado no es una fracción o número válido (división por cero)."
         return False, 0.0, "Tipo de dato no soportado."
 
     @staticmethod
@@ -58,10 +56,6 @@ class MatrixValidator:
             parsed_matrix.append(parsed_row)
 
         return True, parsed_matrix, "Matriz parseada correctamente."
-
-    @staticmethod
-    def is_augmented_system(matrix: Matrix) -> bool:
-        return matrix.cols == matrix.rows + 1
 
     @staticmethod
     def validate_variable_coherence(parsed_equations: list[tuple[dict[str, float], float]]) -> tuple[bool, str]:
