@@ -1,3 +1,4 @@
+from fractions import Fraction
 from src.backend.models.matrix import Matrix
 from src.backend.utils.validators import (
     validate_same_dimensions,
@@ -153,7 +154,7 @@ class MatrixOpsSolver:
         latex_details = []
         for r in range(m):
             for c in range(q):
-                cell_sum = 0.0
+                cell_sum = Fraction(0)
                 terms_plain = []
                 terms_latex = []
 

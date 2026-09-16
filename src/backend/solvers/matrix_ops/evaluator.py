@@ -27,13 +27,22 @@ class MatrixExpressionEvaluator:
         # Captura: 1) Números, 2) Variables alfanuméricas, 3) ᵀ, 4) Operadores
         token_pattern = re.compile(r'\d+\.\d+|\d+|[A-Za-z][A-Za-z0-9_]*|ᵀ|[\+\-\*\(\)]')
         raw_tokens = token_pattern.findall(expr)
-        
+
+        # Si algún carácter no fue reconocido (ej. '/'), no descartarlo en silencio:
+        # la reconstrucción de los tokens debe cubrir el texto completo de entrada.
+        if "".join(raw_tokens) != expr:
+            raise ValueError("La expresión contiene caracteres no soportados (p. ej. '/').")
+
         tokens = []
         for i, token in enumerate(raw_tokens):
-            # Hack para el menos unario: convierte '-A' en '0 - A'
-            if token == '-' and (i == 0 or raw_tokens[i-1] == '('):
-                tokens.append('0')
-                
+            # Menos unario: '-' al inicio, tras '(' o tras otro operador (+, -, *)
+            # se representa con un operador de negación propio ('¬') en vez del
+            # truco '0 - X', que da resultados incorrectos combinado con '*' o 'ᵀ'
+            # (ej. "A*-B" se evaluaría como (A*0)-B en vez de A*(-B)).
+            if token == '-' and (i == 0 or raw_tokens[i - 1] in ('(', '+', '-', '*')):
+                tokens.append('¬')
+                continue
+
             tokens.append(token)
             
             # Inserción de multiplicación implícita (ej. 2A -> 2 * A, A(B) -> A * (B))
@@ -49,7 +58,10 @@ class MatrixExpressionEvaluator:
 
     def _to_rpn(self, tokens: List[str]) -> List[str]:
         """Algoritmo Shunting-Yard para Notación Polaca Inversa."""
-        precedence = {'+': 1, '-': 1, '*': 2, 'ᵀ': 3}
+        # '¬' (negación unaria) tiene la precedencia más alta y es asociativa por
+        # la derecha, para que "--A" y "A*-B" se agrupen correctamente.
+        precedence = {'+': 1, '-': 1, '*': 2, 'ᵀ': 3, '¬': 4}
+        right_associative = {'¬'}
         output = []
         stack = []
 
@@ -65,8 +77,9 @@ class MatrixExpressionEvaluator:
                     raise ValueError("Error de sintaxis: Paréntesis desbalanceados.")
                 stack.pop()
             elif token in precedence:
-                while (stack and stack[-1] != '(' and 
-                       precedence.get(stack[-1], 0) >= precedence[token]):
+                while (stack and stack[-1] != '(' and
+                       (precedence.get(stack[-1], 0) > precedence[token] or
+                        (precedence.get(stack[-1], 0) == precedence[token] and token not in right_associative))):
                     output.append(stack.pop())
                 stack.append(token)
 
@@ -133,7 +146,33 @@ class MatrixExpressionEvaluator:
                     "cell_by_cell_steps": [] 
                 })
                 stack.append((temp_name, res_mat))
-                
+
+            elif token == '¬':
+                if not stack:
+                    return {"status": "ERROR", "message": "Operación de negación sin operando.", "result_matrix": None, "segment_steps": []}
+                name, val = stack.pop()
+
+                if isinstance(val, float):
+                    stack.append((f"-{name}", -val))
+                    continue
+
+                temp_name = f"T_{temp_counter}"
+                temp_counter += 1
+                res_mat = self._scalar_multiply(-1.0, val)
+
+                self.global_steps.append({
+                    "temp_variable": temp_name,
+                    "operation_display": f"{temp_name} = -{name}",
+                    "operation_type": "Negación",
+                    "operand_a_name": name,
+                    "operand_b_name": None,
+                    "symbolic_matrix_latex": f"-{name}",
+                    "result_matrix_latex": matrix_to_latex(res_mat),
+                    "result_matrix": res_mat,
+                    "cell_by_cell_steps": []
+                })
+                stack.append((temp_name, res_mat))
+
             elif token in ('+', '-', '*'):
                 if len(stack) < 2:
                     return {"status": "ERROR", "message": "Expresión matemática mal formada.", "result_matrix": None, "segment_steps": []}

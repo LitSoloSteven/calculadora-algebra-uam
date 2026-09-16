@@ -15,8 +15,10 @@ class MatrixValidator:
             try:
                 parsed_val = float(Fraction(val_clean))
                 return True, parsed_val, ""
-            except (ValueError, ZeroDivisionError):
-                return False, 0.0, f"El valor ingresado no es una fracción o número válido (división por cero)."
+            except ZeroDivisionError:
+                return False, 0.0, "División por cero en la fracción ingresada."
+            except ValueError:
+                return False, 0.0, "El valor ingresado no es un número o fracción válida."
         return False, 0.0, "Tipo de dato no soportado."
 
     @staticmethod

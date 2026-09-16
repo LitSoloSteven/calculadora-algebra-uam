@@ -1,7 +1,6 @@
 from fractions import Fraction
 from typing import Dict
 from src.backend.models.matrix import Matrix
-from src.backend.utils.math_utils import mcm, simplificar_fila
 from src.backend.utils.formatters import format_fraction_str, format_parametric_expr
 
 class GaussSolver:
@@ -16,12 +15,14 @@ class GaussSolver:
             "matrix": current_matrix.clone()
         })
 
-    def _get_row(self, row_idx: int) -> list[float]:
+    def _get_row(self, row_idx: int) -> list:
         return [self.matrix.get(row_idx, c) for c in range(self.matrix.cols)]
 
-    def _set_row(self, row_idx: int, row_values: list[float]):
+    def _set_row(self, row_idx: int, row_values: list) -> None:
+        # No forzar a float: Matrix._normalize_val conserva Fraction/int tal cual,
+        # así se preserva la precisión exacta ganada en _eliminate_row_with_lcm.
         for c, val in enumerate(row_values):
-            self.matrix.set(row_idx, c, float(val))
+            self.matrix.set(row_idx, c, val)
 
     def _check_system_status(self, rank: int) -> tuple[str, str]:
         m = self.matrix.rows
@@ -39,36 +40,21 @@ class GaussSolver:
 
         return "UNIQUE_SOLUTION", "Sistema Consistente Determinado: Presenta Solución Única."
 
-    def _eliminate_row_with_lcm(self, pivot_row: list[float], target_row: list[float], col_idx: int, target_idx: int, pivot_idx: int) -> tuple[list[float], str]:
-        val_pivot = int(round(pivot_row[col_idx]))
-        val_target = int(round(target_row[col_idx]))
+    def _eliminate_row_with_lcm(self, pivot_row: list, target_row: list, col_idx: int, target_idx: int, pivot_idx: int) -> tuple[list, str]:
+        # Aritmética exacta con Fraction: nunca se redondea el coeficiente pivote
+        # ni el objetivo antes de operar, así se preservan fracciones y decimales.
+        pivot_val = Fraction(pivot_row[col_idx])
+        target_val = Fraction(target_row[col_idx])
 
-        if val_target == 0:
+        if target_val == 0:
             return target_row, ""
 
-        lcm_val = mcm(val_pivot, val_target)
-        m_pivot = lcm_val // abs(val_pivot)
-        m_target = lcm_val // abs(val_target)
+        factor = target_val / pivot_val
+        new_row = [Fraction(tv) - factor * Fraction(pv) for tv, pv in zip(target_row, pivot_row)]
 
-        sign = "-"
-        if (val_pivot > 0 and val_target < 0) or (val_pivot < 0 and val_target > 0):
-            sign = "+"
-            m_pivot_calc = m_pivot
-        else:
-            m_pivot_calc = -m_pivot
+        op_desc = f"Fila {target_idx + 1} = Fila {target_idx + 1} − ({format_fraction_str(factor)}) · Fila {pivot_idx + 1}"
 
-        new_row = [
-            (m_target * elem_target) + (m_pivot_calc * elem_pivot)
-            for elem_target, elem_pivot in zip(target_row, pivot_row)
-        ]
-
-        simplified_int = simplificar_fila([int(round(x)) for x in new_row])
-
-        t_str = f"{m_target} · " if m_target != 1 else ""
-        p_str = f"{m_pivot} · " if m_pivot != 1 else ""
-        op_desc = f"Fila {target_idx + 1} = {t_str}Fila {target_idx + 1} {sign} {p_str}Fila {pivot_idx + 1}"
-
-        return [float(x) for x in simplified_int], op_desc
+        return new_row, op_desc
 
     def _eliminate_forward(self):
         m = self.matrix.rows
@@ -78,7 +64,10 @@ class GaussSolver:
 
         self._log_step("Matriz inicial aumentada [A|b]:", self.matrix)
 
-        for col in range(min(m, n - 1)):
+        for col in range(n - 1):
+            if pivot_row >= m:
+                break
+
             max_row = pivot_row
             max_val = abs(self.matrix.get(pivot_row, col))
             for r in range(pivot_row + 1, m):
@@ -109,16 +98,14 @@ class GaussSolver:
 
             pivot_cols.append(col)
             pivot_row += 1
-            if pivot_row >= m:
-                break
 
         rank = pivot_row
 
         # Normalizar pivotes a 1 al finalizar el escalonamiento
         for r, c in enumerate(pivot_cols):
             pivot_val = self.matrix.get(r, c)
-            if abs(pivot_val) >= self.eps and abs(pivot_val - 1.0) > self.eps:
-                scale = 1.0 / pivot_val
+            if abs(pivot_val) >= self.eps and abs(pivot_val - 1) > self.eps:
+                scale = Fraction(1) / Fraction(pivot_val)
                 row = self._get_row(r)
                 normalized_row = [elem * scale for elem in row]
                 self._set_row(r, normalized_row)
