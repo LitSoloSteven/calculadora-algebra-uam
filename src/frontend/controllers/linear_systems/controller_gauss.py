@@ -12,6 +12,7 @@ class MatrixController:
             data = json.loads(json_payload)
             matrix_A_raw = data.get("matrix_A", [])
             vector_b_raw = data.get("vector_b", [])
+            variables = data.get("variables")
 
             m = len(matrix_A_raw)
             if m == 0:
@@ -38,7 +39,7 @@ class MatrixController:
                 augmented_data.append(fila)
 
             augmented_matrix = Matrix(rows=m, cols=n + 1, data=augmented_data)
-            solver = GaussSolver(augmented_matrix)
+            solver = GaussSolver(augmented_matrix, variable_names=variables)
             result = solver.solve()
 
             # Mapear los pasos intermedios de las matrices a formato LaTeX para la UI

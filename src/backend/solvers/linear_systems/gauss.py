@@ -1,12 +1,13 @@
 from fractions import Fraction
 from typing import Dict
 from src.backend.models.matrix import Matrix
-from src.backend.utils.formatters import format_fraction_str, format_parametric_expr
+from src.backend.utils.formatters import format_fraction_str, format_parametric_expr, format_variable_for_latex
 
 class GaussSolver:
-    def __init__(self, augmented_matrix: Matrix, eps: float = 1e-9):
+    def __init__(self, augmented_matrix: Matrix, eps: float = 1e-9, variable_names: list[str] | None = None):
         self.matrix = augmented_matrix.clone()
         self.eps = eps
+        self.variable_names = variable_names
         self.steps = []
 
     def _log_step(self, description: str, current_matrix: Matrix):
@@ -131,7 +132,14 @@ class GaussSolver:
         back_sub_steps = []
 
         if free_cols:
-            free_desc = ", ".join([f"x_{{{c + 1}}} = {free_var_map[c]}" for c in free_cols])
+            free_desc_parts = []
+            for c in free_cols:
+                if self.variable_names and c < len(self.variable_names):
+                    var_label = format_variable_for_latex(self.variable_names[c])
+                else:
+                    var_label = f"x_{{{c + 1}}}"
+                free_desc_parts.append(f"{var_label} = {free_var_map[c]}")
+            free_desc = ", ".join(free_desc_parts)
             back_sub_steps.append(f"Variables libres identificadas: {free_desc}")
             for c in free_cols:
                 expr_terms[c] = {free_var_map[c]: Fraction(1)}
@@ -158,7 +166,11 @@ class GaussSolver:
             expr_terms[p_col] = t_val
 
             res_str = format_parametric_expr(c_val, t_val)
-            back_sub_steps.append(f"x_{{{p_col + 1}}} = {res_str}")
+            if self.variable_names and p_col < len(self.variable_names):
+                var_label = format_variable_for_latex(self.variable_names[p_col])
+            else:
+                var_label = f"x_{{{p_col + 1}}}"
+            back_sub_steps.append(f"{var_label} = {res_str}")
 
         solution = [format_parametric_expr(expr_const[i], expr_terms[i]) for i in range(num_vars)]
         return solution, back_sub_steps
