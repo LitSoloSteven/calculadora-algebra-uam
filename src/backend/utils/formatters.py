@@ -1,6 +1,18 @@
 from fractions import Fraction
 from typing import Dict
 from src.backend.models.matrix import Matrix
+import re
+
+def format_variable_for_latex(var_name: str) -> str:
+    """Convierte un nombre de variable a una etiqueta LaTeX legible.
+    'x3' -> 'x_{3}', 'y' -> 'y', 'alpha' -> '\\text{alpha}'."""
+    m = re.match(r'^([a-zA-Z]+)(\d+)$', var_name)
+    if m:
+        letters, digits = m.groups()
+        return f"{letters}_{{{digits}}}"
+    if len(var_name) > 1:
+        return f"\\text{{{var_name}}}"
+    return var_name
 
 def format_fraction_str(val: float | Fraction) -> str:
     """Formatea números como enteros o fracciones simplificadas en texto plano."""

@@ -157,8 +157,13 @@ class LinearSystemsUI:
         self.contenedor_resultados.clear()
 
         # Extraer datos según la pestaña activa
+        variables = None
         if self.mode_tabs.value == 'Matriz':
             matrix_A_vals, vector_b_vals = self.grid.get_matrix_data()
+            if matrix_A_vals and len(matrix_A_vals) > 0:
+                variables = [f"x{j+1}" for j in range(len(matrix_A_vals[0]))]
+            else:
+                variables = []
         else:
             lineas = [inp.value or "" for inp in self.ecuaciones_inputs]
             raw_text = "\n".join(lineas)
@@ -176,7 +181,7 @@ class LinearSystemsUI:
             matrix_A_vals = [[str(val) for val in row[:-1]] for row in parsed_matrix.data]
             vector_b_vals = [str(row[-1]) for row in parsed_matrix.data]
 
-        payload_dict = {"matrix_A": matrix_A_vals, "vector_b": vector_b_vals}
+        payload_dict = {"matrix_A": matrix_A_vals, "vector_b": vector_b_vals, "variables": variables}
         
         # Llamar al controller basado en el método seleccionado
         if self.method_tabs.value == 'gauss':
@@ -219,10 +224,21 @@ class LinearSystemsUI:
                     # Bloques individuales por variable
                     if respuesta.get("solution"):
                         for idx, val in enumerate(respuesta["solution"]):
-                            if is_unique:
-                                ui.html(f'<i>x</i><sub>{idx+1}</sub> = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main')
+                            var_name = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
+                            
+                            import re
+                            m = re.match(r'^([a-zA-Z]+)(\d+)$', var_name)
+                            if m:
+                                html_var = f"<i>{m.group(1)}</i><sub>{m.group(2)}</sub>"
+                                latex_var = f"{m.group(1)}_{{{m.group(2)}}}"
                             else:
-                                ui.html(f'<div class="px-4 py-2 panel-card math-label text-main">$$ x_{{{idx+1}}} = {val} $$</div>')
+                                html_var = f"<i>{var_name}</i>"
+                                latex_var = f"\\text{{{var_name}}}" if len(var_name) > 1 else var_name
+                                
+                            if is_unique:
+                                ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main')
+                            else:
+                                ui.html(f'<div class="px-4 py-2 panel-card math-label text-main">$$ {latex_var} = {val} $$</div>')
                             
                 if respuesta.get("intermediate_steps_latex"):
                     ui.label('Procedimiento paso a paso').classes('font-bold mt-6 text-xl text-main')

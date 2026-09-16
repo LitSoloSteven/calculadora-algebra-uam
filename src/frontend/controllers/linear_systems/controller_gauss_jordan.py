@@ -10,6 +10,7 @@ class GaussJordanController:
     def process_system(json_payload: str) -> str:
         try:
             data = json.loads(json_payload)
+            variables = data.get("variables")
             
             try:
                 A_fractions = [[Fraction(cell) for cell in row] for row in data["matrix_A"]]
@@ -23,7 +24,7 @@ class GaussJordanController:
                 
             matriz_aumentada = Matrix(len(A_fractions), len(A_fractions[0]) + 1, augmented_data)
             
-            solver = GaussJordanSolver(matriz_aumentada)
+            solver = GaussJordanSolver(matriz_aumentada, variable_names=variables)
             resultado = solver.solve()
 
             clasificacion = resultado.get("message", "")
