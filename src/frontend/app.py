@@ -524,8 +524,5 @@ def matrix_ops_page():
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(title="Calculadora Álgebra Lineal UAM",
-           favicon="src/frontend/assets/LogoOscuro.png",
-           dark=True,
-           reload=True,
-           port=8080)
+           favicon="src/frontend/assets/LogoOscuro.png")
     
