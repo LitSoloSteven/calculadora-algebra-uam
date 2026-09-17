@@ -7,20 +7,26 @@ def create_navbar():
             
             # Secciones principales
             with ui.row().classes('items-center gap-4'):
+                # 1. Sistemas Lineales
                 ui.button(icon='calculate', on_click=lambda: ui.navigate.to('/sistemas-lineales')) \
                     .classes('btn-neo-icon text-main').props('ripple=false flat aria-label="Sistemas Lineales"').tooltip('Sistemas Lineales')
                     
+                # 2. Operaciones con Matrices
                 ui.button(icon='grid_view', on_click=lambda: ui.navigate.to('/operaciones-matrices')) \
                     .classes('btn-neo-icon text-main').props('ripple=false flat aria-label="Operaciones con Matrices"').tooltip('Operaciones con Matrices')
+
+                # 3. Conversor de Bases Numéricas
+                ui.button(icon='sync_alt', on_click=lambda: ui.navigate.to('/conversor')) \
+                    .classes('btn-neo-icon text-main').props('ripple=false flat aria-label="Conversor"').tooltip('Conversor de Bases')
                 
-                # ---> AQUÍ ESTÁ EL BOTÓN DE TU TUTOR IA <---
+                # 4. Tutor IA
                 ui.button(icon='smart_toy', on_click=lambda: ui.navigate.to('/ia')) \
                     .classes('btn-neo-icon text-main').props('ripple=false flat aria-label="Tutor IA"').tooltip('Tutor IA')
-                    
+                
             # Separador vertical sutil
             ui.html('<div class="h-6 w-px opacity-20" style="background-color: var(--text-sec);"></div>')
             
-            # Acciones
+            # Acciones (Selector de temas)
             with ui.row().classes('items-center'):
                 with ui.button(icon='palette').classes('btn-neo-icon text-main').props('ripple=false flat').tooltip('Seleccionar Tema'):
                     with ui.menu().classes('p-2'):
