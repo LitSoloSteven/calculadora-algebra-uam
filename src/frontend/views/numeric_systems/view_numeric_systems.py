@@ -118,14 +118,14 @@ class NumericSystemsUI:
         if self.base_activa == self.base_destino:
             self.tabs_destino.set_value('todas')
         self._actualizar_ejemplos()
-        self._on_input_change(None)
+        asyncio.create_task(self._on_input_change(None))
         
     def _cambiar_base_destino(self, e):
         if not e.value: return
         self.base_destino = e.value
         if self.base_destino == self.base_activa:
             self.tabs_destino.set_value('todas')
-        self._on_input_change(None)
+        asyncio.create_task(self._on_input_change(None))
 
     def _swap_origen_destino(self, e):
         ui.run_javascript('''
@@ -158,7 +158,7 @@ class NumericSystemsUI:
 
     def _set_input(self, val):
         self.input_valor.set_value(val)
-        self._on_input_change(None)
+        asyncio.create_task(self._on_input_change(None))
 
     def _limpiar(self):
         self._set_input('')
@@ -368,8 +368,4 @@ class NumericSystemsUI:
                         ui.html(tabla).classes('w-full')
                         
             # Refrescar MathJax
-            ui.run_javascript('''
-                if (window.MathJax) {
-                    window.MathJax.typesetPromise().catch((err) => console.log(err.message));
-                }
-            ''')
+            ui.run_javascript("typesetMathWhenReady();")

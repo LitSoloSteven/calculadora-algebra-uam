@@ -76,7 +76,7 @@ class MatrixOpsUI:
                         ui.html(f'<div class="math-scroll-container math-label text-2xl font-bold">$$ {respuesta["final_variable"]} = {respuesta["result_matrix_latex"]} $$</div>')
 
         btn.props('loading=false')
-        ui.run_javascript('setTimeout(() => { if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); } }, MOTION.fast);')
+        ui.run_javascript('typesetMathWhenReady();')
         ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-ops'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 

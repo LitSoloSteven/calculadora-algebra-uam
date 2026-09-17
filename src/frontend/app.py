@@ -1,4 +1,5 @@
 from nicegui import ui, app
+from fastapi.responses import RedirectResponse
 # Servir assets para el splash screen
 app.add_static_files('/assets', 'src/frontend/assets')
 # Paleta centralizada para gráficas Plotly (no soporta CSS custom properties)
@@ -720,6 +721,29 @@ def setup_theme():
                 }
             });
 
+            // Función global robusta para MathJax con fallback de carga asíncrona
+            window.typesetMathWhenReady = function(elementIds, maxWaitMs) {
+                maxWaitMs = maxWaitMs || 5000;
+                var start = Date.now();
+                function attempt() {
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        if (elementIds && elementIds.length) {
+                            var els = elementIds.map(id => document.getElementById(id)).filter(Boolean);
+                            if (els.length > 0) {
+                                window.MathJax.typesetClear(els);
+                                window.MathJax.typesetPromise(els).catch(err => console.log(err));
+                            }
+                        } else {
+                            window.MathJax.typesetClear();
+                            window.MathJax.typesetPromise().catch(err => console.log(err));
+                        }
+                    } else if (Date.now() - start < maxWaitMs) {
+                        setTimeout(attempt, 100);
+                    }
+                }
+                attempt();
+            };
+
             // Máquina de escribir para explicaciones
             window.typewriterEffect = function(elementId, text, speed = 18) {
                 if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -933,20 +957,17 @@ def setup_theme():
         </script>
     ''')
 
-@ui.page('/')
-def index():
-    setup_theme()
-    ui.navigate.to('/sistemas-lineales')
+@app.get('/')
+def index_redirect():
+    return RedirectResponse('/sistemas-lineales')
 
-@ui.page('/gauss')
+@app.get('/gauss')
 def redirect_gauss():
-    setup_theme()
-    ui.navigate.to('/sistemas-lineales?method=gauss')
+    return RedirectResponse('/sistemas-lineales?method=gauss')
 
-@ui.page('/gauss-jordan')
+@app.get('/gauss-jordan')
 def redirect_gauss_jordan():
-    setup_theme()
-    ui.navigate.to('/sistemas-lineales?method=gauss-jordan')
+    return RedirectResponse('/sistemas-lineales?method=gauss-jordan')
 
 @ui.page('/sistemas-lineales')
 def linear_systems_page(method: str = 'gauss'):
@@ -973,10 +994,9 @@ def conversor_page():
     app_ui.build()
 # ------------------------------
 
-@ui.page('/ia')
-def vista_ia():
-    setup_theme()
-    ui.navigate.to('/sistemas-lineales')
+@app.get('/ia')
+def vista_ia_redirect():
+    return RedirectResponse('/sistemas-lineales')
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(title="Calculadora Álgebra Lineal UAM",

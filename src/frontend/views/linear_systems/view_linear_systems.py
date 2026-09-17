@@ -155,28 +155,14 @@ class LinearSystemsUI:
             
             if m * n > 48:
                 ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                ui.run_javascript('''
-                    setTimeout(() => { 
-                        if (window.MathJax) { 
-                            let el1 = document.getElementById("preview-matrix");
-                            if(el1) { MathJax.typesetClear([el1]); MathJax.typesetPromise([el1]).catch(err => console.log(err)); }
-                        } 
-                    }, 50);
-                ''')
+                ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
                 return
             
             # Construir LaTeX para sistema de ecuaciones
             eqs = self.grid.export_to_equations()
             if not eqs:
                 ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
-                ui.run_javascript('''
-                    setTimeout(() => { 
-                        if (window.MathJax) { 
-                            let el1 = document.getElementById("preview-matrix");
-                            if(el1) { MathJax.typesetClear([el1]); MathJax.typesetPromise([el1]).catch(err => console.log(err)); }
-                        } 
-                    }, 50);
-                ''')
+                ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
                 return
                 
             import re
@@ -186,21 +172,7 @@ class LinearSystemsUI:
             
             ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
             
-            ui.run_javascript('''
-                setTimeout(() => { 
-                    if (window.MathJax) { 
-                        let el1 = document.getElementById("preview-matrix");
-                        let el2 = document.getElementById("preview-system");
-                        let els = [];
-                        if (el1) els.push(el1);
-                        if (el2) els.push(el2);
-                        if (els.length > 0) {
-                            MathJax.typesetClear(els);
-                            MathJax.typesetPromise(els).catch(err => console.log(err));
-                        }
-                    } 
-                }, 50);
-            ''')
+            ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
 
     def _add_to_history(self, matrix_A, vector_b, m, n, status, method):
         import time
@@ -373,7 +345,6 @@ class LinearSystemsUI:
                         ui.icon(icon_str, size='sm')
                         badge_id = f"badge-{id(texto_corto)}"
                         ui.html(f'<b id="{badge_id}"></b>').classes('math-label')
-                        import json
                         ui.timer(0.05, lambda t=texto_corto, bid=badge_id: ui.run_javascript(f'typewriterEffect("{bid}", {json.dumps(t)}, 25)'), once=True)
                     
                     # Bloques individuales por variable
@@ -402,7 +373,6 @@ class LinearSystemsUI:
                             with ui.column().classes('w-full p-4 border-l-2 border-l-[var(--accent)] ml-2 mb-2 bg-[var(--bg-panel)] rounded-r-lg'):
                                 desc_id = f"desc-{id(paso)}"
                                 ui.html(f'<span id="{desc_id}"></span>').classes('text-sm font-semibold mb-2 text-sec block')
-                                import json
                                 ui.timer(0.05, lambda text=paso["descripcion"], eid=desc_id: ui.run_javascript(f'typewriterEffect("{eid}", {json.dumps(text)}, 18)'), once=True)
                                 ui.html(f'<div class="math-scroll-container math-label text-lg">$$ {paso["matriz"]} $$</div>')
                             
@@ -424,7 +394,7 @@ class LinearSystemsUI:
         self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
         btn.props('loading=false')
-        ui.run_javascript('setTimeout(() => { if (window.MathJax) { MathJax.typesetClear(); MathJax.typesetPromise(); } }, MOTION.fast);')
+        ui.run_javascript('typesetMathWhenReady();')
         
         # Eliminar clase de animación para que se pueda volver a animar
         ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')

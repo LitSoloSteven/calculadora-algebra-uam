@@ -61,7 +61,4 @@ def create_navbar(active_ui=None, active_route='/'):
                             html[data-theme="marea"] { --show-marea: block; }
                             html[data-theme="medianoche"] { --show-medianoche: block; }
                         </style>
-                        <script>
-                            function setTheme(t) { applyTheme(t); }
-                        </script>
                         ''')
