@@ -69,8 +69,9 @@ class CalculatorPanel:
                     with ui.grid(columns=4).classes('w-full gap-4'):
                         for sym in self.symbols_matrix:
                             if sym:
-                                classes = 'btn-neo-calc w-full h-14 p-0 text-xl font-bold ' + ('text-negative' if sym == 'C' else 'text-main')
-                                ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')")).classes(classes).props('ripple=false flat')
+                                classes = 'btn-neo-calc w-full h-14 p-0 text-xl font-bold ' + ('text-main' if sym != 'C' else '')
+                                btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
+                                if sym == 'C': btn.style('color: var(--error)')
                             else:
                                 ui.label('').classes('w-full h-14') # Espacio en blanco
                                 
@@ -78,7 +79,8 @@ class CalculatorPanel:
                     with ui.grid(columns=5).classes('w-full gap-3'):
                         for sym in self.symbols_equations:
                             if sym:
-                                classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-negative' if sym == 'C' else 'text-main')
-                                ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')")).classes(classes).props('ripple=false flat')
+                                classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-main' if sym != 'C' else '')
+                                btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
+                                if sym == 'C': btn.style('color: var(--error)')
                             else:
                                 ui.label('').classes('w-full h-12')

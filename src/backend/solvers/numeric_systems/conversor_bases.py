@@ -1,72 +1,128 @@
 class ConversorBases:
-    def decimal_a_todo(self, valor_str):
-        try:
-            num = int(valor_str)
-            res = self._formatear_salida(num)
-            res["pasos"] = self._generar_pasos(valor_str, 10)
-            return res
-        except ValueError:
-            return {"error": "Valor decimal inválido. Solo usa números del 0 al 9."}
+    def _limpiar_entrada(self, valor_str):
+        # 1. Normalización (quitar espacios y guiones bajos)
+        limpio = str(valor_str).strip().replace(" ", "").replace("_", "").upper()
+        
+        # 2. Extraer signo
+        es_negativo = limpio.startswith("-")
+        if es_negativo or limpio.startswith("+"):
+            limpio = limpio[1:]
+            
+        # 3. Remover prefijos (0B, 0O, 0X)
+        if limpio.startswith("0B") or limpio.startswith("0O") or limpio.startswith("0X"):
+            limpio = limpio[2:]
+            
+        return es_negativo, limpio
 
-    def binario_a_todo(self, valor_str):
-        try:
-            num = int(valor_str, 2)
-            res = self._formatear_salida(num)
-            res["pasos"] = self._generar_pasos(valor_str, 2)
-            return res
-        except ValueError:
-            return {"error": "Valor binario inválido. Solo usa 0 y 1."}
+    def decimal_a_todo(self, valor_str, base_destino='todas'):
+        return self._procesar(valor_str, 10, base_destino)
 
-    def octal_a_todo(self, valor_str):
-        try:
-            num = int(valor_str, 8)
-            res = self._formatear_salida(num)
-            res["pasos"] = self._generar_pasos(valor_str, 8)
-            return res
-        except ValueError:
-            return {"error": "Valor octal inválido. Solo usa números del 0 al 7."}
+    def binario_a_todo(self, valor_str, base_destino='todas'):
+        return self._procesar(valor_str, 2, base_destino)
 
-    def hexadecimal_a_todo(self, valor_str):
+    def octal_a_todo(self, valor_str, base_destino='todas'):
+        return self._procesar(valor_str, 8, base_destino)
+
+    def hexadecimal_a_todo(self, valor_str, base_destino='todas'):
+        return self._procesar(valor_str, 16, base_destino)
+
+    def _procesar(self, valor_str, base_origen, base_destino):
+        es_negativo, limpio = self._limpiar_entrada(valor_str)
+        if not limpio:
+            return {"error": "El valor ingresado está vacío."}
+            
         try:
-            num = int(valor_str, 16)
+            magnitud = int(limpio, base_origen)
+            num = -magnitud if es_negativo else magnitud
+            
             res = self._formatear_salida(num)
-            res["pasos"] = self._generar_pasos(valor_str, 16)
+            res["pasos"] = self._generar_pasos(limpio, magnitud, base_origen, base_destino, es_negativo)
             return res
         except ValueError:
-            return {"error": "Valor hexadecimal inválido. Usa 0-9 y A-F."}
+            return {"error": f"Valor inválido para la base {base_origen}."}
 
     def _formatear_salida(self, num):
+        signo = "-" if num < 0 else ""
+        mag = abs(num)
         return {
-            "decimal": str(num),
-            "binario": bin(num)[2:],
-            "octal": oct(num)[2:],
-            "hexadecimal": hex(num)[2:].upper()
+            "decimal": f"{signo}{mag}",
+            "binario": f"{signo}{format(mag, 'b')}",
+            "octal": f"{signo}{format(mag, 'o')}",
+            "hexadecimal": f"{signo}{format(mag, 'X')}"
         }
 
-    def _generar_pasos(self, valor_str, base_origen):
-        num = int(valor_str, base_origen)
+    def _generar_pasos(self, limpio, magnitud, base_origen, base_destino_str, es_negativo):
         pasos = []
-        
         if base_origen != 10:
-            paso1 = {
-                "titulo": f"Paso 1: Convertir de base {base_origen} a Decimal",
-                "explicacion": "Se multiplica cada dígito por la base origen elevada a su posición (de derecha a izquierda, empezando en 0).",
-            }
-            explicacion_mat = []
-            longitud = len(valor_str)
-            for i, digito in enumerate(valor_str):
-                potencia = longitud - 1 - i
-                val = int(digito, 16) if base_origen == 16 else int(digito)
-                explicacion_mat.append(f"({val} × {base_origen}^{potencia})")
+            pasos.append(self._generar_expansion_posicional(limpio, base_origen, magnitud))
             
-            paso1["operacion"] = f"{' + '.join(explicacion_mat)} = {num}"
-            pasos.append(paso1)
-        
-        paso_final = {
-            "titulo": "Paso Final: Convertir de Decimal a la Base Destino",
-            "explicacion": "Se divide el número decimal de forma sucesiva entre la base destino anotando los residuos.",
-            "operacion": "El resultado final se lee tomando el último cociente seguido de los residuos de abajo hacia arriba."
-        }
-        pasos.append(paso_final)
-        
+        destinos = []
+        if base_destino_str == 'todas':
+            destinos = [b for b in [2, 8, 10, 16] if b != base_origen and b != 10]
+        else:
+            map_base = {'binario': 2, 'octal': 8, 'decimal': 10, 'hexadecimal': 16}
+            b = map_base.get(base_destino_str)
+            if b and b != 10 and b != base_origen:
+                destinos.append(b)
+                
+        for dest in destinos:
+            pasos.append(self._generar_divisiones_sucesivas(magnitud, dest))
+            
         return pasos
+
+    def _generar_expansion_posicional(self, limpio, base_origen, magnitud):
+        terminos = []
+        longitud = len(limpio)
+        for i, digito in enumerate(limpio):
+            potencia = longitud - 1 - i
+            val = int(digito, base_origen)
+            peso = base_origen ** potencia
+            producto = val * peso
+            terminos.append({
+                "digito": digito,
+                "valor": val,
+                "potencia": potencia,
+                "peso": peso,
+                "producto": producto
+            })
+            
+        return {
+            "tipo": "expansion_posicional",
+            "base_origen": base_origen,
+            "terminos": terminos,
+            "total": magnitud
+        }
+
+    def _generar_divisiones_sucesivas(self, magnitud, base_destino):
+        filas = []
+        dividendo = magnitud
+        if dividendo == 0:
+            filas.append({
+                "dividendo": 0,
+                "divisor": base_destino,
+                "cociente": 0,
+                "residuo": 0
+            })
+            resultado = "0"
+        else:
+            while dividendo > 0:
+                cociente = dividendo // base_destino
+                residuo = dividendo % base_destino
+                filas.append({
+                    "dividendo": dividendo,
+                    "divisor": base_destino,
+                    "cociente": cociente,
+                    "residuo": residuo
+                })
+                dividendo = cociente
+                
+            chars = "0123456789ABCDEF"
+            resultado = "".join(chars[f["residuo"]] for f in reversed(filas))
+            
+        return {
+            "tipo": "division_sucesiva",
+            "base_destino": base_destino,
+            "filas": filas,
+            "lectura": "Se lee de abajo hacia arriba",
+            "resultado": resultado
+        }
