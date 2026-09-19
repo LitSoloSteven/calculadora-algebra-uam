@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 # 2. Único bloque de importaciones correctas
 from src.backend.models.matrix import Matrix
 from src.backend.utils.validators import MatrixValidator
-from src.backend.solvers.linear_systems import GaussSolver
+from src.backend.solvers.linear_systems.gauss import GaussSolver
 
 def test_gauss_module():
     print("==================================================")
