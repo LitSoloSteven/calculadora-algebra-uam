@@ -57,7 +57,12 @@ class GaussSolver:
 
         return new_row, op_desc
 
-    def _eliminate_forward(self):
+    def _eliminate(self, full_reduction: bool) -> tuple[int, list[int]]:
+        """Eliminación por eliminación exacta con Fraction.
+
+        full_reduction=False -> Gauss (elimina solo debajo del pivote)
+        full_reduction=True  -> Gauss-Jordan (elimina arriba y debajo)
+        """
         m = self.matrix.rows
         n = self.matrix.cols
         pivot_row = 0
@@ -69,6 +74,7 @@ class GaussSolver:
             if pivot_row >= m:
                 break
 
+            # Pivoteo parcial: elegir el mayor valor absoluto en la columna.
             max_row = pivot_row
             max_val = abs(self.matrix.get(pivot_row, col))
             for r in range(pivot_row + 1, m):
@@ -84,13 +90,29 @@ class GaussSolver:
                 self.matrix.swap_rows(pivot_row, max_row)
                 self._log_step(f"Intercambio: Fila {pivot_row + 1} ↔ Fila {max_row + 1}", self.matrix)
 
-            self._log_step(
-                f"Pivote seleccionado en Fila {pivot_row + 1}, Columna {col + 1} (valor = {format_fraction_str(self.matrix.get(pivot_row, col))})",
-                self.matrix
-            )
+            # El texto del paso "Pivote seleccionado" difiere entre los métodos:
+            # Gauss lo reporta con el valor, Gauss-Jordan sin él.
+            if full_reduction:
+                self._log_step(
+                    f"Pivote seleccionado en Fila {pivot_row + 1}, Columna {col + 1}",
+                    self.matrix
+                )
+            else:
+                self._log_step(
+                    f"Pivote seleccionado en Fila {pivot_row + 1}, Columna {col + 1} "
+                    f"(valor = {format_fraction_str(self.matrix.get(pivot_row, col))})",
+                    self.matrix
+                )
 
             row_piv = self._get_row(pivot_row)
-            for r in range(pivot_row + 1, m):
+
+            # Gauss-Jordan elimina también por encima del pivote; Gauss solo por debajo.
+            if full_reduction:
+                target_rows = [r for r in range(m) if r != pivot_row]
+            else:
+                target_rows = list(range(pivot_row + 1, m))
+
+            for r in target_rows:
                 if abs(self.matrix.get(r, col)) > self.eps:
                     row_target = self._get_row(r)
                     new_row, op_desc = self._eliminate_row_with_lcm(row_piv, row_target, col, r, pivot_row)
@@ -102,7 +124,8 @@ class GaussSolver:
 
         rank = pivot_row
 
-        # Normalizar pivotes a 1 al finalizar el escalonamiento
+        # Normalizar pivotes a 1. El prefijo del mensaje difiere entre métodos.
+        normalize_prefix = "Normalizar pivote a 1" if full_reduction else "Normalizar pivote"
         for r, c in enumerate(pivot_cols):
             pivot_val = self.matrix.get(r, c)
             if abs(pivot_val) >= self.eps and abs(pivot_val - 1) > self.eps:
@@ -111,7 +134,7 @@ class GaussSolver:
                 normalized_row = [elem * scale for elem in row]
                 self._set_row(r, normalized_row)
                 self._log_step(
-                    f"Normalizar pivote: Fila {r + 1} = Fila {r + 1} / {format_fraction_str(pivot_val)}",
+                    f"{normalize_prefix}: Fila {r + 1} = Fila {r + 1} / {format_fraction_str(pivot_val)}",
                     self.matrix
                 )
 
@@ -179,7 +202,7 @@ class GaussSolver:
         return solution, back_sub_steps
 
     def solve(self):
-        rank, pivot_cols = self._eliminate_forward()
+        rank, pivot_cols = self._eliminate(full_reduction=False)
         status, message = self._check_system_status(rank)
 
         if status == "NO_SOLUTION":
