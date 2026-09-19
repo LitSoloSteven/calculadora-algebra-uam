@@ -146,14 +146,17 @@ class GaussSolver:
 
         for i in range(len(pivot_cols) - 1, -1, -1):
             p_col = pivot_cols[i]
-            a_ii = Fraction(self.matrix.get(i, p_col)).limit_denominator(1000)
-            b_i = Fraction(self.matrix.get(i, num_vars)).limit_denominator(1000)
+             # Matrix.get() ya garantiza Fraction exacto (vía _normalize_val).
+            # Reaplicar limit_denominator(1000) truncaría fracciones con
+            # denominador > 1000 e introduciría error silencioso en la solución.
+            a_ii = Fraction(self.matrix.get(i, p_col))
+            b_i = Fraction(self.matrix.get(i, num_vars))
 
             c_val = b_i
             t_val: Dict[str, Fraction] = {}
 
             for j in range(p_col + 1, num_vars):
-                coeff = Fraction(self.matrix.get(i, j)).limit_denominator(1000)
+                coeff = Fraction(self.matrix.get(i, j))
                 if coeff != 0:
                     c_val -= coeff * expr_const[j]
                     for var, v_coeff in expr_terms[j].items():
