@@ -1,4 +1,5 @@
 import re
+from fractions import Fraction
 from typing import Dict, List, Tuple, Union
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
@@ -7,6 +8,11 @@ from src.backend.utils.formatters import (
     sum_sub_matrix_to_latex,
     multiply_matrix_to_latex
 )
+
+def _is_scalar(val) -> bool:
+    """Verifica si el valor es un escalar numérico (int, float, Fraction),
+    en oposición a una Matrix."""
+    return not isinstance(val, Matrix)
 
 class MatrixExpressionEvaluator:
     """
@@ -114,7 +120,10 @@ class MatrixExpressionEvaluator:
 
         for token in rpn_tokens:
             if re.match(r'^\d+(\.\d+)?$', token):
-                stack.append((token, float(token)))
+                # Se preserva como Fraction exacto, no float. Combinar float con
+                # Fraction en operaciones con Matrix degrada el resultado a float
+                # y pierde la precisión exacta del resto del sistema.
+                stack.append((token, Fraction(token).limit_denominator(10**6)))
                 
             elif re.match(r'^[A-Za-z][A-Za-z0-9_]*$', token):
                 if token not in matrices_dict:
@@ -126,7 +135,7 @@ class MatrixExpressionEvaluator:
                     return {"status": "ERROR", "message": "Operación de transpuesta sin operando.", "result_matrix": None, "segment_steps": []}
                 name, val = stack.pop()
                 
-                if isinstance(val, float):
+                if _is_scalar(val):
                     stack.append((f"{name}ᵀ", val))
                     continue
                     
@@ -152,13 +161,13 @@ class MatrixExpressionEvaluator:
                     return {"status": "ERROR", "message": "Operación de negación sin operando.", "result_matrix": None, "segment_steps": []}
                 name, val = stack.pop()
 
-                if isinstance(val, float):
+                if _is_scalar(val):
                     stack.append((f"-{name}", -val))
                     continue
 
                 temp_name = f"T_{temp_counter}"
                 temp_counter += 1
-                res_mat = self._scalar_multiply(-1.0, val)
+                res_mat = self._scalar_multiply(Fraction(-1), val)
 
                 self.global_steps.append({
                     "temp_variable": temp_name,
@@ -185,15 +194,15 @@ class MatrixExpressionEvaluator:
                 cell_steps = []
                 
                 if token == '*':
-                    if isinstance(left_val, float) and isinstance(right_val, Matrix):
+                    if _is_scalar(left_val) and isinstance(right_val, Matrix):
                         res_mat = self._scalar_multiply(left_val, right_val)
                         symbolic_latex = f"{left_name} \\cdot {right_name}"
                         op_word = "Multiplicación Escalar"
-                    elif isinstance(right_val, float) and isinstance(left_val, Matrix):
+                    elif _is_scalar(right_val) and isinstance(left_val, Matrix):
                         res_mat = self._scalar_multiply(right_val, left_val)
                         symbolic_latex = f"{left_name} \\cdot {right_name}"
                         op_word = "Multiplicación Escalar"
-                    elif isinstance(left_val, float) and isinstance(right_val, float):
+                    elif _is_scalar(left_val) and _is_scalar(right_val):
                         # Escalar * Escalar
                         res_val = left_val * right_val
                         stack.append((f"{res_val}", res_val))
@@ -210,7 +219,7 @@ class MatrixExpressionEvaluator:
                         op_word = "Multiplicación de Matrices"
                         
                 elif token == '+':
-                    if isinstance(left_val, float) or isinstance(right_val, float):
+                    if _is_scalar(left_val) or _is_scalar(right_val):
                         return {"status": "ERROR", "message": "No se puede sumar un escalar y una matriz.", "result_matrix": None, "segment_steps": []}
                     res = self.ops_solver.add(left_val, right_val)
                     if res["status"] == "ERROR":
@@ -221,7 +230,7 @@ class MatrixExpressionEvaluator:
                     op_word = "Suma"
                     
                 elif token == '-':
-                    if isinstance(left_val, float) or isinstance(right_val, float):
+                    if _is_scalar(left_val) or _is_scalar(right_val):
                         return {"status": "ERROR", "message": "No se puede restar un escalar y una matriz.", "result_matrix": None, "segment_steps": []}
                     res = self.ops_solver.subtract(left_val, right_val)
                     if res["status"] == "ERROR":
@@ -249,7 +258,7 @@ class MatrixExpressionEvaluator:
 
         final_name, final_val = stack.pop()
         
-        if isinstance(final_val, float):
+        if _is_scalar(final_val):
             return {"status": "ERROR", "message": "El resultado final es un escalar, no una matriz.", "result_matrix": None, "segment_steps": []}
 
         return {
