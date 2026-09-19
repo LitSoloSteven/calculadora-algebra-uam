@@ -39,6 +39,7 @@ def create_navbar(active_ui=None, active_route='/'):
             ui.html('<div class="h-6 w-px opacity-20" style="background-color: var(--text-sec);"></div>')
             
             # Acciones (Selector de temas)
+            # Acciones (Selector de temas)
             with ui.row().classes('items-center'):
                 with ui.button(color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false').tooltip('Seleccionar Tema'):
                     ui.html(icon_svg('temas'))
