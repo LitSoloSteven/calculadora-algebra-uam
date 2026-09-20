@@ -1,4 +1,5 @@
 import json
+import html
 from nicegui import ui, app, run
 from src.ai.openrouter_ai import OpenRouterIA
 
@@ -114,9 +115,10 @@ class AIPanel:
                     msg_id = f"ai-msg-{id(text)}-{idx}" if not sent and idx == len(self.chat_history) - 1 else None
                     if msg_id:
                         ui.html(f'<div id="{msg_id}"></div>').classes('whitespace-pre-wrap math-label')
-                        ui.timer(0.05, lambda t=text, mid=msg_id: ui.run_javascript(f'typewriterEffect("{mid}", {json.dumps(t)}, 15)'), once=True)
+                        escaped = html.escape(text)
+                        ui.timer(0.05, lambda t=escaped, mid=msg_id: ui.run_javascript(f'typewriterEffect("{mid}", {json.dumps(t)}, 15)'), once=True)
                     else:
-                        ui.html(text.replace('\n', '<br>')).classes('whitespace-pre-wrap math-label')
+                        ui.html(html.escape(text).replace('\n', '<br>')).classes('whitespace-pre-wrap math-label')
 
     async def send_message(self):
         text = self.input_field.value

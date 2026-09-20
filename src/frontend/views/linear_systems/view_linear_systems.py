@@ -136,52 +136,79 @@ class LinearSystemsUI:
                     ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
                     return
                 
-            m = len(matrix_A)
-            n = len(matrix_A[0])
-            
-            from src.backend.utils.validators import MatrixValidator
-            def sanitize(val):
-                if not val: return '0'
-                success, _, _ = MatrixValidator.parse_number_exact(val)
-                if not success: return r"\color{gray}{?}"
-                return val
-            
-            # Construir LaTeX para matriz aumentada
-            latex_lines = []
-            for i, row in enumerate(matrix_A):
-                row_strs = [sanitize(val) for val in row]
-                b_val = sanitize(vector_b[i] if i < len(vector_b) else '0')
-                latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
+                m = len(matrix_A)
+                n = len(matrix_A[0])
                 
-            spec = "c" * n + "|c"
-            matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
-            
-            ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
-            
-            if m * n > 48:
-                ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                return
-            
-            # Construir LaTeX para sistema de ecuaciones
-            eqs = self.grid.export_to_equations()
-            if not eqs:
-                ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
-                ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                from src.backend.utils.validators import MatrixValidator
+                def sanitize(val):
+                    if not val: return '0'
+                    success, _, _ = MatrixValidator.parse_number_exact(val)
+                    if not success: return r"\color{gray}{?}"
+                    return val
+                
+                # Construir LaTeX para matriz aumentada
+                latex_lines = []
+                for i, row in enumerate(matrix_A):
+                    row_strs = [sanitize(val) for val in row]
+                    b_val = sanitize(vector_b[i] if i < len(vector_b) else '0')
+                    latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
+                    
+                spec = "c" * n + "|c"
+                matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
+                
+                ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
+                
+                if m * n > 48:
+                    ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
+                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                    return
+                
+                # Verify all cells are valid before exporting to equations
+                todas_validas = True
+                for i in range(m):
+                    for j in range(n):
+                        val = matrix_A[i][j]
+                        if val:
+                            success, _, _ = MatrixValidator.parse_number_exact(val)
+                            if not success:
+                                todas_validas = False
+                                break
+                    if not todas_validas:
+                        break
+                        
+                b_valid = True
+                for i in range(m):
+                    val = vector_b[i] if i < len(vector_b) else ''
+                    if val:
+                        success, _, _ = MatrixValidator.parse_number_exact(val)
+                        if not success:
+                            b_valid = False
+                            break
+                            
+                if not todas_validas or not b_valid:
+                    ui.label('Corrige los valores inválidos para ver las ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
+                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                    return
+                
+                # Construir LaTeX para sistema de ecuaciones
+                eqs = self.grid.export_to_equations()
+                if not eqs:
+                    ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
+                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                    return
+                    
+                import re
+                eqs_tex = r" \\ ".join(eqs)
+                eqs_tex = re.sub(r'\bx(\d+)\b', r'x_{\1}', eqs_tex)
+                system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
+                
+                ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
+                
+                ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
         except Exception as e:
             logger.error("Error al actualizar vista previa", exc_info=e)
             with self.preview_container:
                 ui.label('No se pudo generar la vista previa.').classes('text-sec italic text-sm mt-4 text-center')
-                return
-                
-            import re
-            eqs_tex = r" \\ ".join(eqs)
-            eqs_tex = re.sub(r'\bx(\d+)\b', r'x_{\1}', eqs_tex)
-            system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
-            
-            ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
-            
-            ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
 
     def _add_to_history(self, matrix_A, vector_b, m, n, status, method):
         import time
