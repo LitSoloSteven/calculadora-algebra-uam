@@ -120,10 +120,10 @@ class MatrixExpressionEvaluator:
 
         for token in rpn_tokens:
             if re.match(r'^\d+(\.\d+)?$', token):
-                # Se preserva como Fraction exacto, no float. Combinar float con
-                # Fraction en operaciones con Matrix degrada el resultado a float
-                # y pierde la precisión exacta del resto del sistema.
-                stack.append((token, Fraction(token).limit_denominator(10**6)))
+                # Fraction(str) ya es exacto. No aplicar limit_denominator:
+                # Fraction("0.0000001") se convertiría en 0, y
+                # Fraction("3.14159265") se aproximaría sin necesidad.
+                stack.append((token, Fraction(token)))
                 
             elif re.match(r'^[A-Za-z][A-Za-z0-9_]*$', token):
                 if token not in matrices_dict:
