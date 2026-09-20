@@ -18,6 +18,11 @@ class GaussJordanController:
                 "status": "error",
                 "message": f"Payload JSON malformado: {e.msg} (línea {e.lineno}, columna {e.colno})."
             })
+        if not isinstance(data, dict):
+            return json.dumps({
+                "status": "error",
+                "message": "El payload debe ser un objeto JSON con 'matrix_A' y 'vector_b'."
+            })
 
         matrix_A_raw = data.get("matrix_A", [])
         vector_b_raw = data.get("vector_b", [])
@@ -98,7 +103,7 @@ class GaussJordanController:
             })
 
         reporte_comprobacion = []
-        if clasificacion == "Sistema Consistente Determinado: Presenta Solución Única.":
+        if resultado.get("status") == "UNIQUE_SOLUTION":
             _, reporte_comprobacion = MatrixValidator.verify_solution(
                 A_fractions, solucion, b_fractions, as_latex=True
             )

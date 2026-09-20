@@ -17,6 +17,11 @@ class MatrixController:
                 "status": "error",
                 "message": f"Payload JSON malformado: {e.msg} (línea {e.lineno}, columna {e.colno})."
             })
+        if not isinstance(data, dict):
+            return json.dumps({
+                "status": "error",
+                "message": "El payload debe ser un objeto JSON con 'matrix_A' y 'vector_b'."
+            })
 
         matrix_A_raw = data.get("matrix_A", [])
         vector_b_raw = data.get("vector_b", [])
@@ -100,16 +105,9 @@ class MatrixController:
             A_vals = [[augmented_data[i][j] for j in range(n)] for i in range(m)]
             b_vals = [augmented_data[i][n] for i in range(m)]
 
-            x_vals = []
-            for s in solution:
-                try:
-                    x_vals.append(float(Fraction(str(s))))
-                except (ValueError, ZeroDivisionError):
-                    x_vals.append(0.0)
-
             _, verification_steps_latex = MatrixValidator.verify_solution(
                 A=A_vals,
-                x=x_vals,
+                x=solution,        # ← strings directos, sin float(Fraction(str(s)))
                 b=b_vals,
                 as_latex=True
             )
