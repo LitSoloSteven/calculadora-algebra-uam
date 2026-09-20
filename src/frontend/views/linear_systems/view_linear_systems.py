@@ -433,12 +433,16 @@ class LinearSystemsUI:
             fig = go.Figure()
             colors = CHART_PALETTE
             
+            from src.frontend.helpers import to_float
+            omitidas = 0
+            
             if n == 2:
                 x_vals = _linspace(-10, 10, 100)
                 for i in range(m):
                     try:
-                        a, b, c = float(matrix_A[i][0]), float(matrix_A[i][1]), float(vector_b[i])
-                    except:
+                        a, b, c = to_float(matrix_A[i][0]), to_float(matrix_A[i][1]), to_float(vector_b[i])
+                    except ValueError:
+                        omitidas += 1
                         continue
                         
                     if abs(b) > 1e-6:
@@ -450,9 +454,12 @@ class LinearSystemsUI:
                         fig.add_trace(go.Scatter(x=x_line, y=y_line, mode='lines', name=f'Eq {i+1}', line=dict(color=colors[i % len(colors)], width=3)))
                         
                 if respuesta.get("status") == "UNIQUE_SOLUTION" and respuesta.get("solution"):
-                    sol = respuesta["solution"]
-                    fig.add_trace(go.Scatter(x=[sol[0]], y=[sol[1]], mode='markers', name='Solución',
-                                             marker=dict(color=CHART_MARKER_LIGHT, size=12, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    try:
+                        sol_f = [to_float(s) for s in respuesta["solution"]]
+                        fig.add_trace(go.Scatter(x=[sol_f[0]], y=[sol_f[1]], mode='markers', name='Solución',
+                                                 marker=dict(color=CHART_MARKER_LIGHT, size=12, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    except ValueError:
+                        pass
                                              
                 fig.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
@@ -470,8 +477,9 @@ class LinearSystemsUI:
                 
                 for i in range(m):
                     try:
-                        a, b, c_z, d = float(matrix_A[i][0]), float(matrix_A[i][1]), float(matrix_A[i][2]), float(vector_b[i])
-                    except:
+                        a, b, c_z, d = to_float(matrix_A[i][0]), to_float(matrix_A[i][1]), to_float(matrix_A[i][2]), to_float(vector_b[i])
+                    except ValueError:
+                        omitidas += 1
                         continue
                         
                     if abs(c_z) > 1e-6:
@@ -489,9 +497,12 @@ class LinearSystemsUI:
                         fig.add_trace(go.Surface(z=Z_grid, x=X_grid, y=Y_mesh, name=f'Eq {i+1}', showscale=False, opacity=0.7, colorscale=[[0, colors[i % len(colors)]], [1, colors[i % len(colors)]]]))
                 
                 if respuesta.get("status") == "UNIQUE_SOLUTION" and respuesta.get("solution"):
-                    sol = respuesta["solution"]
-                    fig.add_trace(go.Scatter3d(x=[sol[0]], y=[sol[1]], z=[sol[2]], mode='markers', name='Solución',
-                                               marker=dict(color=CHART_MARKER_LIGHT, size=8, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    try:
+                        sol_f = [to_float(s) for s in respuesta["solution"]]
+                        fig.add_trace(go.Scatter3d(x=[sol_f[0]], y=[sol_f[1]], z=[sol_f[2]], mode='markers', name='Solución',
+                                                   marker=dict(color=CHART_MARKER_LIGHT, size=8, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    except ValueError:
+                        pass
                 
                 fig.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
@@ -506,6 +517,8 @@ class LinearSystemsUI:
                 )
 
             ui.plotly(fig).classes('w-full h-[400px]')
+            if omitidas > 0:
+                ui.label(f'{omitidas} ecuación(es) no se pudieron graficar por tener valores no numéricos.').classes('text-warning text-sm')
             ui.run_javascript("setTimeout(() => { if(window.updatePlotlyTheme) updatePlotlyTheme(document.documentElement.getAttribute('data-theme') || 'claro'); }, 100);")
 
     def trigger_flip_animation(self):
