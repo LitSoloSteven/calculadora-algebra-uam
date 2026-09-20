@@ -17,10 +17,10 @@ class NumericSystemsUI:
         self.ui_cards = {}
         
         self.regex_bases = {
-            'binario': r'^-?[01]*$',
-            'octal': r'^-?[0-7]*$',
-            'decimal': r'^-?[0-9]*$',
-            'hexadecimal': r'^-?[0-9A-Fa-f]*$'
+            'binario': r'^[01]+$',
+            'octal': r'^[0-7]+$',
+            'decimal': r'^\d+$',
+            'hexadecimal': r'^[0-9A-Fa-f]+$'
         }
 
     def build(self):
@@ -172,8 +172,11 @@ class NumericSystemsUI:
         if not val: return
         ui.run_javascript(f'navigator.clipboard.writeText("{val}")')
         btn.props('icon=check color=positive')
-        await asyncio.sleep(0.9)
-        btn.props('icon=content_copy color=None')
+        
+        def reset_icon():
+            btn.props('icon=content_copy color=None')
+            
+        ui.timer(2.0, reset_icon, once=True)
 
     def _swap_base(self, nueva_base):
         if nueva_base == self.base_activa: return
@@ -211,6 +214,9 @@ class NumericSystemsUI:
             self._limpiar_resultados()
             return
             
+        if self.base_activa in ('hexadecimal', 'base32'):
+            val = val.upper()
+            
         metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
         res = metodo(val, self.base_destino)
         
@@ -246,6 +252,11 @@ class NumericSystemsUI:
         val = self.input_valor.value or ''
         if not val.strip():
             ui.notify('Ingresá un valor para convertir.', type='warning')
+            return
+            
+        val_clean = val.replace(" ", "")
+        if not re.match(self.regex_bases[self.base_activa], val_clean):
+            ui.notify(f'Base {self.base_activa}: solo se admiten caracteres válidos.', type='warning')
             return
             
         btn.props('loading=true')

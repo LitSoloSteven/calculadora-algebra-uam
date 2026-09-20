@@ -228,6 +228,7 @@ class LinearSystemsUI:
     def _render_history(self):
         if not self.historial_container: return
         self.historial_container.clear()
+        self.historial_container.update()
         
         with self.historial_container:
             if not self.historial:
