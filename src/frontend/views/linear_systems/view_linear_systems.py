@@ -44,6 +44,7 @@ class LinearSystemsUI:
         if self.num_ecuaciones > 1:
             self.num_ecuaciones -= 1
             self.render_ecuaciones()
+            self.update_sync_buttons()
 
     def render_ecuaciones(self):
         backup_vals = [inp.value for inp in self.ecuaciones_inputs]
@@ -274,7 +275,7 @@ class LinearSystemsUI:
         self.grid.entradas_A.clear()
         self.grid.entradas_b.clear()
         self.grid.generar_cuadricula()
-        self._trigger_live_preview()
+        self._on_grid_change()
         
         ui.notify('Matriz restaurada', type='positive')
 
@@ -465,6 +466,15 @@ class LinearSystemsUI:
         m = len(matrix_A)
         n = len(matrix_A[0]) if m > 0 else 0
         
+    async def _tema_actual(self) -> str:
+        try:
+            return await ui.run_javascript(
+                "document.documentElement.getAttribute('data-theme') || 'papel'",
+                timeout=3.0,
+            ) or 'papel'
+        except Exception:
+            return 'papel'
+        
         if n < 2 or n > 3:
             ui.label(f'Visualización gráfica no disponible para {n} dimensiones.').classes('text-sec text-sm italic mt-4')
             return
@@ -518,7 +528,7 @@ class LinearSystemsUI:
                     except ValueError:
                         pass
                                              
-                theme = await ui.run_javascript("document.documentElement.getAttribute('data-theme') || 'papel'")
+                theme = await self._tema_actual()
                 font_color = CHART_FONT_COLOR.get(theme, '#23262E')
 
                 fig.update_layout(
@@ -564,7 +574,7 @@ class LinearSystemsUI:
                     except ValueError:
                         pass
                 
-                theme = await ui.run_javascript("document.documentElement.getAttribute('data-theme') || 'papel'")
+                theme = await self._tema_actual()
                 font_color = CHART_FONT_COLOR.get(theme, '#23262E')
 
                 fig.update_layout(

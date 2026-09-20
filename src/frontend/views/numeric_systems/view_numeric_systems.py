@@ -282,7 +282,7 @@ class NumericSystemsUI:
             for card in self.ui_cards.values():
                 card.classes(add='opacity-0 translate-y-4')
                 
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.32)
             
             # Animación stagger
             for i, (base, card) in enumerate(self.ui_cards.items()):
