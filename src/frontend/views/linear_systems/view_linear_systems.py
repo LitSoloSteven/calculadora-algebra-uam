@@ -1,6 +1,9 @@
 import json
 import asyncio
+import logging
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 from src.frontend.controllers.linear_systems.controller_gauss import MatrixController
 from src.frontend.controllers.linear_systems.controller_gauss_jordan import GaussJordanController
 from src.frontend.components.navbar import create_navbar
@@ -124,12 +127,13 @@ class LinearSystemsUI:
         await asyncio.sleep(0.3)
         if not self.preview_container: return
         
-        self.preview_container.clear()
-        with self.preview_container:
-            matrix_A, vector_b = self.grid.get_matrix_data()
-            if not matrix_A or len(matrix_A) == 0 or len(matrix_A[0]) == 0:
-                ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
-                return
+        try:
+            self.preview_container.clear()
+            with self.preview_container:
+                matrix_A, vector_b = self.grid.get_matrix_data()
+                if not matrix_A or len(matrix_A) == 0 or len(matrix_A[0]) == 0:
+                    ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
+                    return
                 
             m = len(matrix_A)
             n = len(matrix_A[0])
@@ -163,6 +167,10 @@ class LinearSystemsUI:
             if not eqs:
                 ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
                 ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+        except Exception as e:
+            logger.error("Error al actualizar vista previa", exc_info=e)
+            with self.preview_container:
+                ui.label('No se pudo generar la vista previa.').classes('text-sec italic text-sm mt-4 text-center')
                 return
                 
             import re
@@ -275,7 +283,25 @@ class LinearSystemsUI:
             return
             
         btn = sender
-        btn.props('loading=true').classes('w-full max-w-[200px]')
+        btn.props('loading=true')
+        try:
+            await self._resolver_core(btn)
+        except Exception as e:
+            self._mostrar_error_inesperado(e)
+        finally:
+            btn.props('loading=false')
+
+    def _mostrar_error_inesperado(self, exc):
+        logger.error("Error inesperado al resolver el sistema", exc_info=exc)
+        self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
+        with self.contenedor_resultados:
+            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
+                ui.icon('close', size='sm')
+                ui.label('Ocurrió un error inesperado al resolver el sistema. Revisa los datos e inténtalo de nuevo.').classes('font-bold')
+        ui.notify('Error inesperado', type='negative', position='top')
+
+    async def _resolver_core(self, btn):
         await asyncio.sleep(0.1) 
         
         self.contenedor_resultados.clear()
@@ -299,7 +325,6 @@ class LinearSystemsUI:
                     with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                         ui.icon('close', size='sm')
                         ui.label(msg).classes('font-bold')
-                btn.props('loading=false')
                 return
             
             matrix_A_vals = [[str(val) for val in row[:-1]] for row in parsed_matrix.data]
@@ -393,7 +418,6 @@ class LinearSystemsUI:
 
         self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
-        btn.props('loading=false')
         ui.run_javascript('typesetMathWhenReady();')
         
         # Eliminar clase de animación para que se pueda volver a animar

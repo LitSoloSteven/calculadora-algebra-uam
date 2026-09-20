@@ -1,6 +1,9 @@
 import json
 import asyncio
+import logging
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 from src.frontend.components.navbar import create_navbar
 from src.frontend.components.matrix_capture import MatrixCapturePanel
 from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixOpsController
@@ -25,7 +28,25 @@ class MatrixOpsUI:
             ui.notify('Ingresa una expresión para evaluar.', type='warning')
             return
 
-        btn.props('loading=true').classes('w-full')
+        btn.props('loading=true')
+        try:
+            await self._evaluar_core(btn, expresion)
+        except Exception as e:
+            self._mostrar_error_inesperado(e)
+        finally:
+            btn.props('loading=false')
+
+    def _mostrar_error_inesperado(self, exc):
+        logger.error("Error inesperado al evaluar la expresión", exc_info=exc)
+        self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
+        with self.contenedor_resultados:
+            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
+                ui.icon('close', size='sm')
+                ui.label('Ocurrió un error inesperado al evaluar la expresión. Revisa los datos e inténtalo de nuevo.').classes('font-bold')
+        ui.notify('Error inesperado', type='negative', position='top')
+
+    async def _evaluar_core(self, btn, expresion):
         await asyncio.sleep(0.1)
 
         try:
@@ -33,7 +54,6 @@ class MatrixOpsUI:
             matrices_json = json.dumps(matrices_dict)
         except Exception as e:
             ui.notify(str(e), type='negative')
-            btn.props('loading=false')
             return
 
         respuesta_json_str = MatrixOpsController.process_expression(expresion, matrices_json)
@@ -75,7 +95,6 @@ class MatrixOpsUI:
                     with ui.row().classes('w-full justify-center items-center panel-card p-6 overflow-x-auto'):
                         ui.html(f'<div class="math-scroll-container math-label text-2xl font-bold">$$ {respuesta["final_variable"]} = {respuesta["result_matrix_latex"]} $$</div>')
 
-        btn.props('loading=false')
         ui.run_javascript('typesetMathWhenReady();')
         ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-ops'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
