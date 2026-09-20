@@ -207,7 +207,19 @@ class GaussSolver:
             back_sub_steps.append(f"{var_label} = {res_str}")
 
         solution = [format_parametric_expr(expr_const[i], expr_terms[i]) for i in range(num_vars)]
-        return solution, back_sub_steps
+
+        # Solución exacta como list[Fraction]: solo tiene sentido cuando el
+        # sistema tiene solución única. Con variables libres, los coeficientes
+        # NO son únicos (hay infinitas combinaciones); el consumidor debe leer
+        # back_substitution_steps para la paramétrica.
+        #
+        # Cuando free_cols == [], todas las columnas son pivote y expr_const[i]
+        # ya contiene el valor exacto de la variable i-ésima (los términos
+        # paramétricos quedaron vacíos). Es la única clave que agrega este
+        # método: `solution` (strings) se preserva intacta.
+        solution_exact = None if free_cols else list(expr_const)
+
+        return solution, solution_exact, back_sub_steps
 
     def solve(self):
         rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
@@ -220,11 +232,12 @@ class GaussSolver:
                 "message": message,
                 "echelon_matrix": self.matrix,
                 "solution": None,
+                "solution_exact": None,
                 "steps": self.steps,
                 "back_substitution_steps": []
             }
 
-        solution, back_steps = self._back_substitute(pivot_cols)
+        solution, solution_exact, back_steps = self._back_substitute(pivot_cols)
 
         return {
             "status": status,
@@ -232,6 +245,7 @@ class GaussSolver:
             "message": message,
             "echelon_matrix": self.matrix,
             "solution": solution,
+            "solution_exact": solution_exact,
             "steps": self.steps,
             "back_substitution_steps": back_steps
         }
