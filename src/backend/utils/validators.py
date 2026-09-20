@@ -1,6 +1,8 @@
 from src.backend.models.matrix import Matrix
 from fractions import Fraction
 from typing import Any
+from src.backend.constants import SOLUTION_VERIFICATION_TOLERANCE
+from src.backend.exceptions import DimensionMismatchError
 
 class MatrixValidator:
     @staticmethod
@@ -9,7 +11,7 @@ class MatrixValidator:
         Uso interno del backend, donde la precisión exacta es requerida
         (parsers de sistemas, controllers de métodos lineales). Para el frontend, usar parse_number (devuelve float, serializable a JSON).
         """
-        if isinstance(val, int):
+        if isinstance(val, (int, Fraction)):
             return True, Fraction(val), ""
 
         if isinstance(val, float):
@@ -124,6 +126,14 @@ class MatrixValidator:
             return float(Fraction(str(val).strip()))
         except (ValueError, ZeroDivisionError):
             return 0.0
+        
+    @staticmethod
+    def _to_fraction(val: Any) -> Fraction:
+        """Convierte a Fraction para display, tolerante a tipos mixtos
+        (int, float, Fraction, str tipo '9/7' o '1.5'). Delega en
+        parse_number_exact para no duplicar reglas de parsing."""
+        ok, frac, _ = MatrixValidator.parse_number_exact(val)
+        return frac if ok else Fraction(0)
 
     @staticmethod
     def verify_solution(
@@ -131,8 +141,10 @@ class MatrixValidator:
         x: list[Any],
         b: list[Any],
         as_latex: bool = False,
-        tolerance: float = 1e-4
+        tolerance: float = SOLUTION_VERIFICATION_TOLERANCE
     ) -> tuple[bool, list[str]]:
+        from src.backend.utils.formatters import format_fraction_str, number_to_latex
+
         is_valid = True
         report = []
 
@@ -141,29 +153,51 @@ class MatrixValidator:
             terms = []
 
             for j in range(len(x)):
-                coeff = MatrixValidator._to_float(A[i][j])
-                var_val = MatrixValidator._to_float(x[j])
-                prod = coeff * var_val
-                lhs += prod
+                # Cálculo: float con tolerancia (contrato actual, no cambia).
+                coeff_f = MatrixValidator._to_float(A[i][j])
+                var_f = MatrixValidator._to_float(x[j])
+                lhs += coeff_f * var_f
+
+                # Display: representación exacta cuando sea posible.
+                coeff_disp = MatrixValidator._to_fraction(A[i][j])
+                var_disp = MatrixValidator._to_fraction(x[j])
 
                 if as_latex:
-                    terms.append(rf"\left({coeff}\right) \cdot \left({var_val}\right)")
+                    c_tex = number_to_latex(coeff_disp)
+                    v_tex = number_to_latex(var_disp)
+                    terms.append(rf"\left({c_tex}\right) \cdot \left({v_tex}\right)")
                 else:
-                    terms.append(f"({coeff})·({var_val})")
+                    c_str = format_fraction_str(coeff_disp)
+                    v_str = format_fraction_str(var_disp)
+                    terms.append(f"({c_str})·({v_str})")
 
             rhs = MatrixValidator._to_float(b[i])
             is_eq_correct = abs(lhs - rhs) < tolerance
+
+            # Limpiar el LHS para display: entero si aplica (2 en vez de 2.0),
+            # sino 6 decimales redondeados.
             lhs_display = round(lhs, 6)
+            if lhs_display == int(lhs_display):
+                lhs_display = int(lhs_display)
+
+            b_disp = MatrixValidator._to_fraction(b[i])
+            b_str = format_fraction_str(b_disp)
+            b_tex = number_to_latex(b_disp)
 
             if as_latex:
                 substitution_str = " + ".join(terms)
                 status_text = r"\text{Correcto}" if is_eq_correct else r"\text{Incorrecto}"
-                report.append(rf"Ecuación {i + 1}: {substitution_str} = {lhs_display} \quad ({status_text})")
+                report.append(
+                    rf"Ecuación {i + 1}: {substitution_str} = {lhs_display} \quad "
+                    rf"({status_text}, \; b_{{{i + 1}}} = {b_tex})"
+                )
             else:
                 substitution_str = " + ".join(terms)
                 status_text = "Correcto" if is_eq_correct else "Incorrecto"
-                report.append(f"Ecuación {i + 1}: {substitution_str} = {lhs_display}  {status_text} (b_{i + 1} = {rhs})")
-
+                report.append(
+                    f"Ecuación {i + 1}: {substitution_str} = {lhs_display}  "
+                    f"{status_text} (b_{i + 1} = {b_str})"
+                )
             if not is_eq_correct:
                 is_valid = False
 
@@ -184,11 +218,12 @@ def validate_same_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
     para operaciones de suma y resta.
     """
     if matrix_a.rows != matrix_b.rows or matrix_a.cols != matrix_b.cols:
-        raise ValueError(
-            f"Dimensiones incompatibles para suma/resta: "
-            f"Matriz A ({matrix_a.rows}×{matrix_a.cols}) vs Matriz B ({matrix_b.rows}×{matrix_b.cols}). "
-            f"Ambas matrices deben tener exactamente el mismo tamaño."
+        raise DimensionMismatchError(
+            operation="suma/resta",
+            shape_a=(matrix_a.rows, matrix_a.cols),
+            shape_b=(matrix_b.rows, matrix_b.cols),
         )
+
 
 def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
     """
@@ -196,8 +231,8 @@ def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> No
     La matriz resultante tendrá tamaño (m x q).
     """
     if matrix_a.cols != matrix_b.rows:
-        raise ValueError(
-            f"Dimensiones incompatibles para multiplicación: "
-            f"Matriz A ({matrix_a.rows}×{matrix_a.cols}) × Matriz B ({matrix_b.rows}×{matrix_b.cols}). "
-            f"El número de columnas de A ({matrix_a.cols}) debe ser igual al número de filas de B ({matrix_b.rows})."
+        raise DimensionMismatchError(
+            operation="multiplicación (A.cols debe igualar B.rows)",
+            shape_a=(matrix_a.rows, matrix_a.cols),
+            shape_b=(matrix_b.rows, matrix_b.cols),
         )

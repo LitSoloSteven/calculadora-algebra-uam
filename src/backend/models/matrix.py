@@ -1,10 +1,14 @@
 from fractions import Fraction
 from typing import Union
 
-from src.backend.constants import ZERO_EPSILON
+from src.backend.constants import (
+    ZERO_EPSILON,
+    FRACTION_RECONSTRUCTION_LIMIT,
+)
 from src.backend.exceptions import MatrixDataError
 
 Numeric = Union[float, Fraction, int]
+NumericLike = Union[Numeric, str]
 
 
 class Matrix:
@@ -36,17 +40,35 @@ class Matrix:
             self.data = [[Fraction(0) for _ in range(cols)] for _ in range(rows)]
 
     @staticmethod
-    def _normalize_val(value: Numeric) -> Numeric:
-        """Conserva Fraction e int intactos, o convierte float con precisión equivalente a Fraction."""
+    def _normalize_val(value: NumericLike) -> Numeric:
+        """Conserva Fraction/int intactos. Parsea strings como Fraction exacto
+        (formato 'a/b' o decimal). Convierte float simple a Fraction.
+
+        Los strings NO pasan por limit_denominator: si el usuario escribió
+        '1/1001', se respeta el denominador 1001, no se trunca a 1/1000.
+        """
         if isinstance(value, (Fraction, int)):
             return value
-        try:
-            frac = Fraction(value).limit_denominator(1000)
-            if abs(float(frac) - float(value)) < ZERO_EPSILON:
-                return frac
-        except (ValueError, OverflowError):
-            pass
-        return float(value)
+
+        if isinstance(value, str):
+            val_clean = value.strip()
+            if not val_clean:
+                return Fraction(0)
+            try:
+                return Fraction(val_clean)
+            except (ValueError, ZeroDivisionError):
+                raise MatrixDataError(f"Valor no parseable como número: '{value}'.")
+
+        if isinstance(value, float):
+            try:
+                frac = Fraction(value).limit_denominator(FRACTION_RECONSTRUCTION_LIMIT)
+                if abs(float(frac) - value) < ZERO_EPSILON:
+                    return frac
+            except (ValueError, OverflowError):
+                pass
+            return value
+
+        raise MatrixDataError(f"Tipo no soportado en celda: {type(value).__name__}.")
 
     def _check_bounds(self, row: int, col: int) -> None:
         if not (0 <= row < self.rows and 0 <= col < self.cols):
