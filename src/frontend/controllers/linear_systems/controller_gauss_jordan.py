@@ -48,25 +48,31 @@ class GaussJordanController:
                 )
             })
 
-        # --- 2. Conversión a Fraction con contexto de celda en errores ---
-        try:
-            A_fractions = []
-            for i, row in enumerate(matrix_A_raw):
-                fila_frac = []
-                for j, cell in enumerate(row):
-                    raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
-                    fila_frac.append(Fraction(raw))
-                A_fractions.append(fila_frac)
+# --- 2. Conversión a Fraction con contexto de celda en errores ---
+        A_fractions = []
+        for i, row in enumerate(matrix_A_raw):
+            fila_frac = []
+            for j, cell in enumerate(row):
+                raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
+                ok, val, err = MatrixValidator.parse_number_exact(raw)
+                if not ok:
+                    return json.dumps({
+                        "status": "error",
+                        "message": f"Error en A[{i+1},{j+1}]: {err}"
+                    })
+                fila_frac.append(val)
+            A_fractions.append(fila_frac)
 
-            b_fractions = []
-            for i, val in enumerate(vector_b_raw):
-                raw = str(val).strip() if val is not None and str(val).strip() else '0'
-                b_fractions.append(Fraction(raw))
-        except (ValueError, ZeroDivisionError) as e:
-            return json.dumps({
-                "status": "error",
-                "message": f"Valor numérico inválido en el payload: {e}"
-            })
+        b_fractions = []
+        for i, cell in enumerate(vector_b_raw):
+            raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
+            ok, val, err = MatrixValidator.parse_number_exact(raw)
+            if not ok:
+                return json.dumps({
+                    "status": "error",
+                    "message": f"Error en b[{i+1}]: {err}"
+                })
+            b_fractions.append(val)
 
         # --- 3. Ejecución del solver ---
         try:

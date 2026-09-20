@@ -292,21 +292,28 @@ class MatrixCapturePanel:
         self.render_all_matrices()
 
     def get_matrices_dict(self):
-        """Devuelve un diccionario de dicts con raw_data, de forma que el controller las convierta a Matrix"""
+        """Devuelve un diccionario de dicts con raw_data (strings), para que
+        el controller las parsee con parse_number_exact y preserve fracciones
+        exactas sin importar el tamaño del denominador."""
         result = {}
         for name, mat in self.matrices.items():
             parsed_data = []
             for r in range(mat['m']):
                 row_vals = []
                 for c in range(mat['n']):
-                    val_str = mat['cache'].get((r, c), '0')
-                    if not str(val_str).strip():
+                    val_str = str(mat['cache'].get((r, c), '0')).strip()
+                    if not val_str:
                         val_str = '0'
                     
-                    success, num, msg = MatrixValidator.parse_number(val_str)
+                    # Se conserva la validación para dar feedback inmediato en la UI,
+                    # pero ahora se envía el string original al backend (no el float),
+                    # para no perder precisión en fracciones con denominador > 1000.
+                    # NOTA: Este cambio requiere que el backend use parse_number_exact 
+                    # para no fallar (será abordado en un commit de backend).
+                    success, _, msg = MatrixValidator.parse_number(val_str)
                     if not success:
                         raise ValueError(f"Error en Matriz {name}, celda [{r+1},{c+1}]: {msg}")
-                    row_vals.append(num)
+                    row_vals.append(val_str)
                 parsed_data.append(row_vals)
                 
             result[name] = {
