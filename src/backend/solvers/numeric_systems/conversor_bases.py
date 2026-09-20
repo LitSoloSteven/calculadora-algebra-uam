@@ -1,5 +1,5 @@
 class ConversorBases:
-    def _limpiar_entrada(self, valor_str):
+    def _limpiar_entrada(self, valor_str, base_origen):
         # 1. Normalización (quitar espacios y guiones bajos)
         limpio = str(valor_str).strip().replace(" ", "").replace("_", "").upper()
         
@@ -9,7 +9,11 @@ class ConversorBases:
             limpio = limpio[1:]
             
         # 3. Remover prefijos (0B, 0O, 0X)
-        if limpio.startswith("0B") or limpio.startswith("0O") or limpio.startswith("0X"):
+        if base_origen == 2 and limpio.startswith("0B"):
+            limpio = limpio[2:]
+        elif base_origen == 8 and limpio.startswith("0O"):
+            limpio = limpio[2:]
+        elif base_origen == 16 and limpio.startswith("0X"):
             limpio = limpio[2:]
             
         return es_negativo, limpio
@@ -27,7 +31,7 @@ class ConversorBases:
         return self._procesar(valor_str, 16, base_destino)
 
     def _procesar(self, valor_str, base_origen, base_destino):
-        es_negativo, limpio = self._limpiar_entrada(valor_str)
+        es_negativo, limpio = self._limpiar_entrada(valor_str, base_origen)
         if not limpio:
             return {"error": "El valor ingresado está vacío."}
             

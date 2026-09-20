@@ -7,10 +7,7 @@ from src.backend.exceptions import DimensionMismatchError
 class MatrixValidator:
     @staticmethod
     def parse_number_exact(val: Any) -> tuple[bool, Fraction, str]:
-        """Parsea un valor numérico y lo devuelve como Fraction exacto.
-        Uso interno del backend, donde la precisión exacta es requerida
-        (parsers de sistemas, controllers de métodos lineales). Para el frontend, usar parse_number (devuelve float, serializable a JSON).
-        """
+        """Parsea un valor numérico y lo devuelve como Fraction exacto."""
         if isinstance(val, (int, Fraction)):
             return True, Fraction(val), ""
 
@@ -36,19 +33,6 @@ class MatrixValidator:
                 return False, Fraction(0), "El valor ingresado no es un número o fracción válida."
 
         return False, Fraction(0), "Tipo de dato no soportado."
-
-    @staticmethod
-    def parse_number(val: Any) -> tuple[bool, float, str]:
-        """Versión compatible con el frontend: devuelve float (JSON-serializable).
-
-        Delega la validación y el parsing en parse_number_exact para tener
-        una sola fuente de verdad de los mensajes de error y reglas de
-        aceptación. Solo convierte el resultado final a float.
-        """
-        ok, frac, msg = MatrixValidator.parse_number_exact(val)
-        if not ok:
-            return False, 0.0, msg
-        return True, float(frac), ""
 
     @staticmethod
     def validate_dimensions(rows: int, cols: int) -> tuple[bool, str]:

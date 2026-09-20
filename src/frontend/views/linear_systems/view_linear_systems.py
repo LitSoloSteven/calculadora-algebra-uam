@@ -1,6 +1,7 @@
 import json
 import asyncio
 import logging
+import html
 from nicegui import ui
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ class LinearSystemsUI:
                         self.ecuaciones_inputs.append(inp)
 
     def sync_from_matrix(self):
-        eqs = self.grid.export_to_equations()
+        eqs = self.grid.export_to_equations(preserve_shape=True)
         self.num_ecuaciones = max(len(eqs), 1)
         
         if self.contenedor_ecuaciones_lista:
@@ -77,13 +78,13 @@ class LinearSystemsUI:
     def sync_from_equations(self):
         lineas = [inp.value or "" for inp in self.ecuaciones_inputs]
         raw_text = "\n".join(lineas)
-        success, parsed_matrix, variables, msg = SystemParser.parse_system(raw_text)
+        success, parsed_matrix, variables, msg = SystemParser.parse_system(raw_text, strict_variables=False)
         
         if not success:
             ui.notify(f'Error al sincronizar: {msg}', type='negative', position='top')
             return
             
-        self.grid.import_from_parsed(parsed_matrix, variables)
+        self.grid.import_from_parsed(parsed_matrix)
         ui.notify('Sincronizado desde Ecuaciones', type='positive', position='top')
 
     def is_matriz_empty(self):
@@ -155,6 +156,7 @@ class LinearSystemsUI:
                     
                 spec = "c" * n + "|c"
                 matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
+                matrix_tex = html.escape(matrix_tex)
                 
                 ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
                 
@@ -199,8 +201,9 @@ class LinearSystemsUI:
                     
                 import re
                 eqs_tex = r" \\ ".join(eqs)
-                eqs_tex = re.sub(r'\b([a-zA-Z]+)(\d+)\b', r'\1_{\2}', eqs_tex)
+                eqs_tex = re.sub(r'x(\d+)', r'x_{\1}', eqs_tex)
                 system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
+                system_tex = html.escape(system_tex)
                 
                 ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
                 
@@ -263,6 +266,8 @@ class LinearSystemsUI:
         for i, val in enumerate(data['vector_b']):
             if val != '0': self.grid._cache_b[i] = val
             
+        self.grid.entradas_A.clear()
+        self.grid.entradas_b.clear()
         self.grid.generar_cuadricula()
         self._trigger_live_preview()
         
@@ -370,7 +375,6 @@ class LinearSystemsUI:
         respuesta = json.loads(respuesta_json_str)
         
         # Animación del panel de resultados (Slide Up & Fade In)
-        self.contenedor_resultados.classes(add='animate-slide-up')
         
         with self.contenedor_resultados:
             self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
@@ -446,12 +450,10 @@ class LinearSystemsUI:
 
         ui.run_javascript('typesetMathWhenReady();')
         
-        # Eliminar clase de animación para que se pueda volver a animar
-        ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')
-        
         with self.contenedor_resultados:
             self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
             
+        ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
     def render_graphics(self, matrix_A, vector_b, respuesta):
@@ -569,7 +571,7 @@ class LinearSystemsUI:
             ui.plotly(fig).classes('w-full h-[400px]')
             if omitidas > 0:
                 ui.label(f'{omitidas} ecuación(es) no se pudieron graficar por tener valores no numéricos.').classes('text-warning text-sm')
-            ui.run_javascript("setTimeout(() => { if(window.updatePlotlyTheme) updatePlotlyTheme(document.documentElement.getAttribute('data-theme') || 'claro'); }, 100);")
+            ui.run_javascript("setTimeout(() => { if(window.updatePlotlyTheme) updatePlotlyTheme(document.documentElement.getAttribute('data-theme') || 'papel'); }, 100);")
 
     def trigger_flip_animation(self):
         ui.run_javascript('''

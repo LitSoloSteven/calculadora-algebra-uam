@@ -15,12 +15,13 @@ class NumericSystemsUI:
         self.bits_container = None
         self.pasos_container = None
         self.ui_cards = {}
+        self.ui_valores = {}
         
         self.regex_bases = {
-            'binario': r'^[01]+$',
-            'octal': r'^[0-7]+$',
-            'decimal': r'^\d+$',
-            'hexadecimal': r'^[0-9A-Fa-f]+$'
+            'binario': r'^[+-]?0[bB]?[01_]*$|^[+-]?[01_]*$',
+            'octal': r'^[+-]?0[oO]?[0-7_]*$|^[+-]?[0-7_]*$',
+            'decimal': r'^[+-]?[0-9_]*$',
+            'hexadecimal': r'^[+-]?0[xX]?[0-9A-Fa-f_]*$|^[+-]?[0-9A-Fa-f_]*$'
         }
 
     def build(self):
@@ -107,10 +108,10 @@ class NumericSystemsUI:
                     ui.button(icon='content_copy', on_click=lambda e, b=id_base: self._copiar_resultado(b, e.sender), color=None).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Copiar')
             
             # Valor formateado
-            ui.label('0').classes('text-2xl font-mono text-main break-all tracking-wide').bind_text_from(self.resultados, id_base)
+            self.ui_valores[id_base] = ui.label('0').classes('text-2xl font-mono text-main break-all tracking-wide transition-opacity duration-300').bind_text_from(self.resultados, id_base)
             
             # Etiqueta "Entrada" para dimmear la tarjeta origen
-            ui.label('ENTRADA ACTUAL').classes('absolute -right-8 top-4 bg-[var(--accent)] text-white text-[10px] font-bold py-1 px-10 rotate-45 opacity-0 transition-opacity').bind_visibility_from(self, 'base_activa', backward=lambda v: v == id_base)
+            ui.label('ENTRADA ACTUAL').classes('absolute -right-8 top-4 bg-[var(--accent)] text-[var(--btn-primary-text)] text-[10px] font-bold py-1 px-10 rotate-45').bind_visibility_from(self, 'base_activa', backward=lambda v: v == id_base)
 
     def _cambiar_base_origen(self, e):
         if not e.value: return
@@ -164,8 +165,11 @@ class NumericSystemsUI:
         self._set_input('')
         
     async def _pegar_portapapeles(self):
-        val = await ui.run_javascript('navigator.clipboard.readText()')
-        if val: self._set_input(val.strip())
+        try:
+            val = await ui.run_javascript('navigator.clipboard.readText()', timeout=15)
+            if val: self._set_input(val.strip())
+        except Exception:
+            self.lbl_error.text = "Error al pegar: permiso denegado o portapapeles vacío."
 
     async def _copiar_resultado(self, id_base, btn):
         val = self.resultados.get(id_base, '').replace(' ', '')
@@ -212,7 +216,7 @@ class NumericSystemsUI:
             await asyncio.sleep(0.15) # 150ms debounce
         if not val.strip():
             self._limpiar_resultados()
-            return
+            return False
             
         if self.base_activa in ('hexadecimal', 'base32'):
             val = val.upper()
@@ -222,7 +226,7 @@ class NumericSystemsUI:
         
         if "error" in res:
             self._limpiar_resultados()
-            return
+            return False
             
         # Agrupar formato
         self.resultados['decimal'] = f"{int(res['decimal']):,}".replace(',', ' ')
@@ -236,16 +240,23 @@ class NumericSystemsUI:
         self._render_bits(res['binario'].replace('-', ''))
         
         self._aplicar_opacidad_tarjetas()
+        return True
 
     def _aplicar_opacidad_tarjetas(self):
         for base, card in self.ui_cards.items():
+            card.classes(remove='opacity-0 translate-y-4') # Quitar estado oculto inicial
+            
             if self.base_destino == 'todas':
                 opacidad = "0.45" if base == self.base_activa else "1"
             else:
                 if base == self.base_destino: opacidad = "1"
                 else: opacidad = "0.45"
             pointer = "none" if base == self.base_activa else "auto"
-            card.style(f'opacity: {opacidad}; pointer-events: {pointer};')
+            
+            card.style(f'pointer-events: {pointer};')
+            
+            if base in self.ui_valores:
+                self.ui_valores[base].style(f'opacity: {opacidad};')
 
     async def _convertir_btn(self, e):
         btn = e.sender
@@ -261,7 +272,8 @@ class NumericSystemsUI:
             
         btn.props('loading=true')
         try:
-            await self._ejecutar_conversion(val, inmediato=True)
+            if not await self._ejecutar_conversion(val, inmediato=True):
+                return
             
             # Animación stagger
             for i, (base, card) in enumerate(self.ui_cards.items()):

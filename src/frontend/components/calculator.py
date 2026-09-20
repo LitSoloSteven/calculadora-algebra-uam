@@ -7,7 +7,7 @@ class CalculatorPanel:
             '7', '8', '9', '/',
             '4', '5', '6', '-',
             '1', '2', '3', '.',
-            '(', '0', ')', 'C'
+            '+', '0', '⌫', 'C'
         ]
         
         # Símbolos para modo Ecuaciones: variables y operadores adicionales
@@ -35,6 +35,17 @@ class CalculatorPanel:
                 if (active && active.tagName === 'INPUT') {
                     if (sym === 'C') {
                         active.value = '';
+                    } else if (sym === '⌫') {
+                        const start = active.selectionStart;
+                        const end = active.selectionEnd;
+                        const currentVal = active.value;
+                        if (start === end && start > 0) {
+                            active.value = currentVal.substring(0, start - 1) + currentVal.substring(end);
+                            active.setSelectionRange(start - 1, start - 1);
+                        } else if (start !== end) {
+                            active.value = currentVal.substring(0, start) + currentVal.substring(end);
+                            active.setSelectionRange(start, start);
+                        }
                     } else {
                         const start = active.selectionStart;
                         const end = active.selectionEnd;

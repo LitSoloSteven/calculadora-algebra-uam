@@ -84,7 +84,7 @@ class AIPanel:
         self.context_chip.set_visibility(False)
 
     def clear_chat(self):
-        self.chat_history = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
+        self.chat_history = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "api_text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
         self.render_chat()
 
     def render_chat(self):
@@ -115,8 +115,7 @@ class AIPanel:
                     msg_id = f"ai-msg-{id(text)}-{idx}" if not sent and idx == len(self.chat_history) - 1 else None
                     if msg_id:
                         ui.html(f'<div id="{msg_id}"></div>').classes('whitespace-pre-wrap math-label')
-                        escaped = html.escape(text)
-                        ui.timer(0.05, lambda t=escaped, mid=msg_id: ui.run_javascript(f'typewriterEffect("{mid}", {json.dumps(t)}, 15)'), once=True)
+                        ui.timer(0.05, lambda t=text, mid=msg_id: ui.run_javascript(f'typewriterEffect("{mid}", {json.dumps(t)}, 15)'), once=True)
                     else:
                         ui.html(html.escape(text).replace('\n', '<br>')).classes('whitespace-pre-wrap math-label')
 
@@ -125,13 +124,21 @@ class AIPanel:
         if not text or not text.strip(): return
         
         full_text = text.strip()
+        api_text = full_text
         if self.attached_context:
-            full_text = f"[Contexto adjunto]\n{self.attached_context}\n\nPregunta: {full_text}"
+            api_text = f"[Contexto adjunto]\n{self.attached_context}\n\nPregunta: {full_text}"
             self.clear_context()
             
         self.input_field.value = ''
         
-        self.chat_history.append({"text": text.strip(), "sent": True})
+        MAX_HISTORY = 10
+        history = [
+            {"role": "user" if m.get("sent") else "assistant", "content": m.get("api_text", m.get("text"))}
+            for m in self.chat_history[1:]
+            if not m.get("error")
+        ][-MAX_HISTORY:]
+        
+        self.chat_history.append({"text": full_text, "sent": True, "api_text": api_text})
         self.render_chat()
         
         with self.chat_area:
@@ -141,14 +148,14 @@ class AIPanel:
                     self._render_typing_indicator()
                 
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
-        
+            
         try:
-            respuesta = await run.io_bound(self.motor_ia.analizar_sistema, full_text)
+            ok, respuesta = await run.io_bound(self.motor_ia.analizar_sistema, api_text, history)
         except Exception as e:
-            respuesta = f"Error al procesar tu mensaje: {str(e)}"
+            ok, respuesta = False, f"Error al procesar tu mensaje: {e}"
             
         typing_row.delete()
-        self.chat_history.append({"text": respuesta, "sent": False})
+        self.chat_history.append({"text": respuesta, "sent": False, "error": not ok})
         self.render_chat()
 
     def build(self):

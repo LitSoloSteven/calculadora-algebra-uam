@@ -694,6 +694,20 @@ def setup_theme():
             // Constantes de movimiento (espejo de los tokens CSS para uso en JS)
             window.MOTION = { fast: 120, med: 240, slow: 500 };
 
+            window.replayResultAnimation = function (elId) {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                el.classList.remove('animate-slide-up');
+                void el.offsetWidth; // reflow para reiniciar
+                el.classList.add('animate-slide-up');
+                const done = (e) => {
+                    if (e.target !== el) return; // ignorar animationend de hijos (.timeline-expansion)
+                    el.classList.remove('animate-slide-up');
+                    el.removeEventListener('animationend', done);
+                };
+                el.addEventListener('animationend', done);
+            };
+
             // Rastreador del clic del mouse para animación de onda expansiva
             window.lastMouseClick = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
             document.addEventListener('click', e => {
@@ -965,6 +979,8 @@ def redirect_gauss_jordan():
 
 @ui.page('/sistemas-lineales')
 def linear_systems_page(method: str = 'gauss'):
+    if method not in ('gauss', 'gauss-jordan'):
+        method = 'gauss'
     from src.frontend.views.linear_systems.view_linear_systems import LinearSystemsUI
     setup_theme()
     app_ui = LinearSystemsUI(initial_method=method)
@@ -993,6 +1009,10 @@ def vista_ia_redirect():
     return RedirectResponse('/sistemas-lineales')
 
 if __name__ in {"__main__", "__mp_main__"}:
+    import os
+    from dotenv import load_dotenv
+    load_dotenv(".env")
+    load_dotenv("src/ai/.env")
     ui.run(title="Calculadora Álgebra Lineal UAM",
            favicon="src/frontend/assets/LogoOscuro.png",
-           storage_secret="alg_lineal_uam_secreto")
+           storage_secret=os.getenv("STORAGE_SECRET"))
