@@ -11,7 +11,7 @@ class MatrixEncoder(json.JSONEncoder):
         if isinstance(obj, Matrix):
             return {"rows": obj.rows, "cols": obj.cols, "data": obj.data}
         if isinstance(obj, Fraction):
-            return float(obj) if obj.denominator != 1 else obj.numerator
+            return f"{obj.numerator}/{obj.denominator}" if obj.denominator != 1 else str(obj.numerator)
         return super().default(obj)
 
 

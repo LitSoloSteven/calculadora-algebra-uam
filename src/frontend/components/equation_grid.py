@@ -27,6 +27,8 @@ class EquationGrid:
                 if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
                 let r = parseInt(active.dataset.row), c = parseInt(active.dataset.col);
                 if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    if (e.key === 'ArrowLeft' && active.selectionStart !== 0) return;
+                    if (e.key === 'ArrowRight' && active.selectionEnd !== active.value.length) return;
                     if (e.key === 'ArrowRight') c++; if (e.key === 'ArrowLeft') c--;
                     if (e.key === 'ArrowDown') r++; if (e.key === 'ArrowUp') r--;
                 } else if (e.key === 'Enter') r++;
@@ -42,7 +44,7 @@ class EquationGrid:
                 if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
                 e.preventDefault();
                 let pasteData = (e.clipboardData || window.clipboardData).getData('text');
-                let rows = pasteData.trim().split('\\n');
+                let rows = pasteData.replace(/\\s+$/, '').split('\\n');
                 let startR = parseInt(active.dataset.row), startC = parseInt(active.dataset.col);
                 
                 rows.forEach((rowStr, rIdx) => {
@@ -93,7 +95,13 @@ class EquationGrid:
         ''')
 
     async def adjust_size(self, delta_m=0, delta_n=0):
-        if not (1 <= self.m + delta_m <= 10) and not (1 <= self.n + delta_n <= 10):
+        if delta_m > 0 and self.m >= 10:
+            return
+        if delta_m < 0 and self.m <= 1:
+            return
+        if delta_n > 0 and self.n >= 10:
+            return
+        if delta_n < 0 and self.n <= 1:
             return
             
         is_remove = (delta_m < 0 or delta_n < 0)
@@ -139,13 +147,15 @@ class EquationGrid:
             '''
             await ui.run_javascript(js_salida)
             
-        if 1 <= self.m + delta_m <= 10: self.m += delta_m
-        if 1 <= self.n + delta_n <= 10: self.n += delta_n
+        self.m += delta_m
+        self.n += delta_n
         
         # Purgar caché fuera de rango
         self._cache_A = {(r, c): v for (r, c), v in self._cache_A.items() if r < self.m and c < self.n}
         self._cache_b = {r: v for r, v in self._cache_b.items() if r < self.m}
         
+        self.entradas_A.clear()
+        self.entradas_b.clear()
         self.generar_cuadricula()
         if self.on_data_change: self.on_data_change()
         
@@ -248,7 +258,7 @@ class EquationGrid:
                                 self._cache_A[(r, c)] = e.value
                                 if self.on_data_change: self.on_data_change()
                                 
-                            celda = ui.input(value=val, placeholder='0', on_change=update_cache_A).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
+                            celda = ui.input(value=val, placeholder='', on_change=update_cache_A).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
                             fila_A.append(celda)
                             
                         self.entradas_A.append(fila_A)
@@ -260,7 +270,7 @@ class EquationGrid:
                             self._cache_b[r] = e.value
                             if self.on_data_change: self.on_data_change()
                             
-                        celda_b = ui.input(value=val_b, placeholder='0', on_change=update_cache_b).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
+                        celda_b = ui.input(value=val_b, placeholder='', on_change=update_cache_b).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
                         self.entradas_b.append(celda_b)
 
     def get_matrix_data(self):
@@ -284,15 +294,20 @@ class EquationGrid:
         for celda in self.entradas_b: celda.value = ''
         if self.on_data_change: self.on_data_change()
 
-    def export_to_equations(self):
+    def export_to_equations(self, preserve_shape: bool = False):
         """Genera una lista de strings de ecuaciones desde la matriz actual."""
         ecuaciones = []
         matrix_A, vector_b = self.get_matrix_data()
         
+        from src.backend.utils.validators import MatrixValidator
         for i, row in enumerate(matrix_A):
             terms = []
             for j, val in enumerate(row):
                 if val and val != '0':
+                    success, num, _ = MatrixValidator.parse_number_exact(val)
+                    if not success:
+                        continue
+                    
                     sign = "-" if val.startswith("-") else "+"
                     val_abs = val.lstrip("+-").strip()
                     
@@ -310,20 +325,43 @@ class EquationGrid:
                         
             if not terms:
                 if vector_b[i] and vector_b[i] != '0':
-                    ecuaciones.append(f"0 = {vector_b[i]}")
+                    ecuaciones.append(f"0x1 = {vector_b[i]}" if preserve_shape else f"0 = {vector_b[i]}")
+                elif preserve_shape:
+                    ecuaciones.append("0x1 = 0")
             else:
                 eq_str = " ".join(terms) + f" = {vector_b[i]}"
                 ecuaciones.append(eq_str)
                 
+        if preserve_shape and ecuaciones:
+            import re
+            used_vars = set()
+            for eq in ecuaciones:
+                for match in re.finditer(r'x(\d+)', eq):
+                    used_vars.add(int(match.group(1)))
+                    
+            first_eq_parts = ecuaciones[0].split(' = ')
+            if len(first_eq_parts) == 2:
+                first_eq, b_part = first_eq_parts
+                for j in range(self.n):
+                    if (j + 1) not in used_vars:
+                        if first_eq == "0":
+                            first_eq = f"0x{j+1}"
+                        elif first_eq == "":
+                            first_eq = f"0x{j+1}"
+                        else:
+                            first_eq += f" + 0x{j+1}"
+                ecuaciones[0] = f"{first_eq} = {b_part}"
+                
         return ecuaciones
 
-    def import_from_parsed(self, parsed_matrix, variables):
+    def import_from_parsed(self, parsed_matrix):
         """Reconstruye la cuadrícula desde una matriz parseada."""
-        m = parsed_matrix.rows
-        n = parsed_matrix.cols - 1
-        
-        self.m = m
-        self.n = n
+        if parsed_matrix.rows > 10 or (parsed_matrix.cols - 1) > 10:
+            ui.notify("El sistema excede el límite de visualización (10x10).", type='warning')
+            return
+            
+        self.m = parsed_matrix.rows
+        self.n = parsed_matrix.cols - 1
         
         # Llenar el caché primero para que generar_cuadricula lo use
         self._cache_A.clear()
@@ -331,12 +369,18 @@ class EquationGrid:
         
         for i in range(self.m):
             for j in range(self.n):
-                val = parsed_matrix.data[i][j]
-                str_val = f"{int(val)}" if isinstance(val, float) and val.is_integer() else f"{val}"
-                if str_val != "0": self._cache_A[(i, j)] = str_val
+                s = str(parsed_matrix.data[i][j])
+                if s != "0":
+                    self._cache_A[(i, j)] = s
                 
-            b_val = parsed_matrix.data[i][-1]
-            str_b_val = f"{int(b_val)}" if isinstance(b_val, float) and b_val.is_integer() else f"{b_val}"
-            if str_b_val != "0": self._cache_b[i] = str_b_val
+            s = str(parsed_matrix.data[i][-1])
+            if s != "0":
+                self._cache_b[i] = s
             
+        # Descartar los widgets viejos: generar_cuadricula() copia sus valores
+        # al caché antes de reconstruir y pisaría lo recién importado.
+        self.entradas_A.clear()
+        self.entradas_b.clear()
         self.generar_cuadricula()
+        if self.on_data_change:
+            self.on_data_change()

@@ -1,14 +1,19 @@
 import json
 import asyncio
+import logging
+import html
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 from src.frontend.controllers.linear_systems.controller_gauss import MatrixController
 from src.frontend.controllers.linear_systems.controller_gauss_jordan import GaussJordanController
 from src.frontend.components.navbar import create_navbar
 from src.frontend.components.equation_grid import EquationGrid
 from src.frontend.components.calculator import CalculatorPanel
 from src.backend.utils.parsers import SystemParser
-from src.frontend.app import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR
+from src.frontend.theme import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR, CHART_FONT_COLOR
 from src.frontend.components.ai_panel import AIPanel
+from src.frontend.helpers import format_step_for_mathjax
 
 class LinearSystemsUI:
     def __init__(self, initial_method='gauss'):
@@ -39,6 +44,11 @@ class LinearSystemsUI:
         if self.num_ecuaciones > 1:
             self.num_ecuaciones -= 1
             self.render_ecuaciones()
+            self.update_sync_buttons()
+
+    def _on_equations_change(self, e=None):
+        self.update_sync_buttons()
+        self._trigger_live_preview()
 
     def render_ecuaciones(self):
         backup_vals = [inp.value for inp in self.ecuaciones_inputs]
@@ -50,11 +60,11 @@ class LinearSystemsUI:
                     val = backup_vals[i] if i < len(backup_vals) else ''
                     with ui.row().classes('w-full items-center gap-3 no-wrap mb-3'):
                         ui.label(f'{i+1}.').classes('font-bold text-sec w-6 text-right')
-                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self.update_sync_buttons).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
+                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self._on_equations_change).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
                         self.ecuaciones_inputs.append(inp)
 
     def sync_from_matrix(self):
-        eqs = self.grid.export_to_equations()
+        eqs = self.grid.export_to_equations(preserve_shape=True)
         self.num_ecuaciones = max(len(eqs), 1)
         
         if self.contenedor_ecuaciones_lista:
@@ -65,21 +75,22 @@ class LinearSystemsUI:
                     val = eqs[i] if i < len(eqs) else ''
                     with ui.row().classes('w-full items-center gap-3 no-wrap mb-3'):
                         ui.label(f'{i+1}.').classes('font-bold text-sec w-6 text-right')
-                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self.update_sync_buttons).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
+                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self._on_equations_change).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
                         self.ecuaciones_inputs.append(inp)
         
+        self.update_sync_buttons()
         ui.notify('Sincronizado desde Matriz', type='positive', position='top')
 
     def sync_from_equations(self):
         lineas = [inp.value or "" for inp in self.ecuaciones_inputs]
         raw_text = "\n".join(lineas)
-        success, parsed_matrix, variables, msg = SystemParser.parse_system(raw_text)
+        success, parsed_matrix, variables, msg = SystemParser.parse_system(raw_text, strict_variables=False)
         
         if not success:
             ui.notify(f'Error al sincronizar: {msg}', type='negative', position='top')
             return
             
-        self.grid.import_from_parsed(parsed_matrix, variables)
+        self.grid.import_from_parsed(parsed_matrix)
         ui.notify('Sincronizado desde Ecuaciones', type='positive', position='top')
 
     def is_matriz_empty(self):
@@ -116,6 +127,10 @@ class LinearSystemsUI:
         if hasattr(self, 'sync_btn_from_matrix') and self.sync_btn_from_matrix:
             self.sync_btn_from_matrix.set_visibility(not self.is_matriz_empty())
             
+    def _on_grid_change(self):
+        self._trigger_live_preview()
+        self.update_sync_buttons()
+
     def _trigger_live_preview(self):
         if self.preview_task: self.preview_task.cancel()
         self.preview_task = asyncio.create_task(self._update_preview())
@@ -124,55 +139,89 @@ class LinearSystemsUI:
         await asyncio.sleep(0.3)
         if not self.preview_container: return
         
-        self.preview_container.clear()
-        with self.preview_container:
-            matrix_A, vector_b = self.grid.get_matrix_data()
-            if not matrix_A or len(matrix_A) == 0 or len(matrix_A[0]) == 0:
-                ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
-                return
+        try:
+            self.preview_container.clear()
+            with self.preview_container:
+                matrix_A, vector_b = self.grid.get_matrix_data()
+                if not matrix_A or len(matrix_A) == 0 or len(matrix_A[0]) == 0:
+                    ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
+                    return
                 
-            m = len(matrix_A)
-            n = len(matrix_A[0])
-            
-            from src.backend.utils.validators import MatrixValidator
-            def sanitize(val):
-                if not val: return '0'
-                success, _, _ = MatrixValidator.parse_number(val)
-                if not success: return r"\color{gray}{?}"
-                return val
-            
-            # Construir LaTeX para matriz aumentada
-            latex_lines = []
-            for i, row in enumerate(matrix_A):
-                row_strs = [sanitize(val) for val in row]
-                b_val = sanitize(vector_b[i] if i < len(vector_b) else '0')
-                latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
+                m = len(matrix_A)
+                n = len(matrix_A[0])
                 
-            spec = "c" * n + "|c"
-            matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
-            
-            ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
-            
-            if m * n > 48:
-                ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                return
-            
-            # Construir LaTeX para sistema de ecuaciones
-            eqs = self.grid.export_to_equations()
-            if not eqs:
-                ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
-                ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                return
+                from src.backend.utils.validators import MatrixValidator
+                def sanitize(val):
+                    if not val: return '0'
+                    success, _, _ = MatrixValidator.parse_number_exact(val)
+                    if not success: return r"\color{gray}{?}"
+                    return val
                 
-            import re
-            eqs_tex = r" \\ ".join(eqs)
-            eqs_tex = re.sub(r'\bx(\d+)\b', r'x_{\1}', eqs_tex)
-            system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
-            
-            ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
-            
-            ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
+                # Construir LaTeX para matriz aumentada
+                latex_lines = []
+                for i, row in enumerate(matrix_A):
+                    row_strs = [sanitize(val) for val in row]
+                    b_val = sanitize(vector_b[i] if i < len(vector_b) else '0')
+                    latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
+                    
+                spec = "c" * n + "|c"
+                matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
+                matrix_tex = html.escape(matrix_tex)
+                
+                ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
+                
+                if m * n > 48:
+                    ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
+                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                    return
+                
+                # Verify all cells are valid before exporting to equations
+                todas_validas = True
+                for i in range(m):
+                    for j in range(n):
+                        val = matrix_A[i][j]
+                        if val:
+                            success, _, _ = MatrixValidator.parse_number_exact(val)
+                            if not success:
+                                todas_validas = False
+                                break
+                    if not todas_validas:
+                        break
+                        
+                b_valid = True
+                for i in range(m):
+                    val = vector_b[i] if i < len(vector_b) else ''
+                    if val:
+                        success, _, _ = MatrixValidator.parse_number_exact(val)
+                        if not success:
+                            b_valid = False
+                            break
+                            
+                if not todas_validas or not b_valid:
+                    ui.label('Corrige los valores inválidos para ver las ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
+                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                    return
+                
+                # Construir LaTeX para sistema de ecuaciones
+                eqs = self.grid.export_to_equations()
+                if not eqs:
+                    ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
+                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
+                    return
+                    
+                import re
+                eqs_tex = r" \\ ".join(eqs)
+                eqs_tex = re.sub(r'x(\d+)', r'x_{\1}', eqs_tex)
+                system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
+                system_tex = html.escape(system_tex)
+                
+                ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
+                
+                ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
+        except Exception as e:
+            logger.error("Error al actualizar vista previa", exc_info=e)
+            with self.preview_container:
+                ui.label('No se pudo generar la vista previa.').classes('text-sec italic text-sm mt-4 text-center')
 
     def _add_to_history(self, matrix_A, vector_b, m, n, status, method):
         import time
@@ -192,6 +241,7 @@ class LinearSystemsUI:
     def _render_history(self):
         if not self.historial_container: return
         self.historial_container.clear()
+        self.historial_container.update()
         
         with self.historial_container:
             if not self.historial:
@@ -214,6 +264,9 @@ class LinearSystemsUI:
                     ui.button('Restaurar', on_click=lambda e, data=h: self._restore_history(data), color=None).classes('btn-ghost text-xs w-full mt-2').props('ripple=false')
 
     def _restore_history(self, data):
+        if self.mode_tabs.value == 'Ecuaciones':
+            self.mode_tabs.set_value('Matriz')
+            
         self.grid.clear()
         self.grid.m = data['m']
         self.grid.n = data['n']
@@ -226,8 +279,10 @@ class LinearSystemsUI:
         for i, val in enumerate(data['vector_b']):
             if val != '0': self.grid._cache_b[i] = val
             
+        self.grid.entradas_A.clear()
+        self.grid.entradas_b.clear()
         self.grid.generar_cuadricula()
-        self._trigger_live_preview()
+        self._on_grid_change()
         
         ui.notify('Matriz restaurada', type='positive')
 
@@ -258,6 +313,7 @@ class LinearSystemsUI:
 
     def reset_resultados(self):
         self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(remove='items-start justify-start', add='items-center justify-center')
         with self.contenedor_resultados:
             ui.icon('calculate', size='4rem').classes('text-placeholder mb-4')
             ui.label('Listo para resolver').classes('text-xl font-bold text-main')
@@ -275,7 +331,25 @@ class LinearSystemsUI:
             return
             
         btn = sender
-        btn.props('loading=true').classes('w-full max-w-[200px]')
+        btn.props('loading=true')
+        try:
+            await self._resolver_core(btn)
+        except Exception as e:
+            self._mostrar_error_inesperado(e)
+        finally:
+            btn.props('loading=false')
+
+    def _mostrar_error_inesperado(self, exc):
+        logger.error("Error inesperado al resolver el sistema", exc_info=exc)
+        self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
+        with self.contenedor_resultados:
+            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
+                ui.icon('close', size='sm')
+                ui.label('Ocurrió un error inesperado al resolver el sistema. Revisa los datos e inténtalo de nuevo.').classes('font-bold')
+        ui.notify('Error inesperado', type='negative', position='top')
+
+    async def _resolver_core(self, btn):
         await asyncio.sleep(0.1) 
         
         self.contenedor_resultados.clear()
@@ -299,7 +373,6 @@ class LinearSystemsUI:
                     with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                         ui.icon('close', size='sm')
                         ui.label(msg).classes('font-bold')
-                btn.props('loading=false')
                 return
             
             matrix_A_vals = [[str(val) for val in row[:-1]] for row in parsed_matrix.data]
@@ -316,15 +389,15 @@ class LinearSystemsUI:
         respuesta = json.loads(respuesta_json_str)
         
         # Animación del panel de resultados (Slide Up & Fade In)
-        self.contenedor_resultados.classes(add='animate-slide-up')
         
         with self.contenedor_resultados:
             self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
             
             status = respuesta.get("status")
             classification_msg = respuesta.get("classification") or respuesta.get("message", "")
+            is_error = str(status).upper() == "ERROR"
             
-            if status == "error":
+            if is_error:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                     ui.icon('close', size='sm')
                     ui.label(classification_msg).classes('font-bold')
@@ -381,30 +454,35 @@ class LinearSystemsUI:
                         if respuesta.get("back_substitution_steps"):
                             ui.label('Sustitución:' if self.method_tabs.value == 'gauss' else 'Solución Final:').classes('font-bold text-sm text-sec mt-2')
                             for paso in respuesta["back_substitution_steps"]:
-                                if self.method_tabs.value == 'gauss':
-                                    ui.html(f'<div class="math-label w-full">$$ {paso} $$</div>')
-                                else:
-                                    ui.label(paso).classes('text-md font-medium text-main mt-1 w-full')
+                                ui.html(f'<div class="math-scroll-container math-label w-full">$$ {format_step_for_mathjax(paso)} $$</div>')
                                     
                         if respuesta.get("verification_steps_latex"):
                             ui.label('Comprobación Ax = b:').classes('font-bold text-sm text-sec mt-4')
                             for paso in respuesta["verification_steps_latex"]:
-                                ui.html(f'<div class="math-scroll-container math-label">$$ {paso} $$</div>')
+                                ui.html(f'<div class="math-scroll-container math-label">$$ {format_step_for_mathjax(paso)} $$</div>')
 
-        self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
+        if not is_error:
+            self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
-        btn.props('loading=false')
         ui.run_javascript('typesetMathWhenReady();')
         
-        # Eliminar clase de animación para que se pueda volver a animar
-        ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')
-        
         with self.contenedor_resultados:
-            self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
+            if not is_error:
+                await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
             
+        ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
-    def render_graphics(self, matrix_A, vector_b, respuesta):
+    async def _tema_actual(self) -> str:
+        try:
+            return await ui.run_javascript(
+                "document.documentElement.getAttribute('data-theme') || 'papel'",
+                timeout=3.0,
+            ) or 'papel'
+        except Exception:
+            return 'papel'
+
+    async def render_graphics(self, matrix_A, vector_b, respuesta):
         m = len(matrix_A)
         n = len(matrix_A[0]) if m > 0 else 0
         
@@ -415,8 +493,9 @@ class LinearSystemsUI:
         with ui.expansion('Visualización Gráfica', icon='insights').classes('w-full panel-card mt-4').props('header-class="font-bold text-main" default-opened'):
             try:
                 import plotly.graph_objects as go
-            except ImportError:
-                ui.label('Instalando dependencias gráficas... intente de nuevo en unos segundos.').classes('text-warning')
+            except ImportError as e:
+                logger.warning("No se pudo cargar el módulo de gráficos (plotly)", exc_info=e)
+                ui.label('No se pudo cargar el módulo de gráficos (plotly). Contactá al administrador o instalá la dependencia con "pip install plotly".').classes('text-warning')
                 return
 
             def _linspace(start, stop, num):
@@ -433,12 +512,16 @@ class LinearSystemsUI:
             fig = go.Figure()
             colors = CHART_PALETTE
             
+            from src.frontend.helpers import to_float
+            omitidas = 0
+            
             if n == 2:
                 x_vals = _linspace(-10, 10, 100)
                 for i in range(m):
                     try:
-                        a, b, c = float(matrix_A[i][0]), float(matrix_A[i][1]), float(vector_b[i])
-                    except:
+                        a, b, c = to_float(matrix_A[i][0]), to_float(matrix_A[i][1]), to_float(vector_b[i])
+                    except ValueError:
+                        omitidas += 1
                         continue
                         
                     if abs(b) > 1e-6:
@@ -450,14 +533,20 @@ class LinearSystemsUI:
                         fig.add_trace(go.Scatter(x=x_line, y=y_line, mode='lines', name=f'Eq {i+1}', line=dict(color=colors[i % len(colors)], width=3)))
                         
                 if respuesta.get("status") == "UNIQUE_SOLUTION" and respuesta.get("solution"):
-                    sol = respuesta["solution"]
-                    fig.add_trace(go.Scatter(x=[sol[0]], y=[sol[1]], mode='markers', name='Solución',
-                                             marker=dict(color=CHART_MARKER_LIGHT, size=12, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    try:
+                        sol_f = [to_float(s) for s in respuesta["solution"]]
+                        fig.add_trace(go.Scatter(x=[sol_f[0]], y=[sol_f[1]], mode='markers', name='Solución',
+                                                 marker=dict(color=CHART_MARKER_LIGHT, size=12, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    except ValueError:
+                        pass
                                              
+                theme = await self._tema_actual()
+                font_color = CHART_FONT_COLOR.get(theme, '#23262E')
+
                 fig.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#23262E'),
+                    font=dict(color=font_color),
                     margin=dict(l=20, r=20, t=20, b=20),
                     xaxis=dict(gridcolor=CHART_GRID_COLOR, zerolinecolor=CHART_ZERO_COLOR),
                     yaxis=dict(gridcolor=CHART_GRID_COLOR, zerolinecolor=CHART_ZERO_COLOR)
@@ -470,8 +559,9 @@ class LinearSystemsUI:
                 
                 for i in range(m):
                     try:
-                        a, b, c_z, d = float(matrix_A[i][0]), float(matrix_A[i][1]), float(matrix_A[i][2]), float(vector_b[i])
-                    except:
+                        a, b, c_z, d = to_float(matrix_A[i][0]), to_float(matrix_A[i][1]), to_float(matrix_A[i][2]), to_float(vector_b[i])
+                    except ValueError:
+                        omitidas += 1
                         continue
                         
                     if abs(c_z) > 1e-6:
@@ -489,14 +579,20 @@ class LinearSystemsUI:
                         fig.add_trace(go.Surface(z=Z_grid, x=X_grid, y=Y_mesh, name=f'Eq {i+1}', showscale=False, opacity=0.7, colorscale=[[0, colors[i % len(colors)]], [1, colors[i % len(colors)]]]))
                 
                 if respuesta.get("status") == "UNIQUE_SOLUTION" and respuesta.get("solution"):
-                    sol = respuesta["solution"]
-                    fig.add_trace(go.Scatter3d(x=[sol[0]], y=[sol[1]], z=[sol[2]], mode='markers', name='Solución',
-                                               marker=dict(color=CHART_MARKER_LIGHT, size=8, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    try:
+                        sol_f = [to_float(s) for s in respuesta["solution"]]
+                        fig.add_trace(go.Scatter3d(x=[sol_f[0]], y=[sol_f[1]], z=[sol_f[2]], mode='markers', name='Solución',
+                                                   marker=dict(color=CHART_MARKER_LIGHT, size=8, line=dict(color=CHART_MARKER_BORDER, width=2))))
+                    except ValueError:
+                        pass
                 
+                theme = await self._tema_actual()
+                font_color = CHART_FONT_COLOR.get(theme, '#23262E')
+
                 fig.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#23262E'),
+                    font=dict(color=font_color),
                     margin=dict(l=0, r=0, t=0, b=0),
                     scene=dict(
                         xaxis=dict(backgroundcolor='rgba(0,0,0,0)', gridcolor=CHART_GRID_COLOR),
@@ -506,7 +602,9 @@ class LinearSystemsUI:
                 )
 
             ui.plotly(fig).classes('w-full h-[400px]')
-            ui.run_javascript("setTimeout(() => { if(window.updatePlotlyTheme) updatePlotlyTheme(document.documentElement.getAttribute('data-theme') || 'claro'); }, 100);")
+            if omitidas > 0:
+                ui.label(f'{omitidas} ecuación(es) no se pudieron graficar por tener valores no numéricos.').classes('text-warning text-sm')
+            ui.run_javascript("window.updatePlotlyThemeWhenReady(5000);")
 
     def trigger_flip_animation(self):
         ui.run_javascript('''
@@ -522,7 +620,7 @@ class LinearSystemsUI:
         self.ai_panel = AIPanel(self)
         create_navbar(self, active_route='/sistemas-lineales')
         self.grid.inject_scripts()
-        self.grid.on_data_change = self._trigger_live_preview
+        self.grid.on_data_change = self._on_grid_change
         self.calculator.inject_scripts()
         
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
@@ -540,6 +638,14 @@ class LinearSystemsUI:
                 with ui.tabs().classes('neo-tabs mode-tabs').props('dense no-caps') as self.mode_tabs:
                     ui.tab('Matriz', icon='grid_4x4')
                     ui.tab('Ecuaciones', icon='functions')
+                    
+                def on_mode_change(e):
+                    if e.value == 'Ecuaciones' and not self.is_matriz_empty():
+                        self.sync_from_matrix()
+                    elif e.value == 'Matriz' and not self.is_ecuaciones_empty():
+                        self.sync_from_equations()
+                        
+                self.mode_tabs.on_value_change(on_mode_change)
             
             with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
                 with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
@@ -576,6 +682,7 @@ class LinearSystemsUI:
                         ui.tab('teclado', label='Teclado')
                         ui.tab('preview', label='Vista previa')
                         ui.tab('history', label='Historial')
+                    self.tools_tabs.on_value_change(lambda e: self._trigger_live_preview() if e.value == 'preview' else None)
                     
                     with ui.tab_panels(self.tools_tabs, value='teclado').classes('w-full p-0 bg-transparent').props('animated'):
                         with ui.tab_panel('teclado').classes('p-0 mt-4'):

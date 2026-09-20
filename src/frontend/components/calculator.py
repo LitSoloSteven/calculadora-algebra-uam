@@ -7,13 +7,13 @@ class CalculatorPanel:
             '7', '8', '9', '/',
             '4', '5', '6', '-',
             '1', '2', '3', '.',
-            '(', '0', ')', 'C'
+            '+', '0', '±', 'C'
         ]
         
         # Símbolos para modo Ecuaciones: variables y operadores adicionales
         self.symbols_equations = [
             '7', '8', '9', '+', '-',
-            '4', '5', '6', '*', '/',
+            '4', '5', '6', 'w', '/',
             '1', '2', '3', 'x', 'y',
             '0', '.', '=', 'z', 'C'
         ]
@@ -30,11 +30,36 @@ class CalculatorPanel:
             
             function insertSymbol(sym) {
                 if (!sym) return;
-                let active = window.lastFocusedInput || document.activeElement;
-                if (active && active.tagName !== 'INPUT') active = window.lastFocusedInput;
+                let active = window.lastFocusedInput;
+                if (!active || !active.isConnected) {
+                    active = document.querySelector('.matrix-input input');
+                    if (!active) return;
+                    active.focus();
+                }
                 if (active && active.tagName === 'INPUT') {
                     if (sym === 'C') {
                         active.value = '';
+                    } else if (sym === '±') {
+                        let currentVal = active.value;
+                        if (currentVal.startsWith('-')) {
+                            active.value = currentVal.substring(1);
+                        } else if (currentVal.startsWith('+')) {
+                            active.value = '-' + currentVal.substring(1);
+                        } else if (currentVal.length > 0) {
+                            active.value = '-' + currentVal;
+                        }
+                        active.setSelectionRange(active.value.length, active.value.length);
+                    } else if (sym === '⌫') {
+                        const start = active.selectionStart;
+                        const end = active.selectionEnd;
+                        const currentVal = active.value;
+                        if (start === end && start > 0) {
+                            active.value = currentVal.substring(0, start - 1) + currentVal.substring(end);
+                            active.setSelectionRange(start - 1, start - 1);
+                        } else if (start !== end) {
+                            active.value = currentVal.substring(0, start) + currentVal.substring(end);
+                            active.setSelectionRange(start, start);
+                        }
                     } else {
                         const start = active.selectionStart;
                         const end = active.selectionEnd;
@@ -71,7 +96,7 @@ class CalculatorPanel:
                             if sym:
                                 classes = 'btn-neo-calc w-full h-14 p-0 text-xl font-bold ' + ('text-main' if sym != 'C' else '')
                                 btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
-                                if sym == 'C': btn.style('color: var(--error)')
+                                if sym == 'C': btn.style('color: var(--error) !important')
                             else:
                                 ui.label('').classes('w-full h-14') # Espacio en blanco
                                 
@@ -81,6 +106,6 @@ class CalculatorPanel:
                             if sym:
                                 classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-main' if sym != 'C' else '')
                                 btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
-                                if sym == 'C': btn.style('color: var(--error)')
+                                if sym == 'C': btn.style('color: var(--error) !important')
                             else:
                                 ui.label('').classes('w-full h-12')

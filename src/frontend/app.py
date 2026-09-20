@@ -2,12 +2,6 @@ from nicegui import ui, app
 from fastapi.responses import RedirectResponse
 # Servir assets para el splash screen
 app.add_static_files('/assets', 'src/frontend/assets')
-# Paleta centralizada para gráficas Plotly (no soporta CSS custom properties)
-CHART_PALETTE = ['#E8466D', '#2EB88A', '#4B9FE8', '#E89F42', '#8B5CF6']
-CHART_MARKER_LIGHT = '#FFFFFF'
-CHART_MARKER_BORDER = '#23262E'
-CHART_GRID_COLOR = 'rgba(128,128,128,0.2)'
-CHART_ZERO_COLOR = 'rgba(128,128,128,0.5)'
 
 def setup_theme():
     ui.add_head_html('''
@@ -116,7 +110,7 @@ def setup_theme():
               if(document.body) {
                   document.body.animate(
                       [ { transform: 'translateY(16px)' }, { transform: 'translateY(0)' } ],
-                      { duration: 400, easing: 'ease-out', fill: 'forwards' }
+                      { duration: 400, easing: 'ease-out' }
                   );
               }
           }, 2600);
@@ -129,7 +123,7 @@ def setup_theme():
         <script>
             window.MathJax = {
                 tex: {
-                    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                    inlineMath: [['\\\\(', '\\\\)']],
                     displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
                 },
                 svg: {
@@ -419,13 +413,18 @@ def setup_theme():
                 transition: background-color 5000s ease-in-out 0s;
             }
 
+            .matrix-input {
+                font-size: var(--fs-mono-math);
+                text-align: center;
+            }
+
             .matrix-input .q-field__native, .matrix-input .q-field__input {
                 font-family: 'Space Grotesk', 'Cambria Math', serif !important;
-                font-size: var(--fs-mono-math) !important;
+                font-size: inherit;
                 font-variant-numeric: tabular-nums;
                 color: var(--input-text) !important;
                 -webkit-text-fill-color: var(--input-text) !important;
-                text-align: center;
+                text-align: center !important;
                 transition: color var(--dur-fast) var(--ease-std);
             }
 
@@ -433,6 +432,7 @@ def setup_theme():
                 color: var(--text-placeholder) !important;
                 -webkit-text-fill-color: var(--text-placeholder) !important;
                 opacity: 0.5 !important;
+                text-align: center !important;
             }
 
             /* === ETIQUETAS MATEMÁTICAS === */
@@ -533,7 +533,8 @@ def setup_theme():
             /* === TABS MÉTODO (corte recto al centro) === */
             .neo-tabs.method-tabs {
                 padding: 0 !important;
-                width: 320px !important;
+                width: 100% !important;
+                max-width: 320px !important;
                 overflow: hidden !important;
             }
             .neo-tabs.method-tabs .q-tab {
@@ -700,6 +701,20 @@ def setup_theme():
             // Constantes de movimiento (espejo de los tokens CSS para uso en JS)
             window.MOTION = { fast: 120, med: 240, slow: 500 };
 
+            window.replayResultAnimation = function (elId) {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                el.classList.remove('animate-slide-up');
+                void el.offsetWidth; // reflow para reiniciar
+                el.classList.add('animate-slide-up');
+                const done = (e) => {
+                    if (e.target !== el) return; // ignorar animationend de hijos (.timeline-expansion)
+                    el.classList.remove('animate-slide-up');
+                    el.removeEventListener('animationend', done);
+                };
+                el.addEventListener('animationend', done);
+            };
+
             // Rastreador del clic del mouse para animación de onda expansiva
             window.lastMouseClick = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
             document.addEventListener('click', e => {
@@ -786,14 +801,32 @@ def setup_theme():
                 if(theme === 'marea') { textColor = '#0B1F33'; gridColor = 'rgba(11,31,51,0.1)'; }
                 
                 document.querySelectorAll('.js-plotly-plot').forEach(plot => {
+                    if (!plot._fullLayout) return;
                     Plotly.relayout(plot, {
                         'font.color': textColor,
                         'scene.xaxis.gridcolor': gridColor,
                         'scene.yaxis.gridcolor': gridColor,
                         'scene.zaxis.gridcolor': gridColor
-                    }).catch(() => {}); // Ignorar si no está inicializado
+                    }).catch(() => {});
                 });
             }
+
+            window.updatePlotlyThemeWhenReady = function(maxWaitMs = 5000) {
+                var start = Date.now();
+                function attempt() {
+                    let plots = document.querySelectorAll('.js-plotly-plot');
+                    let ready = Array.from(plots).some(p => p._fullLayout);
+                    if (ready) {
+                        let currentTheme = document.documentElement.getAttribute('data-theme') || 'papel';
+                        updatePlotlyTheme(currentTheme);
+                    } else if (Date.now() - start < maxWaitMs) {
+                        setTimeout(attempt, 100);
+                    } else {
+                        console.warn("updatePlotlyThemeWhenReady: maxWaitMs expiró sin encontrar gráficas inicializadas.");
+                    }
+                }
+                attempt();
+            };
 
             function applyTheme(themeName) {
                 document.documentElement.setAttribute('data-theme', themeName);
@@ -971,6 +1004,8 @@ def redirect_gauss_jordan():
 
 @ui.page('/sistemas-lineales')
 def linear_systems_page(method: str = 'gauss'):
+    if method not in ('gauss', 'gauss-jordan'):
+        method = 'gauss'
     from src.frontend.views.linear_systems.view_linear_systems import LinearSystemsUI
     setup_theme()
     app_ui = LinearSystemsUI(initial_method=method)
@@ -999,6 +1034,10 @@ def vista_ia_redirect():
     return RedirectResponse('/sistemas-lineales')
 
 if __name__ in {"__main__", "__mp_main__"}:
+    import os
+    from dotenv import load_dotenv
+    load_dotenv(".env")
+    load_dotenv("src/ai/.env")
     ui.run(title="Calculadora Álgebra Lineal UAM",
            favicon="src/frontend/assets/LogoOscuro.png",
-           storage_secret="alg_lineal_uam_secreto")
+           storage_secret=os.getenv("STORAGE_SECRET"))
