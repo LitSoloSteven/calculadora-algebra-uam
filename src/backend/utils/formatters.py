@@ -22,31 +22,65 @@ def format_variable_for_latex(var_name: str) -> str:
     return var_name
 
 
-def format_fraction_str(val: float | Fraction) -> str:
-    if abs(val) < ZERO_EPSILON:
-        return "0"
-    frac = Fraction(val).limit_denominator(FRACTION_DISPLAY_LIMIT)
-    if abs(float(frac) - float(val)) < DISPLAY_FRACTION_TOLERANCE:   # ← 1e-4
-        if frac.denominator == 1:
-            return str(frac.numerator)
-        return f"{frac.numerator}/{frac.denominator}"
-    return f"{float(val):.{DISPLAY_DECIMALS}f}".rstrip('0').rstrip('.')
+def format_fraction_str(val: float | Fraction | int) -> str:
+    """Formatea números como fracciones exactas (si ya lo son) o
+    recupera una fracción simple desde un float.
 
+    Regla: Fraction/int nunca se aproximan. El limit_denominator solo
+    se aplica a float, donde el decimal binario no es la fuente de verdad.
+    """
+    if isinstance(val, (int, Fraction)):
+        f = Fraction(val)
+        if f.denominator == 1:
+            return str(f.numerator)
+        return f"{f.numerator}/{f.denominator}"
 
-def number_to_latex(val: float | Fraction, eps: float = FRACTION_MATCH_TOLERANCE) -> str:
-    if abs(val) < eps:
-        return "0"
-    frac = Fraction(val).limit_denominator(LATEX_DENOMINATOR_LIMIT)
-    if abs(float(frac) - float(val)) < DISPLAY_FRACTION_TOLERANCE:   # ← 1e-4
-        num, den = frac.numerator, frac.denominator
+    if isinstance(val, float):
+        if abs(val) < ZERO_EPSILON:
+            return "0"
+        frac = Fraction(val).limit_denominator(FRACTION_DISPLAY_LIMIT)
+        if abs(float(frac) - val) < DISPLAY_FRACTION_TOLERANCE:
+            if frac.denominator == 1:
+                return str(frac.numerator)
+            return f"{frac.numerator}/{frac.denominator}"
+        return f"{val:.{DISPLAY_DECIMALS}f}".rstrip('0').rstrip('.')
+
+    return str(val)
+
+def number_to_latex(val: float | Fraction | int) -> str:
+    """Convierte un número a LaTeX. Fraction/int son exactos; float
+    intenta recuperar una fracción simple y sino cae a decimal."""
+    if isinstance(val, (int, Fraction)):
+        f = Fraction(val)
+        if f == 0:
+            return "0"
+        num, den = f.numerator, f.denominator
         if den == 1:
             return str(num)
         sign = "-" if num < 0 else ""
         return f"{sign}\\frac{{{abs(num)}}}{{{den}}}"
-    return f"{float(val):.{DISPLAY_DECIMALS}f}".rstrip('0').rstrip('.')
 
+    if isinstance(val, float):
+        if abs(val) < FRACTION_MATCH_TOLERANCE:
+            return "0"
+        frac = Fraction(val).limit_denominator(LATEX_DENOMINATOR_LIMIT)
+        if abs(float(frac) - val) < DISPLAY_FRACTION_TOLERANCE:
+            num, den = frac.numerator, frac.denominator
+            if den == 1:
+                return str(num)
+            sign = "-" if num < 0 else ""
+            return f"{sign}\\frac{{{abs(num)}}}{{{den}}}"
+        return f"{val:.{DISPLAY_DECIMALS}f}".rstrip('0').rstrip('.')
+
+    return str(val)
 
 def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
+    """Convierte términos algebraicos a una cadena paramétrica limpia.
+
+    Coeficientes fraccionarios multiplicando variables se muestran como
+    '(a/b)t' para evitar ambigüedad con 'a/(bt)'. La constante sola
+    no lleva paréntesis.
+    """
     parts = []
     has_const = (const != 0) or not terms
 
@@ -57,7 +91,14 @@ def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
         if coeff == 0:
             continue
         abs_c = abs(coeff)
-        c_str = "" if abs_c == 1 else format_fraction_str(abs_c)
+
+        if abs_c.denominator == 1:
+            # Entero: "2t" o "t" si es 1
+            n = abs_c.numerator
+            c_str = "" if n == 1 else str(n)
+        else:
+            # Fracción: "(1/2)t" para evitar leer "1/(2t)"
+            c_str = f"({abs_c.numerator}/{abs_c.denominator})"
 
         if not parts:
             prefix = "" if coeff > 0 else "-"
@@ -72,7 +113,7 @@ def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
 def matrix_to_latex(matrix: Matrix, eps: float = FRACTION_MATCH_TOLERANCE) -> str:
     rows_str = []
     for r in range(matrix.rows):
-        row_vals = [number_to_latex(matrix.get(r, c), eps) for c in range(matrix.cols)]
+        row_vals = [number_to_latex(matrix.get(r, c)) for c in range(matrix.cols)]
         rows_str.append(" & ".join(row_vals))
     body = " \\\\\n".join(rows_str)
     return f"\\begin{{bmatrix}}\n{body}\n\\end{{bmatrix}}"

@@ -33,7 +33,7 @@ def test_vector_b_incomplete_is_rejected():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "1" in res["message"] and "3" in res["message"]
 
 
@@ -44,7 +44,7 @@ def test_ragged_matrix_is_rejected():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "fila" in res["message"].lower()
 
 
@@ -56,14 +56,14 @@ def test_division_by_zero_in_cell_is_caught():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     # El mensaje debe mencionar el problema numérico, no un "error interno" genérico
     assert "numérico" in res["message"].lower() or "cero" in res["message"].lower()
 
 
 def test_malformed_json_payload():
     res = json.loads(GaussJordanController.process_system("no es json"))
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "JSON" in res["message"] or "json" in res["message"]
 
 

@@ -10,7 +10,7 @@ class SystemParser:
     TERM_REGEX = re.compile(r'([+-]?)\s*(?:([\d\.\/]*)\s*([a-zA-Z][a-zA-Z0-9_]*)|([\d\.\/]+))')
 
     @classmethod
-    def parse_system(cls, raw_text: str, strict_variables: bool = True) -> tuple[bool, Matrix | None, list[str], str]:
+    def parse_system(cls, raw_text: str, strict_variables: bool = False) -> tuple[bool, Matrix | None, list[str], str]:
         """
         Procesa el texto ingresado y retorna:
         (éxito: bool, matriz_aumentada: Matrix, lista_variables: list[str], mensaje: str)
@@ -115,6 +115,10 @@ class SystemParser:
                 constant_sum += sign * parsed_val
 
         if not coeffs:
-            return {}, Fraction(0), f"No se encontraron variables válidas en '{lhs_str}'."
+            # LHS sin variables (ej: "0 = 5", "5 = 3"). No es error de
+            # sintaxis: es una fila de ceros que el solver interpretará
+            # como inconsistencia (NO_SOLUTION) si la constante no es 0.
+            # Se propaga la constante para que se traslade al RHS.
+            return {}, constant_sum, None
 
         return coeffs, constant_sum, None

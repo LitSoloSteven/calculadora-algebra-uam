@@ -37,7 +37,7 @@ def test_vector_b_incomplete_is_rejected():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "1" in res["message"] and "3" in res["message"]
 
 
@@ -48,7 +48,7 @@ def test_ragged_matrix_is_rejected():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "fila" in res["message"].lower()
 
 
@@ -71,11 +71,54 @@ def test_non_numeric_cell_reports_coordinates():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "A[1,1]" in res["message"]
 
 
 def test_malformed_json_payload():
     res = json.loads(MatrixController.process_system("esto no es json {{{"))
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "JSON" in res["message"] or "json" in res["message"]
+    
+def test_gauss_verification_with_fractional_solution():
+    """Sistema 3×3 con solución fraccionaria (9/7, -15/14, 2/7). La
+    comprobación Ax=b debe mostrar las fracciones exactas, no decimales.
+
+    Paridad con test_controller_gauss_jordan.py::test_verification_with_fractional_solution.
+    """
+    payload = json.dumps({
+        "matrix_A": [
+            ["1", "2", "3"],
+            ["3", "2", "1"],
+            ["-1", "-2", "4"],
+        ],
+        "vector_b": ["0", "2", "2"],
+        "variables": None,
+    })
+    response = json.loads(MatrixController.process_system(payload))
+
+    assert response["status"] == "UNIQUE_SOLUTION"
+    assert response["solution"] == ["9/7", "-15/14", "2/7"]
+
+    # La comprobación debe contener las fracciones exactas.
+    joined = " ".join(response["verification_steps_latex"])
+    assert r"\frac{9}{7}" in joined
+    assert r"\frac{15}{14}" in joined
+    assert r"\frac{2}{7}" in joined
+    # Y no decimales aproximados.
+    assert "1.2857" not in joined
+    assert "1.0714" not in joined
+    assert "0.2857" not in joined
+
+
+def test_gauss_verification_absent_when_no_solution():
+    """Sistema inconsistente no debe generar comprobación."""
+    payload = json.dumps({
+        "matrix_A": [["1", "1"], ["1", "1"]],
+        "vector_b": ["1", "2"],
+        "variables": None,
+    })
+    response = json.loads(MatrixController.process_system(payload))
+
+    assert response["status"] == "NO_SOLUTION"
+    assert response["verification_steps_latex"] == []

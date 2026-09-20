@@ -169,7 +169,9 @@ class GaussSolver:
                     var_label = f"x_{{{c + 1}}}"
                 free_desc_parts.append(f"{var_label} = {free_var_map[c]}")
             free_desc = ", ".join(free_desc_parts)
-            back_sub_steps.append(f"Variables libres identificadas: {free_desc}")
+            back_sub_steps.append(
+                rf"\text{{Variables libres identificadas: }} {free_desc}"
+            )
             for c in free_cols:
                 expr_terms[c] = {free_var_map[c]: Fraction(1)}
 
