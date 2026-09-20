@@ -2,12 +2,6 @@ from nicegui import ui, app
 from fastapi.responses import RedirectResponse
 # Servir assets para el splash screen
 app.add_static_files('/assets', 'src/frontend/assets')
-# Paleta centralizada para gráficas Plotly (no soporta CSS custom properties)
-CHART_PALETTE = ['#E8466D', '#2EB88A', '#4B9FE8', '#E89F42', '#8B5CF6']
-CHART_MARKER_LIGHT = '#FFFFFF'
-CHART_MARKER_BORDER = '#23262E'
-CHART_GRID_COLOR = 'rgba(128,128,128,0.2)'
-CHART_ZERO_COLOR = 'rgba(128,128,128,0.5)'
 
 def setup_theme():
     ui.add_head_html('''

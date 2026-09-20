@@ -7,7 +7,7 @@ from src.frontend.components.navbar import create_navbar
 from src.frontend.components.equation_grid import EquationGrid
 from src.frontend.components.calculator import CalculatorPanel
 from src.backend.utils.parsers import SystemParser
-from src.frontend.app import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR
+from src.frontend.theme import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR
 from src.frontend.components.ai_panel import AIPanel
 
 class LinearSystemsUI:
