@@ -395,8 +395,9 @@ class LinearSystemsUI:
             
             status = respuesta.get("status")
             classification_msg = respuesta.get("classification") or respuesta.get("message", "")
+            is_error = str(status).upper() == "ERROR"
             
-            if status == "error":
+            if is_error:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                     ui.icon('close', size='sm')
                     ui.label(classification_msg).classes('font-bold')
@@ -460,13 +461,13 @@ class LinearSystemsUI:
                             for paso in respuesta["verification_steps_latex"]:
                                 ui.html(f'<div class="math-scroll-container math-label">$$ {format_step_for_mathjax(paso)} $$</div>')
 
-        if status != "error":
+        if not is_error:
             self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
         ui.run_javascript('typesetMathWhenReady();')
         
         with self.contenedor_resultados:
-            if status != "error":
+            if not is_error:
                 await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
             
         ui.run_javascript("replayResultAnimation('resultados-container');")
