@@ -1,10 +1,8 @@
 from src.backend.models.matrix import Matrix
 from fractions import Fraction
 from typing import Any
-from src.backend.constants import (
-    FRACTION_MATCH_TOLERANCE,
-    SOLUTION_VERIFICATION_TOLERANCE,
-)
+from src.backend.constants import SOLUTION_VERIFICATION_TOLERANCE
+from src.backend.exceptions import DimensionMismatchError
 
 class MatrixValidator:
     @staticmethod
@@ -188,11 +186,12 @@ def validate_same_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
     para operaciones de suma y resta.
     """
     if matrix_a.rows != matrix_b.rows or matrix_a.cols != matrix_b.cols:
-        raise ValueError(
-            f"Dimensiones incompatibles para suma/resta: "
-            f"Matriz A ({matrix_a.rows}×{matrix_a.cols}) vs Matriz B ({matrix_b.rows}×{matrix_b.cols}). "
-            f"Ambas matrices deben tener exactamente el mismo tamaño."
+        raise DimensionMismatchError(
+            operation="suma/resta",
+            shape_a=(matrix_a.rows, matrix_a.cols),
+            shape_b=(matrix_b.rows, matrix_b.cols),
         )
+
 
 def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
     """
@@ -200,8 +199,8 @@ def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> No
     La matriz resultante tendrá tamaño (m x q).
     """
     if matrix_a.cols != matrix_b.rows:
-        raise ValueError(
-            f"Dimensiones incompatibles para multiplicación: "
-            f"Matriz A ({matrix_a.rows}×{matrix_a.cols}) × Matriz B ({matrix_b.rows}×{matrix_b.cols}). "
-            f"El número de columnas de A ({matrix_a.cols}) debe ser igual al número de filas de B ({matrix_b.rows})."
+        raise DimensionMismatchError(
+            operation="multiplicación (A.cols debe igualar B.rows)",
+            shape_a=(matrix_a.rows, matrix_a.cols),
+            shape_b=(matrix_b.rows, matrix_b.cols),
         )
