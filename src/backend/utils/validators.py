@@ -91,7 +91,7 @@ class MatrixValidator:
         return True, parsed_matrix, "Matriz parseada correctamente."
 
     @staticmethod
-    def validate_variable_coherence(parsed_equations: list[tuple[dict[str, float], float]]) -> tuple[bool, str]:
+    def validate_variable_coherence(parsed_equations: list[tuple[dict[str, Fraction], Fraction]]) -> tuple[bool, str]:
         """
         Verifica que las ecuaciones estén interrelacionadas y no formen sistemas disjuntos o inconexos.
         """

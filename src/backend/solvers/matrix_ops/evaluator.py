@@ -147,7 +147,7 @@ class MatrixExpressionEvaluator:
                     stack.append((f"{name}ᵀ", val))
                     continue
                     
-                temp_name = f"T_{temp_counter}"
+                temp_name = f"T_{{{temp_counter}}}"
                 temp_counter += 1
                 res_mat = self._transpose(val)
                 
@@ -173,7 +173,7 @@ class MatrixExpressionEvaluator:
                     stack.append((f"-{name}", -val))
                     continue
 
-                temp_name = f"T_{temp_counter}"
+                temp_name = f"T_{{{temp_counter}}}"
                 temp_counter += 1
                 res_mat = self._scalar_multiply(Fraction(-1), val)
 
@@ -196,7 +196,7 @@ class MatrixExpressionEvaluator:
 
                 right_name, right_val = stack.pop()
                 left_name, left_val = stack.pop()
-                temp_name = f"T_{temp_counter}"
+                temp_name = f"T_{{{temp_counter}}}"
                 temp_counter += 1
                 
                 cell_steps = []

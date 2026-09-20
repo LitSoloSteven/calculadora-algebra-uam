@@ -12,7 +12,7 @@ from src.backend.solvers.linear_systems.gauss import GaussSolver
 class TestGaussSolverOOP(unittest.TestCase):
 
     def test_caso_solucion_unica(self):
-        """Evalúa el Caso 1: Sistema con Solución Única[cite: 2]."""
+        """Evalúa el Caso 1: Sistema con Solución Única."""
         # Sistema: 
         # 2x + y = 5
         # x - y = 1
@@ -31,7 +31,7 @@ class TestGaussSolverOOP(unittest.TestCase):
         self.assertEqual(resultado["solution"], ["2", "1"])
 
     def test_caso_infinitas_soluciones(self):
-        """Evalúa el Caso 2: Sistema con Infinitas Soluciones[cite: 2]."""
+        """Evalúa el Caso 2: Sistema con Infinitas Soluciones."""
         # Sistema (fila 2 es múltiplo de la fila 1):
         # x + y = 2
         # 2x + 2y = 4
@@ -50,7 +50,7 @@ class TestGaussSolverOOP(unittest.TestCase):
         self.assertTrue(any("t" in s for s in resultado["solution"]))
 
     def test_caso_inconsistente(self):
-        """Evalúa el Caso 3: Sistema Sin Solución (Inconsistente)[cite: 2]."""
+        """Evalúa el Caso 3: Sistema Sin Solución (Inconsistente)."""
         # Sistema (rectas paralelas):
         # x + y = 2
         # x + y = 3

@@ -4,7 +4,6 @@ from src.backend.utils.validators import (
     validate_same_dimensions,
     validate_multiplication_dimensions
 )
-from src.backend.utils.formatters import format_fraction_str
 from src.backend.utils.formatters import format_fraction_str, number_to_latex
 
 class MatrixOpsSolver:
