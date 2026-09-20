@@ -22,6 +22,7 @@ venv.bak/
 .idea/
 *.swp
 *.swo
+regression_output/
 
 # Archivos del sistema operativo (Windows / macOS)
 Thumbs.db
