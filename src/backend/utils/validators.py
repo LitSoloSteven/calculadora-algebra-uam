@@ -110,9 +110,25 @@ class MatrixValidator:
         return True, "Coherencia de variables válida."
 
     @staticmethod
+    def _to_float(val: Any) -> float:
+        """Convierte a float aceptando int, float, Fraction y strings
+        con formato de fracción ('229/50', '1/2', '3', '2.5').
+
+        Si el string no es parseable, devuelve 0.0 (mismo comportamiento
+        que el controller de Gauss tenía para casos irrecuperables)."""
+        if isinstance(val, (int, float)):
+            return float(val)
+        if isinstance(val, Fraction):
+            return float(val)
+        try:
+            return float(Fraction(str(val).strip()))
+        except (ValueError, ZeroDivisionError):
+            return 0.0
+
+    @staticmethod
     def verify_solution(
-        A: list[list[Any]], 
-        x: list[Any], 
+        A: list[list[Any]],
+        x: list[Any],
         b: list[Any],
         as_latex: bool = False,
         tolerance: float = 1e-4
@@ -121,24 +137,24 @@ class MatrixValidator:
         report = []
 
         for i in range(len(A)):
-            lhs = 0.0 
+            lhs = 0.0
             terms = []
 
             for j in range(len(x)):
-                coeff = float(A[i][j])
-                var_val = float(x[j])
+                coeff = MatrixValidator._to_float(A[i][j])
+                var_val = MatrixValidator._to_float(x[j])
                 prod = coeff * var_val
                 lhs += prod
-                
+
                 if as_latex:
                     terms.append(rf"\left({coeff}\right) \cdot \left({var_val}\right)")
                 else:
                     terms.append(f"({coeff})·({var_val})")
 
-            rhs = float(b[i])
+            rhs = MatrixValidator._to_float(b[i])
             is_eq_correct = abs(lhs - rhs) < tolerance
             lhs_display = round(lhs, 6)
-            
+
             if as_latex:
                 substitution_str = " + ".join(terms)
                 status_text = r"\text{Correcto}" if is_eq_correct else r"\text{Incorrecto}"

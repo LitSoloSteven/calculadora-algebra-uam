@@ -75,3 +75,21 @@ def test_no_solution_system():
     }
     res = _process(payload)
     assert res["status"] == "NO_SOLUTION"
+    
+def test_verification_with_fractional_solution():
+    """Regresión: float('229/50') rompía verify_solution.
+    El sistema debe resolverse con solución fraccionaria sin lanzar
+    ValueError en la etapa de comprobación."""
+    payload = {
+        "matrix_A": [["1", "2", "3"], ["3", "2", "1"], ["-1", "-2", "22"]],
+        "vector_b": ["0", "9", "2"],
+        "variables": ["x1", "x2", "x3"],
+    }
+    res = _process(payload)
+    assert res["status"] == "UNIQUE_SOLUTION"
+    # La solución debe contener fracciones
+    assert any("/" in s for s in res["solution"]), f"Se esperaba fracción en {res['solution']}"
+    # La verificación debe completarse sin errores
+    assert len(res["verification_steps_latex"]) > 0
+    for paso in res["verification_steps_latex"]:
+        assert "Incorrecto" not in paso, f"Verificación falló: {paso}"
