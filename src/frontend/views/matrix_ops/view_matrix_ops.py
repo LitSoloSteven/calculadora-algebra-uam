@@ -1,7 +1,9 @@
 import json
 import asyncio
-import html
+import logging
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 from src.frontend.components.navbar import create_navbar
 from src.frontend.components.matrix_capture import MatrixCapturePanel
 from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixOpsController
@@ -26,7 +28,25 @@ class MatrixOpsUI:
             ui.notify('Ingresa una expresión para evaluar.', type='warning')
             return
 
-        btn.props('loading=true').classes('w-full')
+        btn.props('loading=true')
+        try:
+            await self._evaluar_core(btn, expresion)
+        except Exception as e:
+            self._mostrar_error_inesperado(e)
+        finally:
+            btn.props('loading=false')
+
+    def _mostrar_error_inesperado(self, exc):
+        logger.error("Error inesperado al evaluar la expresión", exc_info=exc)
+        self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
+        with self.contenedor_resultados:
+            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
+                ui.icon('close', size='sm')
+                ui.label('Ocurrió un error inesperado al evaluar la expresión. Revisa los datos e inténtalo de nuevo.').classes('font-bold')
+        ui.notify('Error inesperado', type='negative', position='top')
+
+    async def _evaluar_core(self, btn, expresion):
         await asyncio.sleep(0.1)
 
         try:
@@ -34,13 +54,12 @@ class MatrixOpsUI:
             matrices_json = json.dumps(matrices_dict)
         except Exception as e:
             ui.notify(str(e), type='negative')
-            btn.props('loading=false')
             return
 
         respuesta_json_str = MatrixOpsController.process_expression(expresion, matrices_json)
         respuesta = json.loads(respuesta_json_str)
 
-        self.contenedor_resultados.classes(add='animate-slide-up')
+        
         self.contenedor_resultados.clear()
 
         with self.contenedor_resultados:
@@ -59,27 +78,33 @@ class MatrixOpsUI:
                     ui.label('Evaluación paso a paso:').classes('font-bold text-xl text-main mb-4')
                     for i, step in enumerate(respuesta["segment_steps"]):
                         with ui.column().classes('w-full panel-card p-6 mb-4'):
-                            op_tex = html.escape(step.get("operation_display") or f"\\text{{Paso {i+1}}}")
-                            ui.html(f'<div class="math-scroll-container math-label text-lg font-bold">$$ {op_tex} $$</div>')
+                            ui.label(step.get("operation_display", f"Paso {i+1}")).classes('text-lg font-bold text-sec mb-2')
                             
                             with ui.row().classes('w-full items-center justify-center gap-4 py-4'):
-                                ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {step.get("symbolic_matrix_latex", "")} $$</div>')
-                                ui.icon('arrow_forward', size='md').classes('text-sec')
-                                ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {step.get("result_matrix_latex", "")} $$</div>')
+                                sym = step.get("symbolic_matrix_latex")
+                                res = step.get("result_matrix_latex")
+                                if sym:
+                                    ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {sym} $$</div>')
+                                if sym and res:
+                                    ui.icon('arrow_forward', size='md').classes('text-sec')
+                                if res:
+                                    ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {res} $$</div>')
                             
                             if step.get("cell_by_cell_steps"):
                                 with ui.expansion('Ver detalle celda a celda', icon='visibility').classes('w-full mt-2 timeline-expansion').props('header-class="font-medium text-sec"'):
                                     for cell_step in step["cell_by_cell_steps"]:
-                                        ui.html(f'<div class="math-scroll-container math-label w-full py-1">$$ {cell_step.get("detail_latex", "")} $$</div>')
+                                        detail = cell_step.get("detail_latex")
+                                        if not detail:
+                                            continue
+                                        ui.html(f'<div class="math-scroll-container math-label w-full py-1">$$ {detail} $$</div>')
                 
                 if respuesta.get("final_variable") and respuesta.get("result_matrix_latex"):
                     ui.label('Resultado Final:').classes('font-bold text-xl text-main mt-6 mb-4')
                     with ui.row().classes('w-full justify-center items-center panel-card p-6 overflow-x-auto'):
                         ui.html(f'<div class="math-scroll-container math-label text-2xl font-bold">$$ {respuesta["final_variable"]} = {respuesta["result_matrix_latex"]} $$</div>')
 
-        btn.props('loading=false')
         ui.run_javascript('typesetMathWhenReady();')
-        ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')
+        ui.run_javascript("replayResultAnimation('resultados-ops');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-ops'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
 

@@ -15,12 +15,13 @@ class NumericSystemsUI:
         self.bits_container = None
         self.pasos_container = None
         self.ui_cards = {}
+        self.ui_valores = {}
         
         self.regex_bases = {
-            'binario': r'^-?[01]*$',
-            'octal': r'^-?[0-7]*$',
-            'decimal': r'^-?[0-9]*$',
-            'hexadecimal': r'^-?[0-9A-Fa-f]*$'
+            'binario': r'^[+-]?0[bB]?[01_]*$|^[+-]?[01_]*$',
+            'octal': r'^[+-]?0[oO]?[0-7_]*$|^[+-]?[0-7_]*$',
+            'decimal': r'^[+-]?[0-9_]*$',
+            'hexadecimal': r'^[+-]?0[xX]?[0-9A-Fa-f_]*$|^[+-]?[0-9A-Fa-f_]*$'
         }
 
     def build(self):
@@ -58,8 +59,8 @@ class NumericSystemsUI:
                 # Input gigante
                 with ui.column().classes('w-full gap-1'):
                     with ui.row().classes('w-full relative'):
-                        self.input_valor = ui.input(placeholder='0').classes('w-full matrix-input').style('font-size: var(--fs-display) !important; padding: 20px;')
-                        self.input_valor.props('id="input-conversor" autocomplete="off" spellcheck="false"')
+                        self.input_valor = ui.input(placeholder='0').classes('w-full matrix-input conversor-input').style('font-size: var(--fs-display) !important; padding: 20px;')
+                        self.input_valor.props('autocomplete="off" spellcheck="false"')
                         self.input_valor.on_value_change(self._on_input_change)
                         
                         # Botones limpiar / pegar dentro del input
@@ -94,6 +95,7 @@ class NumericSystemsUI:
         self.tabs_destino.set_value('todas')
         
         self.ai_panel.build()
+        self._actualizar_ejemplos()
 
     def _crear_tarjeta_resultado(self, id_base, titulo, subindice):
         with ui.column().classes('panel-card p-5 relative overflow-hidden transition-all duration-300 opacity-0 translate-y-4').style('min-height: 120px;') as card:
@@ -107,10 +109,10 @@ class NumericSystemsUI:
                     ui.button(icon='content_copy', on_click=lambda e, b=id_base: self._copiar_resultado(b, e.sender), color=None).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Copiar')
             
             # Valor formateado
-            ui.label('0').classes('text-2xl font-mono text-main break-all tracking-wide').bind_text_from(self.resultados, id_base)
+            self.ui_valores[id_base] = ui.label('0').classes('text-2xl font-mono text-main break-all tracking-wide transition-opacity duration-300').bind_text_from(self.resultados, id_base)
             
             # Etiqueta "Entrada" para dimmear la tarjeta origen
-            ui.label('ENTRADA ACTUAL').classes('absolute -right-8 top-4 bg-[var(--accent)] text-white text-[10px] font-bold py-1 px-10 rotate-45 opacity-0 transition-opacity').bind_visibility_from(self, 'base_activa', backward=lambda v: v == id_base)
+            ui.label('ENTRADA ACTUAL').classes('absolute -right-8 top-4 bg-[var(--accent)] text-[var(--btn-primary-text)] text-[10px] font-bold py-1 px-10 rotate-45').bind_visibility_from(self, 'base_activa', backward=lambda v: v == id_base)
 
     def _cambiar_base_origen(self, e):
         if not e.value: return
@@ -130,7 +132,7 @@ class NumericSystemsUI:
     def _swap_origen_destino(self, e):
         ui.run_javascript('''
             const btn = document.activeElement;
-            if (btn) {
+            if (btn && btn.tagName === 'BUTTON') {
                 let currentRot = parseInt(btn.dataset.rot || "0");
                 currentRot += 180;
                 btn.dataset.rot = currentRot;
@@ -164,16 +166,30 @@ class NumericSystemsUI:
         self._set_input('')
         
     async def _pegar_portapapeles(self):
-        val = await ui.run_javascript('navigator.clipboard.readText()')
-        if val: self._set_input(val.strip())
+        try:
+            val = await ui.run_javascript('navigator.clipboard.readText()', timeout=15)
+            if val: self._set_input(val.strip())
+        except Exception:
+            self.lbl_error.text = "Error al pegar: permiso denegado o portapapeles vacío."
 
     async def _copiar_resultado(self, id_base, btn):
         val = self.resultados.get(id_base, '').replace(' ', '')
         if not val: return
-        ui.run_javascript(f'navigator.clipboard.writeText("{val}")')
+        try:
+            success = await ui.run_javascript(f'navigator.clipboard.writeText("{val}").then(() => true).catch(() => false)', timeout=2.0)
+            if not success:
+                ui.notify("No se pudo copiar", type="warning")
+                return
+        except Exception:
+            pass
+            
         btn.props('icon=check color=positive')
-        await asyncio.sleep(0.9)
-        btn.props('icon=content_copy color=None')
+        
+        def reset_icon():
+            btn.props(remove='color')
+            btn.props('icon=content_copy')
+            
+        ui.timer(2.0, reset_icon, once=True)
 
     def _swap_base(self, nueva_base):
         if nueva_base == self.base_activa: return
@@ -188,7 +204,7 @@ class NumericSystemsUI:
         if val and not re.match(self.regex_bases[self.base_activa], val.replace(" ", "")):
             # Shake effect CSS 
             await ui.run_javascript('''
-                const inp = document.getElementById("input-conversor");
+                const inp = document.querySelector(".conversor-input");
                 if(inp) {
                     inp.classList.remove("animate-shake");
                     void inp.offsetWidth; // trigger reflow
@@ -204,42 +220,57 @@ class NumericSystemsUI:
             self.debounce_task.cancel()
         self.debounce_task = asyncio.create_task(self._ejecutar_conversion(val))
 
-    async def _ejecutar_conversion(self, val, inmediato=False):
-        if not inmediato:
-            await asyncio.sleep(0.15) # 150ms debounce
-        if not val.strip():
-            self._limpiar_resultados()
-            return
+    async def _ejecutar_conversion(self, val, inmediato=False, revelar_tarjetas=True):
+        try:
+            if not inmediato:
+                await asyncio.sleep(0.15) # 150ms debounce
+            if not val.strip():
+                self._limpiar_resultados()
+                return False
+                
+            if self.base_activa == 'hexadecimal':
+                val = val.upper()
+                
+            metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
+            res = metodo(val, self.base_destino)
             
-        metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
-        res = metodo(val, self.base_destino)
-        
-        if "error" in res:
-            self._limpiar_resultados()
-            return
+            if "error" in res:
+                self._limpiar_resultados()
+                return False
+                
+            # Agrupar formato
+            self.resultados['decimal'] = f"{int(res['decimal']):,}".replace(',', ' ')
+            self.resultados['binario'] = self._agrupar(res['binario'], 4)
+            self.resultados['octal'] = res['octal']
+            self.resultados['hexadecimal'] = self._agrupar(res['hexadecimal'], 2)
             
-        # Agrupar formato
-        self.resultados['decimal'] = f"{int(res['decimal']):,}".replace(',', ' ')
-        self.resultados['binario'] = self._agrupar(res['binario'], 4)
-        self.resultados['octal'] = res['octal']
-        self.resultados['hexadecimal'] = self._agrupar(res['hexadecimal'], 2)
-        
-        self.resultados_completos = res # Guardar para procedimiento
-        
-        # Bits tira
-        self._render_bits(res['binario'].replace('-', ''))
-        
-        self._aplicar_opacidad_tarjetas()
+            self.resultados_completos = res # Guardar para procedimiento
+            
+            # Bits tira
+            self._render_bits(res['binario'].replace('-', ''))
+            
+            self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
+            self._mostrar_procedimiento()
+            return True
+        except asyncio.CancelledError:
+            pass # Ignorar la interrupción silenciosamente
 
-    def _aplicar_opacidad_tarjetas(self):
+    def _aplicar_opacidad_tarjetas(self, revelar=True):
         for base, card in self.ui_cards.items():
+            if revelar:
+                card.classes(remove='opacity-0 translate-y-4') # Quitar estado oculto inicial
+            
             if self.base_destino == 'todas':
                 opacidad = "0.45" if base == self.base_activa else "1"
             else:
                 if base == self.base_destino: opacidad = "1"
                 else: opacidad = "0.45"
             pointer = "none" if base == self.base_activa else "auto"
-            card.style(f'opacity: {opacidad}; pointer-events: {pointer};')
+            
+            card.style(f'pointer-events: {pointer};')
+            
+            if base in self.ui_valores:
+                self.ui_valores[base].style(f'opacity: {opacidad};')
 
     async def _convertir_btn(self, e):
         btn = e.sender
@@ -248,16 +279,30 @@ class NumericSystemsUI:
             ui.notify('Ingresá un valor para convertir.', type='warning')
             return
             
+        val_clean = val.replace(" ", "")
+        if not re.match(self.regex_bases[self.base_activa], val_clean):
+            ui.notify(f'Base {self.base_activa}: solo se admiten caracteres válidos.', type='warning')
+            return
+            
         btn.props('loading=true')
         try:
-            await self._ejecutar_conversion(val, inmediato=True)
+            if self.debounce_task:
+                self.debounce_task.cancel()
+                self.debounce_task = None
+            if not await self._ejecutar_conversion(val, inmediato=True, revelar_tarjetas=False):
+                return
+            
+            for card in self.ui_cards.values():
+                card.classes(add='opacity-0 translate-y-4')
+                
+            await asyncio.sleep(0.32)
             
             # Animación stagger
             for i, (base, card) in enumerate(self.ui_cards.items()):
                 card.classes(remove='opacity-0 translate-y-4')
                 await asyncio.sleep(0.04)
                 
-            self._aplicar_opacidad_tarjetas()
+            self._aplicar_opacidad_tarjetas(revelar=True)
             self._mostrar_procedimiento()
         finally:
             btn.props('loading=false')
@@ -313,7 +358,10 @@ class NumericSystemsUI:
                             filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center font-mono'>{t['digito']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>{t['valor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>{paso['base_origen']}<sup>{t['potencia']}</sup></td><td class='p-2 border-b border-[var(--border-input)] text-center'>{t['peso']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--accent)]'>{t['producto']}</td></tr>"
                             eq_str += f"({t['valor']} \\times {paso['base_origen']}^{{{t['potencia']}}}) + "
                             
-                        eq_str = eq_str[:-3] + f" = {paso['total']}"
+                        eq_str = eq_str[:-3]
+                        if paso.get("es_negativo"):
+                            eq_str = f"-\\left[ {eq_str} \\right]"
+                        eq_str += f" = {paso['total']}"
                         
                         tabla = f"""
                         <table class="w-full text-sm mt-4 mb-6 border-collapse">
@@ -339,7 +387,7 @@ class NumericSystemsUI:
                         
                         filas_html = ""
                         for f in paso["filas"]:
-                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-white bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
+                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
                             
                         tabla = f"""
                         <div class="flex items-center gap-6 mt-4 font-normal">

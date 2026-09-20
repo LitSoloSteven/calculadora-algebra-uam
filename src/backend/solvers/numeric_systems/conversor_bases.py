@@ -1,5 +1,5 @@
 class ConversorBases:
-    def _limpiar_entrada(self, valor_str):
+    def _limpiar_entrada(self, valor_str, base_origen):
         # 1. Normalización (quitar espacios y guiones bajos)
         limpio = str(valor_str).strip().replace(" ", "").replace("_", "").upper()
         
@@ -9,7 +9,11 @@ class ConversorBases:
             limpio = limpio[1:]
             
         # 3. Remover prefijos (0B, 0O, 0X)
-        if limpio.startswith("0B") or limpio.startswith("0O") or limpio.startswith("0X"):
+        if base_origen == 2 and limpio.startswith("0B"):
+            limpio = limpio[2:]
+        elif base_origen == 8 and limpio.startswith("0O"):
+            limpio = limpio[2:]
+        elif base_origen == 16 and limpio.startswith("0X"):
             limpio = limpio[2:]
             
         return es_negativo, limpio
@@ -27,7 +31,7 @@ class ConversorBases:
         return self._procesar(valor_str, 16, base_destino)
 
     def _procesar(self, valor_str, base_origen, base_destino):
-        es_negativo, limpio = self._limpiar_entrada(valor_str)
+        es_negativo, limpio = self._limpiar_entrada(valor_str, base_origen)
         if not limpio:
             return {"error": "El valor ingresado está vacío."}
             
@@ -54,7 +58,7 @@ class ConversorBases:
     def _generar_pasos(self, limpio, magnitud, base_origen, base_destino_str, es_negativo):
         pasos = []
         if base_origen != 10:
-            pasos.append(self._generar_expansion_posicional(limpio, base_origen, magnitud))
+            pasos.append(self._generar_expansion_posicional(limpio, base_origen, magnitud, es_negativo))
             
         destinos = []
         if base_destino_str == 'todas':
@@ -66,11 +70,11 @@ class ConversorBases:
                 destinos.append(b)
                 
         for dest in destinos:
-            pasos.append(self._generar_divisiones_sucesivas(magnitud, dest))
+            pasos.append(self._generar_divisiones_sucesivas(magnitud, dest, es_negativo))
             
         return pasos
 
-    def _generar_expansion_posicional(self, limpio, base_origen, magnitud):
+    def _generar_expansion_posicional(self, limpio, base_origen, magnitud, es_negativo):
         terminos = []
         longitud = len(limpio)
         for i, digito in enumerate(limpio):
@@ -90,10 +94,11 @@ class ConversorBases:
             "tipo": "expansion_posicional",
             "base_origen": base_origen,
             "terminos": terminos,
-            "total": magnitud
+            "total": f"-{magnitud}" if es_negativo else str(magnitud),
+            "es_negativo": es_negativo
         }
 
-    def _generar_divisiones_sucesivas(self, magnitud, base_destino):
+    def _generar_divisiones_sucesivas(self, magnitud, base_destino, es_negativo):
         filas = []
         dividendo = magnitud
         if dividendo == 0:
@@ -117,7 +122,8 @@ class ConversorBases:
                 dividendo = cociente
                 
             chars = "0123456789ABCDEF"
-            resultado = "".join(chars[f["residuo"]] for f in reversed(filas))
+            resultado_abs = "".join(chars[f["residuo"]] for f in reversed(filas))
+            resultado = f"-{resultado_abs}" if es_negativo else resultado_abs
             
         return {
             "tipo": "division_sucesiva",

@@ -21,6 +21,8 @@ class MatrixCapturePanel:
                     let r = parseInt(active.dataset.matrixRow), c = parseInt(active.dataset.matrixCol);
                     let mId = active.dataset.matrixId;
                     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        if (e.key === 'ArrowLeft' && active.selectionStart !== 0) return;
+                        if (e.key === 'ArrowRight' && active.selectionEnd !== active.value.length) return;
                         if (e.key === 'ArrowRight') c++; if (e.key === 'ArrowLeft') c--;
                         if (e.key === 'ArrowDown') r++; if (e.key === 'ArrowUp') r--;
                     } else if (e.key === 'Enter') r++;
@@ -118,7 +120,9 @@ class MatrixCapturePanel:
             for c, celda in enumerate(fila):
                 if celda.value: mat['cache'][(r, c)] = celda.value
 
-        if not (1 <= mat['m'] + delta_m <= 10) and not (1 <= mat['n'] + delta_n <= 10):
+        if delta_m and not (1 <= mat['m'] + delta_m <= 10):
+            return
+        if delta_n and not (1 <= mat['n'] + delta_n <= 10):
             return
 
         is_remove = (delta_m < 0 or delta_n < 0)
@@ -306,11 +310,9 @@ class MatrixCapturePanel:
                         val_str = '0'
                     
                     # Se conserva la validación para dar feedback inmediato en la UI,
-                    # pero ahora se envía el string original al backend (no el float),
-                    # para no perder precisión en fracciones con denominador > 1000.
-                    # NOTA: Este cambio requiere que el backend use parse_number_exact 
-                    # para no fallar (será abordado en un commit de backend).
-                    success, _, msg = MatrixValidator.parse_number(val_str)
+                    # pero ahora se envía el string original al backend para no
+                    # perder precisión en fracciones con denominador > 1000.
+                    success, _, msg = MatrixValidator.parse_number_exact(val_str)
                     if not success:
                         raise ValueError(f"Error en Matriz {name}, celda [{r+1},{c+1}]: {msg}")
                     row_vals.append(val_str)
