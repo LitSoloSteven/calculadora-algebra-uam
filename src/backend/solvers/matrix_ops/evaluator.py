@@ -25,41 +25,49 @@ class MatrixExpressionEvaluator:
         self.global_steps = []
 
     def _tokenize(self, expr: str) -> List[str]:
-        """Convierte la cadena en tokens y agrega multiplicaciones implícitas."""
+        """Convierte la cadena en tokens y agrega multiplicaciones implícitas.
+
+        Nombres de matrices: una sola letra A-Z. `AB` se interpreta como A*B.
+        Los identificadores con guión bajo (A_foo, B_1) se conservan como
+        un único token para retrocompatibilidad con consumidores que usan
+        ese formato.
+        """
         expr = expr.replace(" ", "")
         # Normalizar notación de transpuesta a un símbolo único ᵀ
         expr = expr.replace("^T", "ᵀ").replace("^t", "ᵀ")
-        
-        # Captura: 1) Números, 2) Variables alfanuméricas, 3) ᵀ, 4) Operadores
-        token_pattern = re.compile(r'\d+\.\d+|\d+|[A-Za-z][A-Za-z0-9_]*|ᵀ|[\+\-\*\(\)]')
+
+        # Orden de alternativas (leftmost-first):
+        #   1) Decimales  2) Enteros
+        #   3) Identificador con underscore (A_foo, B_1)
+        #   4) Letra suelta A-Z (permite AB → A * B)
+        #   5) ᵀ  6) Operadores
+        token_pattern = re.compile(
+        r'\d+\.\d+|\d+|[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]*|[A-Za-z][0-9]+|[A-Za-z]|ᵀ|[\+\-\*\(\)]'
+        )
         raw_tokens = token_pattern.findall(expr)
 
-        # Si algún carácter no fue reconocido (ej. '/'), no descartarlo en silencio:
-        # la reconstrucción de los tokens debe cubrir el texto completo de entrada.
+        # Si algún carácter no fue reconocido (ej. '/'), no descartarlo en silencio.
         if "".join(raw_tokens) != expr:
             raise ValueError("La expresión contiene caracteres no soportados (p. ej. '/').")
 
         tokens = []
         for i, token in enumerate(raw_tokens):
-            # Menos unario: '-' al inicio, tras '(' o tras otro operador (+, -, *)
-            # se representa con un operador de negación propio ('¬') en vez del
-            # truco '0 - X', que da resultados incorrectos combinado con '*' o 'ᵀ'
-            # (ej. "A*-B" se evaluaría como (A*0)-B en vez de A*(-B)).
+            # Menos unario: mismo comportamiento previo.
             if token == '-' and (i == 0 or raw_tokens[i - 1] in ('(', '+', '-', '*')):
                 tokens.append('¬')
                 continue
 
             tokens.append(token)
-            
-            # Inserción de multiplicación implícita (ej. 2A -> 2 * A, A(B) -> A * (B))
+
+            # Inserción de multiplicación implícita (2A → 2 * A, A(B) → A * (B), AB → A * B)
             if i < len(raw_tokens) - 1:
-                next_token = raw_tokens[i+1]
+                next_token = raw_tokens[i + 1]
                 is_current_operand = re.match(r'^[A-Za-z]|\d|\)|ᵀ', token)
                 is_next_operand = re.match(r'^[A-Za-z]|\d|\(', next_token)
-                
+
                 if is_current_operand and is_next_operand:
                     tokens.append('*')
-                    
+
         return tokens
 
     def _to_rpn(self, tokens: List[str]) -> List[str]:
