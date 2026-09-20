@@ -424,7 +424,7 @@ def setup_theme():
                 font-variant-numeric: tabular-nums;
                 color: var(--input-text) !important;
                 -webkit-text-fill-color: var(--input-text) !important;
-                text-align: inherit;
+                text-align: center !important;
                 transition: color var(--dur-fast) var(--ease-std);
             }
 
@@ -432,6 +432,7 @@ def setup_theme():
                 color: var(--text-placeholder) !important;
                 -webkit-text-fill-color: var(--text-placeholder) !important;
                 opacity: 0.5 !important;
+                text-align: center !important;
             }
 
             /* === ETIQUETAS MATEMÁTICAS === */

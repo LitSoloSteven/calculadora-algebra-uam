@@ -226,7 +226,7 @@ class MatrixCapturePanel:
                             def update_cache(e, r=i, c=j, matrix_name=name):
                                 self.matrices[matrix_name]['cache'][(r, c)] = e.value
                                 
-                            celda = ui.input(value=val, placeholder='0', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-matrix-id="{name}" data-matrix-row="{i}" data-matrix-col="{j}" borderless autocomplete="new-password" name="{name}_r{i}c{j}"')
+                            celda = ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-matrix-id="{name}" data-matrix-row="{i}" data-matrix-col="{j}" borderless autocomplete="new-password" name="{name}_r{i}c{j}"')
                             fila_UI.append(celda)
                         mat['entradas'].append(fila_UI)
                         

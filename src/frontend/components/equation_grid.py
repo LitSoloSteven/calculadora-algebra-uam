@@ -258,7 +258,7 @@ class EquationGrid:
                                 self._cache_A[(r, c)] = e.value
                                 if self.on_data_change: self.on_data_change()
                                 
-                            celda = ui.input(value=val, placeholder='0', on_change=update_cache_A).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
+                            celda = ui.input(value=val, placeholder='', on_change=update_cache_A).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
                             fila_A.append(celda)
                             
                         self.entradas_A.append(fila_A)
@@ -270,7 +270,7 @@ class EquationGrid:
                             self._cache_b[r] = e.value
                             if self.on_data_change: self.on_data_change()
                             
-                        celda_b = ui.input(value=val_b, placeholder='0', on_change=update_cache_b).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
+                        celda_b = ui.input(value=val_b, placeholder='', on_change=update_cache_b).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
                         self.entradas_b.append(celda_b)
 
     def get_matrix_data(self):

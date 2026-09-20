@@ -7,13 +7,13 @@ class CalculatorPanel:
             '7', '8', '9', '/',
             '4', '5', '6', '-',
             '1', '2', '3', '.',
-            '+', '0', '⌫', 'C'
+            '+', '0', '±', 'C'
         ]
         
         # Símbolos para modo Ecuaciones: variables y operadores adicionales
         self.symbols_equations = [
             '7', '8', '9', '+', '-',
-            '4', '5', '6', '⌫', '/',
+            '4', '5', '6', 'w', '/',
             '1', '2', '3', 'x', 'y',
             '0', '.', '=', 'z', 'C'
         ]
@@ -39,6 +39,16 @@ class CalculatorPanel:
                 if (active && active.tagName === 'INPUT') {
                     if (sym === 'C') {
                         active.value = '';
+                    } else if (sym === '±') {
+                        let currentVal = active.value;
+                        if (currentVal.startsWith('-')) {
+                            active.value = currentVal.substring(1);
+                        } else if (currentVal.startsWith('+')) {
+                            active.value = '-' + currentVal.substring(1);
+                        } else if (currentVal.length > 0) {
+                            active.value = '-' + currentVal;
+                        }
+                        active.setSelectionRange(active.value.length, active.value.length);
                     } else if (sym === '⌫') {
                         const start = active.selectionStart;
                         const end = active.selectionEnd;
@@ -86,7 +96,7 @@ class CalculatorPanel:
                             if sym:
                                 classes = 'btn-neo-calc w-full h-14 p-0 text-xl font-bold ' + ('text-main' if sym != 'C' else '')
                                 btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
-                                if sym == 'C': btn.style('color: var(--error)')
+                                if sym == 'C': btn.style('color: var(--error) !important')
                             else:
                                 ui.label('').classes('w-full h-14') # Espacio en blanco
                                 
@@ -94,8 +104,8 @@ class CalculatorPanel:
                     with ui.grid(columns=5).classes('w-full gap-3'):
                         for sym in self.symbols_equations:
                             if sym:
-                                classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-main' if sym not in ['C', '⌫'] else '')
+                                classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-main' if sym != 'C' else '')
                                 btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
-                                if sym in ['C', '⌫']: btn.style('color: var(--error)')
+                                if sym == 'C': btn.style('color: var(--error) !important')
                             else:
                                 ui.label('').classes('w-full h-12')
