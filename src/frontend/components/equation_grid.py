@@ -356,6 +356,10 @@ class EquationGrid:
 
     def import_from_parsed(self, parsed_matrix):
         """Reconstruye la cuadrícula desde una matriz parseada."""
+        if parsed_matrix.rows > 10 or (parsed_matrix.cols - 1) > 10:
+            ui.notify("El sistema excede el límite de visualización (10x10).", type='warning')
+            return
+            
         self.m = parsed_matrix.rows
         self.n = parsed_matrix.cols - 1
         

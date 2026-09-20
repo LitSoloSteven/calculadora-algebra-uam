@@ -221,36 +221,39 @@ class NumericSystemsUI:
         self.debounce_task = asyncio.create_task(self._ejecutar_conversion(val))
 
     async def _ejecutar_conversion(self, val, inmediato=False, revelar_tarjetas=True):
-        if not inmediato:
-            await asyncio.sleep(0.15) # 150ms debounce
-        if not val.strip():
-            self._limpiar_resultados()
-            return False
+        try:
+            if not inmediato:
+                await asyncio.sleep(0.15) # 150ms debounce
+            if not val.strip():
+                self._limpiar_resultados()
+                return False
+                
+            if self.base_activa == 'hexadecimal':
+                val = val.upper()
+                
+            metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
+            res = metodo(val, self.base_destino)
             
-        if self.base_activa == 'hexadecimal':
-            val = val.upper()
+            if "error" in res:
+                self._limpiar_resultados()
+                return False
+                
+            # Agrupar formato
+            self.resultados['decimal'] = f"{int(res['decimal']):,}".replace(',', ' ')
+            self.resultados['binario'] = self._agrupar(res['binario'], 4)
+            self.resultados['octal'] = res['octal']
+            self.resultados['hexadecimal'] = self._agrupar(res['hexadecimal'], 2)
             
-        metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
-        res = metodo(val, self.base_destino)
-        
-        if "error" in res:
-            self._limpiar_resultados()
-            return False
+            self.resultados_completos = res # Guardar para procedimiento
             
-        # Agrupar formato
-        self.resultados['decimal'] = f"{int(res['decimal']):,}".replace(',', ' ')
-        self.resultados['binario'] = self._agrupar(res['binario'], 4)
-        self.resultados['octal'] = res['octal']
-        self.resultados['hexadecimal'] = self._agrupar(res['hexadecimal'], 2)
-        
-        self.resultados_completos = res # Guardar para procedimiento
-        
-        # Bits tira
-        self._render_bits(res['binario'].replace('-', ''))
-        
-        self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
-        self._mostrar_procedimiento()
-        return True
+            # Bits tira
+            self._render_bits(res['binario'].replace('-', ''))
+            
+            self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
+            self._mostrar_procedimiento()
+            return True
+        except asyncio.CancelledError:
+            pass # Ignorar la interrupción silenciosamente
 
     def _aplicar_opacidad_tarjetas(self, revelar=True):
         for base, card in self.ui_cards.items():
