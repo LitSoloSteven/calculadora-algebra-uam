@@ -1,10 +1,12 @@
 from fractions import Fraction
 from typing import Dict
+from src.backend.constants import ZERO_EPSILON
 from src.backend.models.matrix import Matrix
 from src.backend.utils.formatters import format_fraction_str, format_parametric_expr, format_variable_for_latex
 
 class GaussSolver:
-    def __init__(self, augmented_matrix: Matrix, eps: float = 1e-9, variable_names: list[str] | None = None):
+    def __init__(self, augmented_matrix: Matrix, eps: float = ZERO_EPSILON,
+             variable_names: list[str] | None = None):
         self.matrix = augmented_matrix.clone()
         self.eps = eps
         self.variable_names = variable_names

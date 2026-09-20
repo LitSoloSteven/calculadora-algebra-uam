@@ -1,6 +1,10 @@
 from src.backend.models.matrix import Matrix
 from fractions import Fraction
 from typing import Any
+from src.backend.constants import (
+    FRACTION_MATCH_TOLERANCE,
+    SOLUTION_VERIFICATION_TOLERANCE,
+)
 
 class MatrixValidator:
     @staticmethod
@@ -131,7 +135,7 @@ class MatrixValidator:
         x: list[Any],
         b: list[Any],
         as_latex: bool = False,
-        tolerance: float = 1e-4
+        tolerance: float = SOLUTION_VERIFICATION_TOLERANCE
     ) -> tuple[bool, list[str]]:
         is_valid = True
         report = []
