@@ -81,14 +81,22 @@ class MatrixOpsUI:
                             ui.label(step.get("operation_display", f"Paso {i+1}")).classes('text-lg font-bold text-sec mb-2')
                             
                             with ui.row().classes('w-full items-center justify-center gap-4 py-4'):
-                                ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {step.get("symbolic_matrix_latex", "")} $$</div>')
-                                ui.icon('arrow_forward', size='md').classes('text-sec')
-                                ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {step.get("result_matrix_latex", "")} $$</div>')
+                                sym = step.get("symbolic_matrix_latex")
+                                res = step.get("result_matrix_latex")
+                                if sym:
+                                    ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {sym} $$</div>')
+                                if sym and res:
+                                    ui.icon('arrow_forward', size='md').classes('text-sec')
+                                if res:
+                                    ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {res} $$</div>')
                             
                             if step.get("cell_by_cell_steps"):
                                 with ui.expansion('Ver detalle celda a celda', icon='visibility').classes('w-full mt-2 timeline-expansion').props('header-class="font-medium text-sec"'):
                                     for cell_step in step["cell_by_cell_steps"]:
-                                        ui.html(f'<div class="math-scroll-container math-label w-full py-1">$$ {cell_step.get("detail_latex", "")} $$</div>')
+                                        detail = cell_step.get("detail_latex")
+                                        if not detail:
+                                            continue
+                                        ui.html(f'<div class="math-scroll-container math-label w-full py-1">$$ {detail} $$</div>')
                 
                 if respuesta.get("final_variable") and respuesta.get("result_matrix_latex"):
                     ui.label('Resultado Final:').classes('font-bold text-xl text-main mt-6 mb-4')

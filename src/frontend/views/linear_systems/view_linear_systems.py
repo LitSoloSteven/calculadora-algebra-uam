@@ -11,7 +11,7 @@ from src.frontend.components.navbar import create_navbar
 from src.frontend.components.equation_grid import EquationGrid
 from src.frontend.components.calculator import CalculatorPanel
 from src.backend.utils.parsers import SystemParser
-from src.frontend.theme import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR
+from src.frontend.theme import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR, CHART_FONT_COLOR
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.helpers import format_step_for_mathjax
 
@@ -73,6 +73,7 @@ class LinearSystemsUI:
                         inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self.update_sync_buttons).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
                         self.ecuaciones_inputs.append(inp)
         
+        self.update_sync_buttons()
         ui.notify('Sincronizado desde Matriz', type='positive', position='top')
 
     def sync_from_equations(self):
@@ -121,6 +122,10 @@ class LinearSystemsUI:
         if hasattr(self, 'sync_btn_from_matrix') and self.sync_btn_from_matrix:
             self.sync_btn_from_matrix.set_visibility(not self.is_matriz_empty())
             
+    def _on_grid_change(self):
+        self._trigger_live_preview()
+        self.update_sync_buttons()
+
     def _trigger_live_preview(self):
         if self.preview_task: self.preview_task.cancel()
         self.preview_task = asyncio.create_task(self._update_preview())
@@ -451,12 +456,12 @@ class LinearSystemsUI:
         ui.run_javascript('typesetMathWhenReady();')
         
         with self.contenedor_resultados:
-            self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
+            await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
             
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
-    def render_graphics(self, matrix_A, vector_b, respuesta):
+    async def render_graphics(self, matrix_A, vector_b, respuesta):
         m = len(matrix_A)
         n = len(matrix_A[0]) if m > 0 else 0
         
@@ -513,10 +518,13 @@ class LinearSystemsUI:
                     except ValueError:
                         pass
                                              
+                theme = await ui.run_javascript("document.documentElement.getAttribute('data-theme') || 'papel'")
+                font_color = CHART_FONT_COLOR.get(theme, '#23262E')
+
                 fig.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#23262E'),
+                    font=dict(color=font_color),
                     margin=dict(l=20, r=20, t=20, b=20),
                     xaxis=dict(gridcolor=CHART_GRID_COLOR, zerolinecolor=CHART_ZERO_COLOR),
                     yaxis=dict(gridcolor=CHART_GRID_COLOR, zerolinecolor=CHART_ZERO_COLOR)
@@ -556,10 +564,13 @@ class LinearSystemsUI:
                     except ValueError:
                         pass
                 
+                theme = await ui.run_javascript("document.documentElement.getAttribute('data-theme') || 'papel'")
+                font_color = CHART_FONT_COLOR.get(theme, '#23262E')
+
                 fig.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#23262E'),
+                    font=dict(color=font_color),
                     margin=dict(l=0, r=0, t=0, b=0),
                     scene=dict(
                         xaxis=dict(backgroundcolor='rgba(0,0,0,0)', gridcolor=CHART_GRID_COLOR),
@@ -571,7 +582,7 @@ class LinearSystemsUI:
             ui.plotly(fig).classes('w-full h-[400px]')
             if omitidas > 0:
                 ui.label(f'{omitidas} ecuación(es) no se pudieron graficar por tener valores no numéricos.').classes('text-warning text-sm')
-            ui.run_javascript("setTimeout(() => { if(window.updatePlotlyTheme) updatePlotlyTheme(document.documentElement.getAttribute('data-theme') || 'papel'); }, 100);")
+            ui.run_javascript("window.updatePlotlyThemeWhenReady(5000);")
 
     def trigger_flip_animation(self):
         ui.run_javascript('''
@@ -587,7 +598,7 @@ class LinearSystemsUI:
         self.ai_panel = AIPanel(self)
         create_navbar(self, active_route='/sistemas-lineales')
         self.grid.inject_scripts()
-        self.grid.on_data_change = self._trigger_live_preview
+        self.grid.on_data_change = self._on_grid_change
         self.calculator.inject_scripts()
         
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):

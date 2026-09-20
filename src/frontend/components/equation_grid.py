@@ -93,7 +93,9 @@ class EquationGrid:
         ''')
 
     async def adjust_size(self, delta_m=0, delta_n=0):
-        if not (1 <= self.m + delta_m <= 10) and not (1 <= self.n + delta_n <= 10):
+        if delta_m and not (1 <= self.m + delta_m <= 10):
+            return
+        if delta_n and not (1 <= self.n + delta_n <= 10):
             return
             
         is_remove = (delta_m < 0 or delta_n < 0)

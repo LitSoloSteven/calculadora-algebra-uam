@@ -211,14 +211,14 @@ class NumericSystemsUI:
             self.debounce_task.cancel()
         self.debounce_task = asyncio.create_task(self._ejecutar_conversion(val))
 
-    async def _ejecutar_conversion(self, val, inmediato=False):
+    async def _ejecutar_conversion(self, val, inmediato=False, revelar_tarjetas=True):
         if not inmediato:
             await asyncio.sleep(0.15) # 150ms debounce
         if not val.strip():
             self._limpiar_resultados()
             return False
             
-        if self.base_activa in ('hexadecimal', 'base32'):
+        if self.base_activa == 'hexadecimal':
             val = val.upper()
             
         metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
@@ -239,12 +239,13 @@ class NumericSystemsUI:
         # Bits tira
         self._render_bits(res['binario'].replace('-', ''))
         
-        self._aplicar_opacidad_tarjetas()
+        self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
         return True
 
-    def _aplicar_opacidad_tarjetas(self):
+    def _aplicar_opacidad_tarjetas(self, revelar=True):
         for base, card in self.ui_cards.items():
-            card.classes(remove='opacity-0 translate-y-4') # Quitar estado oculto inicial
+            if revelar:
+                card.classes(remove='opacity-0 translate-y-4') # Quitar estado oculto inicial
             
             if self.base_destino == 'todas':
                 opacidad = "0.45" if base == self.base_activa else "1"
@@ -272,15 +273,23 @@ class NumericSystemsUI:
             
         btn.props('loading=true')
         try:
-            if not await self._ejecutar_conversion(val, inmediato=True):
+            if self.debounce_task:
+                self.debounce_task.cancel()
+                self.debounce_task = None
+            if not await self._ejecutar_conversion(val, inmediato=True, revelar_tarjetas=False):
                 return
+            
+            for card in self.ui_cards.values():
+                card.classes(add='opacity-0 translate-y-4')
+                
+            await asyncio.sleep(0.05)
             
             # Animación stagger
             for i, (base, card) in enumerate(self.ui_cards.items()):
                 card.classes(remove='opacity-0 translate-y-4')
                 await asyncio.sleep(0.04)
                 
-            self._aplicar_opacidad_tarjetas()
+            self._aplicar_opacidad_tarjetas(revelar=True)
             self._mostrar_procedimiento()
         finally:
             btn.props('loading=false')

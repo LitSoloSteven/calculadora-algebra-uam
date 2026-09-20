@@ -1,7 +1,10 @@
 import json
 import html
+import logging
 from nicegui import ui, app, run
 from src.ai.openrouter_ai import OpenRouterIA
+
+logger = logging.getLogger(__name__)
 
 
 class AIPanel:
@@ -69,8 +72,13 @@ class AIPanel:
                     ctx_text = "Matrices disponibles:\n"
                     for k, v in mats.items():
                         ctx_text += f"Matriz {k} ({v['rows']}x{v['cols']}): {v['data']}\n"
-            except Exception:
-                pass
+            except ValueError as e:
+                ui.notify(str(e), type='warning')
+                return
+            except Exception as e:
+                logger.exception("Error inesperado en attach_context")
+                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
+                return
                 
         if ctx_text:
             self.attached_context = ctx_text

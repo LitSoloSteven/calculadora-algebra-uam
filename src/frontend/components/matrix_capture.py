@@ -118,7 +118,9 @@ class MatrixCapturePanel:
             for c, celda in enumerate(fila):
                 if celda.value: mat['cache'][(r, c)] = celda.value
 
-        if not (1 <= mat['m'] + delta_m <= 10) and not (1 <= mat['n'] + delta_n <= 10):
+        if delta_m and not (1 <= mat['m'] + delta_m <= 10):
+            return
+        if delta_n and not (1 <= mat['n'] + delta_n <= 10):
             return
 
         is_remove = (delta_m < 0 or delta_n < 0)
