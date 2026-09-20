@@ -37,7 +37,7 @@ def test_vector_b_incomplete_is_rejected():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "1" in res["message"] and "3" in res["message"]
 
 
@@ -48,7 +48,7 @@ def test_ragged_matrix_is_rejected():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "fila" in res["message"].lower()
 
 
@@ -71,13 +71,13 @@ def test_non_numeric_cell_reports_coordinates():
         "variables": ["x1", "x2"],
     }
     res = _process(payload)
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "A[1,1]" in res["message"]
 
 
 def test_malformed_json_payload():
     res = json.loads(MatrixController.process_system("esto no es json {{{"))
-    assert res["status"] == "error"
+    assert res["status"] == "ERROR"
     assert "JSON" in res["message"] or "json" in res["message"]
     
 def test_gauss_verification_with_fractional_solution():

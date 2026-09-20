@@ -35,12 +35,12 @@ def parse_payload(json_payload: str) -> tuple[dict | None, str | None]:
         data = json.loads(json_payload)
     except json.JSONDecodeError as e:
         return None, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": f"Payload JSON malformado: {e.msg} (línea {e.lineno}, columna {e.colno})."
         })
     if not isinstance(data, dict):
         return None, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": "El payload debe ser un objeto JSON con 'matrix_A' y 'vector_b'."
         })
     return data, None
@@ -80,33 +80,33 @@ def validate_and_build_augmented(
     m = len(matrix_A_raw)
     if m == 0:
         return None, None, None, 0, 0, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": "La matriz A está vacía."
         })
 
     if not isinstance(matrix_A_raw[0], list):
         return None, None, None, 0, 0, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": "La matriz A debe ser una lista de filas."
         })
 
     n = len(matrix_A_raw[0])
     if n == 0:
         return None, None, None, 0, 0, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": "La matriz A no puede tener 0 columnas."
         })
 
     valid_shape, msg_shape = MatrixValidator.validate_matrix_data(matrix_A_raw, m, n)
     if not valid_shape:
         return None, None, None, 0, 0, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": msg_shape
         })
 
     if len(vector_b_raw) != m:
         return None, None, None, 0, 0, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": (
                 f"El vector b tiene {len(vector_b_raw)} valores; "
                 f"se esperaban {m} (uno por fila de A)."
@@ -122,7 +122,7 @@ def validate_and_build_augmented(
             ok, val, err = MatrixValidator.parse_number_exact(raw)
             if not ok:
                 return None, None, None, 0, 0, json.dumps({
-                    "status": "error",
+                    "status": "ERROR",
                     "message": f"Error en A[{i+1},{j+1}]: {err}"
                 })
             fila_frac.append(val)
@@ -134,7 +134,7 @@ def validate_and_build_augmented(
         ok, val, err = MatrixValidator.parse_number_exact(raw)
         if not ok:
             return None, None, None, 0, 0, json.dumps({
-                "status": "error",
+                "status": "ERROR",
                 "message": f"Error en b[{i+1}]: {err}"
             })
         b_fractions.append(val)
@@ -145,7 +145,7 @@ def validate_and_build_augmented(
         matrix = Matrix(m, n + 1, augmented_data)
     except MatrixDataError as e:
         return None, None, None, 0, 0, json.dumps({
-            "status": "error",
+            "status": "ERROR",
             "message": f"Datos inválidos: {e}"
         })
 

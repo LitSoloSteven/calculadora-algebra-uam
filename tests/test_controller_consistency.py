@@ -17,19 +17,19 @@ def _call_gj(payload):
 
 def test_gauss_list_payload_is_rejected():
     r = json.loads(MatrixController.process_system("[1, 2, 3]"))
-    assert r["status"] == "error"
+    assert r["status"] == "ERROR"
     assert "objeto JSON" in r["message"]
 
 
 def test_gj_list_payload_is_rejected():
     r = json.loads(GaussJordanController.process_system("[1, 2, 3]"))
-    assert r["status"] == "error"
+    assert r["status"] == "ERROR"
     assert "objeto JSON" in r["message"]
 
 
 def test_gauss_string_payload_is_rejected():
     r = json.loads(MatrixController.process_system('"hello"'))
-    assert r["status"] == "error"
+    assert r["status"] == "ERROR"
     assert "objeto JSON" in r["message"]
 
 
@@ -67,3 +67,28 @@ def test_gauss_verification_uses_exact_fractions():
     assert r"\frac{9}{7}" in joined
     assert "1.2857" not in joined
     assert "Correcto" in joined or r"\text{Correcto}" in joined
+
+def test_both_linear_system_controllers_return_uppercase_error_status():
+    """B6.4: ambos controllers deben devolver 'ERROR' en mayúscula,
+    alineado con controller_matrix_ops y con el patrón
+    SUCCESS / UNIQUE_SOLUTION / NO_SOLUTION / INFINITE_SOLUTIONS.
+    """
+    # b con longitud incorrecta: dispara validación en _shared antes del solver.
+    payload = json.dumps({"matrix_A": [[1, 2]], "vector_b": [3, 4, 5]})
+    gauss_resp = json.loads(MatrixController.process_system(payload))
+    gj_resp = json.loads(GaussJordanController.process_system(payload))
+    assert gauss_resp["status"] == "ERROR"
+    assert gj_resp["status"] == "ERROR"
+
+
+def test_error_status_string_is_consistent_across_all_controllers():
+    """Los tres controllers del proyecto usan exactamente 'ERROR'."""
+    bad_json = '{"matrix_A": '  # JSON malformado
+
+    assert json.loads(MatrixController.process_system(bad_json))["status"] == "ERROR"
+    assert json.loads(GaussJordanController.process_system(bad_json))["status"] == "ERROR"
+
+    # matrix_ops ya usaba ERROR antes de este cambio: lo verificamos para
+    # que un futuro refactor no lo regrese a minúscula por accidente.
+    from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixOpsController
+    assert json.loads(MatrixOpsController.process_expression("A", bad_json))["status"] == "ERROR"

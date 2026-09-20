@@ -21,7 +21,7 @@ class TestParsePayload:
         data, err = parse_payload('{"a": }')
         assert data is None
         parsed = json.loads(err)
-        assert parsed["status"] == "error"
+        assert parsed["status"] == "ERROR"
         assert "malformado" in parsed["message"].lower()
 
     def test_non_dict_json_rejected(self):
@@ -29,7 +29,7 @@ class TestParsePayload:
         data, err = parse_payload("[1, 2, 3]")
         assert data is None
         parsed = json.loads(err)
-        assert parsed["status"] == "error"
+        assert parsed["status"] == "ERROR"
         assert "objeto JSON" in parsed["message"]
 
     def test_valid_dict_accepted(self):
