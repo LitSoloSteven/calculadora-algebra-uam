@@ -34,7 +34,7 @@ class OpenRouterIA:
 
     def analizar_sistema(self, prompt_text: str, history: list = None) -> tuple[bool, str]:
         if not self.api_key:
-            return False, "❌ Error: Python sigue sin encontrar la llave. Revisa que el archivo se llame exactamente '.env' y no '.env.txt'"
+            return False, " Error: Python sigue sin encontrar la llave. Revisa que el archivo se llame exactamente '.env' y no '.env.txt'"
 
         if history is None:
             history = []
