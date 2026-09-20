@@ -603,6 +603,14 @@ class LinearSystemsUI:
                 with ui.tabs().classes('neo-tabs mode-tabs').props('dense no-caps') as self.mode_tabs:
                     ui.tab('Matriz', icon='grid_4x4')
                     ui.tab('Ecuaciones', icon='functions')
+                    
+                def on_mode_change(e):
+                    if e.value == 'Ecuaciones' and not self.is_matriz_empty():
+                        self.sync_from_matrix()
+                    elif e.value == 'Matriz' and not self.is_ecuaciones_empty():
+                        self.sync_from_equations()
+                        
+                self.mode_tabs.on_value_change(on_mode_change)
             
             with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
                 with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
