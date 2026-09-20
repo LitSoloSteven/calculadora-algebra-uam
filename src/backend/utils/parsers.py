@@ -115,6 +115,10 @@ class SystemParser:
                 constant_sum += sign * parsed_val
 
         if not coeffs:
-            return {}, Fraction(0), f"No se encontraron variables válidas en '{lhs_str}'."
+            # LHS sin variables (ej: "0 = 5", "5 = 3"). No es error de
+            # sintaxis: es una fila de ceros que el solver interpretará
+            # como inconsistencia (NO_SOLUTION) si la constante no es 0.
+            # Se propaga la constante para que se traslade al RHS.
+            return {}, constant_sum, None
 
         return coeffs, constant_sum, None
