@@ -112,26 +112,36 @@ class MatrixValidator:
         return True, "Coherencia de variables válida."
 
     @staticmethod
-    def _to_float(val: Any) -> float:
-        """Convierte a float aceptando int, float, Fraction y strings
-        con formato de fracción ('229/50', '1/2', '3', '2.5').
-
-        Si el string no es parseable, devuelve 0.0 (mismo comportamiento
-        que el controller de Gauss tenía para casos irrecuperables)."""
-        if isinstance(val, (int, float)):
-            return float(val)
+    def _to_fraction_strict(val: Any) -> tuple[bool, Fraction, str]:
+        """Convierte a Fraction para verificación exacta.
+        A diferencia de _to_fraction (que silencia errores), esta versión
+        reporta fallas para que verify_solution pueda rechazar entradas
+        no parseables en vez de tratarlas como 0."""
         if isinstance(val, Fraction):
-            return float(val)
-        try:
-            return float(Fraction(str(val).strip()))
-        except (ValueError, ZeroDivisionError):
-            return 0.0
-        
+            return True, val, ""
+        if isinstance(val, int):
+            return True, Fraction(val), ""
+        if isinstance(val, float):
+            try:
+                return True, Fraction(val).limit_denominator(10**6), ""
+            except (ValueError, OverflowError):
+                return False, Fraction(0), f"Float no convertible: {val!r}"
+        if isinstance(val, str):
+            val_clean = val.strip()
+            if not val_clean:
+                return False, Fraction(0), "El campo está vacío."
+            try:
+                return True, Fraction(val_clean), ""
+            except ZeroDivisionError:
+                return False, Fraction(0), "División por cero."
+            except ValueError:
+                return False, Fraction(0), f"'{val}' no es un número o fracción válida."
+        return False, Fraction(0), f"Tipo no soportado: {type(val).__name__}"
+
     @staticmethod
     def _to_fraction(val: Any) -> Fraction:
-        """Convierte a Fraction para display, tolerante a tipos mixtos
-        (int, float, Fraction, str tipo '9/7' o '1.5'). Delega en
-        parse_number_exact para no duplicar reglas de parsing."""
+        """Versión tolerante (mantiene comportamiento previo para display).
+        Para verificación exacta usar _to_fraction_strict."""
         ok, frac, _ = MatrixValidator.parse_number_exact(val)
         return frac if ok else Fraction(0)
 
@@ -141,63 +151,85 @@ class MatrixValidator:
         x: list[Any],
         b: list[Any],
         as_latex: bool = False,
-        tolerance: float = SOLUTION_VERIFICATION_TOLERANCE
     ) -> tuple[bool, list[str]]:
+        """Verifica Ax = b con aritmética exacta de Fraction.
+
+        Devuelve (es_valida, reporte). Si alguna celda de A, x o b no es
+        parseable, la verificación falla con mensaje de error en vez de
+        asumir 0.0 (falla silenciosa).
+        """
         from src.backend.utils.formatters import format_fraction_str, number_to_latex
 
         is_valid = True
         report = []
 
-        for i in range(len(A)):
-            lhs = 0.0
+        # --- 0. Pre-parseo estricto: detectar celdas inválidas antes de calcular ---
+        A_frac: list[list[Fraction]] = []
+        for i, row in enumerate(A):
+            fila: list[Fraction] = []
+            for j, cell in enumerate(row):
+                ok, frac, err = MatrixValidator._to_fraction_strict(cell)
+                if not ok:
+                    return False, [f"Error en A[{i + 1},{j + 1}]: {err}"]
+                fila.append(frac)
+            A_frac.append(fila)
+
+        x_frac: list[Fraction] = []
+        for j, cell in enumerate(x):
+            ok, frac, err = MatrixValidator._to_fraction_strict(cell)
+            if not ok:
+                return False, [f"Error en x[{j + 1}]: {err}"]
+            x_frac.append(frac)
+
+        b_frac: list[Fraction] = []
+        for i, cell in enumerate(b):
+            ok, frac, err = MatrixValidator._to_fraction_strict(cell)
+            if not ok:
+                return False, [f"Error en b[{i + 1}]: {err}"]
+            b_frac.append(frac)
+
+        # --- 1. Cálculo exacto por ecuación ---
+        for i in range(len(A_frac)):
+            lhs = Fraction(0)
             terms = []
 
-            for j in range(len(x)):
-                # Cálculo: float con tolerancia (contrato actual, no cambia).
-                coeff_f = MatrixValidator._to_float(A[i][j])
-                var_f = MatrixValidator._to_float(x[j])
-                lhs += coeff_f * var_f
-
-                # Display: representación exacta cuando sea posible.
-                coeff_disp = MatrixValidator._to_fraction(A[i][j])
-                var_disp = MatrixValidator._to_fraction(x[j])
+            for j in range(len(x_frac)):
+                coeff = A_frac[i][j]
+                var = x_frac[j]
+                lhs += coeff * var
 
                 if as_latex:
-                    c_tex = number_to_latex(coeff_disp)
-                    v_tex = number_to_latex(var_disp)
+                    c_tex = number_to_latex(coeff)
+                    v_tex = number_to_latex(var)
                     terms.append(rf"\left({c_tex}\right) \cdot \left({v_tex}\right)")
                 else:
-                    c_str = format_fraction_str(coeff_disp)
-                    v_str = format_fraction_str(var_disp)
+                    c_str = format_fraction_str(coeff)
+                    v_str = format_fraction_str(var)
                     terms.append(f"({c_str})·({v_str})")
 
-            rhs = MatrixValidator._to_float(b[i])
-            is_eq_correct = abs(lhs - rhs) < tolerance
+            rhs = b_frac[i]
+            is_eq_correct = (lhs == rhs)
 
-            # Limpiar el LHS para display: entero si aplica (2 en vez de 2.0),
-            # sino 6 decimales redondeados.
-            lhs_display = round(lhs, 6)
-            if lhs_display == int(lhs_display):
-                lhs_display = int(lhs_display)
-
-            b_disp = MatrixValidator._to_fraction(b[i])
-            b_str = format_fraction_str(b_disp)
-            b_tex = number_to_latex(b_disp)
+            lhs_str = format_fraction_str(lhs)
+            lhs_tex = number_to_latex(lhs)
+            b_str = format_fraction_str(rhs)
+            b_tex = number_to_latex(rhs)
 
             if as_latex:
                 substitution_str = " + ".join(terms)
                 status_text = r"\text{Correcto}" if is_eq_correct else r"\text{Incorrecto}"
                 report.append(
-                    rf"Ecuación {i + 1}: {substitution_str} = {lhs_display} \quad "
+                    rf"Ecuación {i + 1}: {substitution_str} = {lhs_tex} \quad "
                     rf"({status_text}, \; b_{{{i + 1}}} = {b_tex})"
                 )
             else:
                 substitution_str = " + ".join(terms)
                 status_text = "Correcto" if is_eq_correct else "Incorrecto"
                 report.append(
-                    f"Ecuación {i + 1}: {substitution_str} = {lhs_display}  "
+                    f"Ecuación {i + 1}: {substitution_str} = {lhs_str}  "
                     f"{status_text} (b_{i + 1} = {b_str})"
                 )
+
             if not is_eq_correct:
                 is_valid = False
 
