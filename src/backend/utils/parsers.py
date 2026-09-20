@@ -1,6 +1,7 @@
 import re
 from src.backend.models.matrix import Matrix
 from src.backend.utils.validators import MatrixValidator
+from fractions import Fraction
 
 class SystemParser:
     # Regex: Grupo 1 = Signo (+/-). Alternativa A (término con variable):
@@ -32,7 +33,7 @@ class SystemParser:
             lhs_str, rhs_str = parts[0].strip(), parts[1].strip()
 
             # Delegado a MatrixValidator
-            success_rhs, rhs_val, err_rhs = MatrixValidator.parse_number(rhs_str)
+            success_rhs, rhs_val, err_rhs = MatrixValidator.parse_number_exact(rhs_str)
             if not success_rhs:
                 return False, None, [], f"Línea {line_idx}: Término independiente inválido '{rhs_str}': {err_rhs}"
 
@@ -69,7 +70,7 @@ class SystemParser:
         matrix_data = []
 
         for eq_coeffs, rhs_val in parsed_equations:
-            row = [eq_coeffs.get(var, 0.0) for var in sorted_vars]
+            row = [eq_coeffs.get(var, Fraction(0)) for var in sorted_vars]
             row.append(rhs_val)
             matrix_data.append(row)
 
@@ -77,9 +78,9 @@ class SystemParser:
         return True, matrix, sorted_vars, "Sistema procesado correctamente."
 
     @classmethod
-    def _parse_lhs(cls, lhs_str: str) -> tuple[dict[str, float], float, str | None]:
-        coeffs = {}
-        constant_sum = 0.0
+    def _parse_lhs(cls, lhs_str: str) -> tuple[dict[str, Fraction], Fraction, str | None]:
+        coeffs: dict[str, Fraction] = {}
+        constant_sum = Fraction(0)
         cleaned_str = lhs_str.replace(" ", "")
         
         matches = list(cls.TERM_REGEX.finditer(lhs_str))
@@ -87,32 +88,33 @@ class SystemParser:
         # Verificar sintaxis inválida (multiplicaciones *, potencias ^, etc.)
         reconstructed = "".join(m.group(0).replace(" ", "") for m in matches)
         if len(reconstructed) != len(cleaned_str):
-            return {}, 0.0, f"Contiene operadores o sintaxis no válida en '{lhs_str}'."
+            return {}, Fraction(0), f"Contiene operadores o sintaxis no válida en '{lhs_str}'."
 
         for match in matches:
             sign_str, coeff_str, var_name, const_str = match.groups()
-            sign = -1.0 if sign_str == '-' else 1.0
+            # int * Fraction devuelve Fraction: no se contamina con float.
+            sign = -1 if sign_str == '-' else 1
 
             if var_name:
                 if not coeff_str:
-                    val = 1.0
+                    val = Fraction(1)
                 else:
-                    success, parsed_val, _ = MatrixValidator.parse_number(coeff_str)
+                    success, parsed_val, _ = MatrixValidator.parse_number_exact(coeff_str)
                     if not success:
-                        return {}, 0.0, f"Coeficiente inválido '{coeff_str}' en la variable '{var_name}'."
+                        return {}, Fraction(0), f"Coeficiente inválido '{coeff_str}' en la variable '{var_name}'."
                     val = parsed_val
 
                 final_coeff = sign * val
-                coeffs[var_name] = coeffs.get(var_name, 0.0) + final_coeff
+                coeffs[var_name] = coeffs.get(var_name, Fraction(0)) + final_coeff
 
             elif const_str:
                 # Término puramente numérico (constante) en el lado izquierdo.
-                success, parsed_val, _ = MatrixValidator.parse_number(const_str)
+                success, parsed_val, _ = MatrixValidator.parse_number_exact(const_str)
                 if not success:
-                    return {}, 0.0, f"Término independiente inválido '{const_str}' en '{lhs_str}'."
+                    return {}, Fraction(0), f"Término independiente inválido '{const_str}' en '{lhs_str}'."
                 constant_sum += sign * parsed_val
 
         if not coeffs:
-            return {}, 0.0, f"No se encontraron variables válidas en '{lhs_str}'."
+            return {}, Fraction(0), f"No se encontraron variables válidas en '{lhs_str}'."
 
         return coeffs, constant_sum, None

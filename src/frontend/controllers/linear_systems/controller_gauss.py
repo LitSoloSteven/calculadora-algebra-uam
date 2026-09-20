@@ -57,7 +57,7 @@ class MatrixController:
             for j in range(n):
                 raw = matrix_A_raw[i][j]
                 val_str = str(raw).strip() if raw is not None and str(raw).strip() else '0'
-                success, val, err = MatrixValidator.parse_number(val_str)
+                success, val, err = MatrixValidator.parse_number_exact(val_str)
                 if not success:
                     return json.dumps({
                         "status": "error",
@@ -67,7 +67,7 @@ class MatrixController:
 
             raw_b = vector_b_raw[i]
             b_val_str = str(raw_b).strip() if raw_b is not None and str(raw_b).strip() else '0'
-            success, b_val, err = MatrixValidator.parse_number(b_val_str)
+            success, b_val, err = MatrixValidator.parse_number_exact(b_val_str)
             if not success:
                 return json.dumps({
                     "status": "error",

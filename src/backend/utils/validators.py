@@ -4,22 +4,49 @@ from typing import Any
 
 class MatrixValidator:
     @staticmethod
-    def parse_number(val: Any) -> tuple[bool, float, str]:
-        if isinstance(val, (int, float)):
-            return True, float(val), ""
-        
+    def parse_number_exact(val: Any) -> tuple[bool, Fraction, str]:
+        """Parsea un valor numérico y lo devuelve como Fraction exacto.
+        Uso interno del backend, donde la precisión exacta es requerida
+        (parsers de sistemas, controllers de métodos lineales). Para el frontend, usar parse_number (devuelve float, serializable a JSON).
+        """
+        if isinstance(val, int):
+            return True, Fraction(val), ""
+
+        if isinstance(val, float):
+            try:
+                return True, Fraction(val).limit_denominator(10**6), ""
+            except (ValueError, OverflowError):
+                # Fallback: parsear la representación decimal como string.
+                try:
+                    return True, Fraction(str(val)), ""
+                except (ValueError, ZeroDivisionError):
+                    return False, Fraction(0), "Valor flotante no convertible a fracción."
+
         if isinstance(val, str):
             val_clean = val.strip()
             if not val_clean:
-                return False, 0.0, "El campo está vacío."
+                return False, Fraction(0), "El campo está vacío."
             try:
-                parsed_val = float(Fraction(val_clean))
-                return True, parsed_val, ""
+                return True, Fraction(val_clean), ""
             except ZeroDivisionError:
-                return False, 0.0, "División por cero en la fracción ingresada."
+                return False, Fraction(0), "División por cero en la fracción ingresada."
             except ValueError:
-                return False, 0.0, "El valor ingresado no es un número o fracción válida."
-        return False, 0.0, "Tipo de dato no soportado."
+                return False, Fraction(0), "El valor ingresado no es un número o fracción válida."
+
+        return False, Fraction(0), "Tipo de dato no soportado."
+
+    @staticmethod
+    def parse_number(val: Any) -> tuple[bool, float, str]:
+        """Versión compatible con el frontend: devuelve float (JSON-serializable).
+
+        Delega la validación y el parsing en parse_number_exact para tener
+        una sola fuente de verdad de los mensajes de error y reglas de
+        aceptación. Solo convierte el resultado final a float.
+        """
+        ok, frac, msg = MatrixValidator.parse_number_exact(val)
+        if not ok:
+            return False, 0.0, msg
+        return True, float(frac), ""
 
     @staticmethod
     def validate_dimensions(rows: int, cols: int) -> tuple[bool, str]:
@@ -39,7 +66,7 @@ class MatrixValidator:
         return True, "Datos matriciales estructurados correctamente."
 
     @staticmethod
-    def validate_and_parse_raw_matrix(raw_data: list[list[Any]], expected_rows: int, expected_cols: int) -> tuple[bool, list[list[float]], str]:
+    def validate_and_parse_raw_matrix(raw_data: list[list[Any]], expected_rows: int, expected_cols: int) -> tuple[bool, list[list[Fraction]], str]:
         if len(raw_data) != expected_rows:
             return False, [], f"Se esperaban {expected_rows} filas, pero hay {len(raw_data)}."
         
@@ -50,10 +77,12 @@ class MatrixValidator:
             
             parsed_row = []
             for c_idx, item in enumerate(row):
-                success, num_float, err_msg = MatrixValidator.parse_number(item)
+                # parse_number_exact preserva denominadores > 1000 que el
+                # float intermedio perdería antes de llegar a Matrix.
+                success, num_frac, err_msg = MatrixValidator.parse_number_exact(item)
                 if not success:
                     return False, [], f"Error en celda [{r_idx + 1}, {c_idx + 1}]: {err_msg}"
-                parsed_row.append(num_float)
+                parsed_row.append(num_frac)
                 
             parsed_matrix.append(parsed_row)
 
