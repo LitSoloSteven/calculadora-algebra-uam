@@ -324,7 +324,9 @@ class LinearSystemsUI:
             status = respuesta.get("status")
             classification_msg = respuesta.get("classification") or respuesta.get("message", "")
             
-            if status == "error":
+            is_error = str(status).upper() == "ERROR"
+            
+            if is_error:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                     ui.icon('close', size='sm')
                     ui.label(classification_msg).classes('font-bold')
@@ -391,7 +393,8 @@ class LinearSystemsUI:
                             for paso in respuesta["verification_steps_latex"]:
                                 ui.html(f'<div class="math-scroll-container math-label">$$ {paso} $$</div>')
 
-        self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
+        if not is_error:
+            self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
         btn.props('loading=false')
         ui.run_javascript('typesetMathWhenReady();')
@@ -400,7 +403,8 @@ class LinearSystemsUI:
         ui.run_javascript('setTimeout(() => { const res = document.getElementById("' + str(self.contenedor_resultados.id) + '"); if(res) res.classList.remove("animate-slide-up"); }, MOTION.slow);')
         
         with self.contenedor_resultados:
-            self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
+            if not is_error:
+                self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
             
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
