@@ -462,10 +462,6 @@ class LinearSystemsUI:
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
-    async def render_graphics(self, matrix_A, vector_b, respuesta):
-        m = len(matrix_A)
-        n = len(matrix_A[0]) if m > 0 else 0
-        
     async def _tema_actual(self) -> str:
         try:
             return await ui.run_javascript(
@@ -474,6 +470,10 @@ class LinearSystemsUI:
             ) or 'papel'
         except Exception:
             return 'papel'
+
+    async def render_graphics(self, matrix_A, vector_b, respuesta):
+        m = len(matrix_A)
+        n = len(matrix_A[0]) if m > 0 else 0
         
         if n < 2 or n > 3:
             ui.label(f'Visualización gráfica no disponible para {n} dimensiones.').classes('text-sec text-sm italic mt-4')
