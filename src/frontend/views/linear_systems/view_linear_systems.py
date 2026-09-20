@@ -12,6 +12,7 @@ from src.frontend.components.calculator import CalculatorPanel
 from src.backend.utils.parsers import SystemParser
 from src.frontend.theme import CHART_PALETTE, CHART_MARKER_LIGHT, CHART_MARKER_BORDER, CHART_GRID_COLOR, CHART_ZERO_COLOR
 from src.frontend.components.ai_panel import AIPanel
+from src.frontend.helpers import format_step_for_mathjax
 
 class LinearSystemsUI:
     def __init__(self, initial_method='gauss'):
@@ -406,15 +407,12 @@ class LinearSystemsUI:
                         if respuesta.get("back_substitution_steps"):
                             ui.label('Sustitución:' if self.method_tabs.value == 'gauss' else 'Solución Final:').classes('font-bold text-sm text-sec mt-2')
                             for paso in respuesta["back_substitution_steps"]:
-                                if self.method_tabs.value == 'gauss':
-                                    ui.html(f'<div class="math-label w-full">$$ {paso} $$</div>')
-                                else:
-                                    ui.label(paso).classes('text-md font-medium text-main mt-1 w-full')
+                                ui.html(f'<div class="math-scroll-container math-label w-full">$$ {format_step_for_mathjax(paso)} $$</div>')
                                     
                         if respuesta.get("verification_steps_latex"):
                             ui.label('Comprobación Ax = b:').classes('font-bold text-sm text-sec mt-4')
                             for paso in respuesta["verification_steps_latex"]:
-                                ui.html(f'<div class="math-scroll-container math-label">$$ {paso} $$</div>')
+                                ui.html(f'<div class="math-scroll-container math-label">$$ {format_step_for_mathjax(paso)} $$</div>')
 
         self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
