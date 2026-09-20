@@ -217,10 +217,10 @@ class MatrixValidator:
 
             if as_latex:
                 substitution_str = " + ".join(terms)
-                status_text = r"\text{Correcto}" if is_eq_correct else r"\text{Incorrecto}"
+                status_word = "Correcto" if is_eq_correct else "Incorrecto"
                 report.append(
-                    rf"Ecuación {i + 1}: {substitution_str} = {lhs_tex} \quad "
-                    rf"({status_text}, \; b_{{{i + 1}}} = {b_tex})"
+                    rf"\text{{Ecuación {i + 1}: }} {substitution_str} = {lhs_tex} \quad "
+                    rf"(\text{{{status_word}}}, \; b_{{{i + 1}}} = {b_tex})"
                 )
             else:
                 substitution_str = " + ".join(terms)

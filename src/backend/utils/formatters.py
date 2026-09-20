@@ -75,6 +75,12 @@ def number_to_latex(val: float | Fraction | int) -> str:
     return str(val)
 
 def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
+    """Convierte términos algebraicos a una cadena paramétrica limpia.
+
+    Coeficientes fraccionarios multiplicando variables se muestran como
+    '(a/b)t' para evitar ambigüedad con 'a/(bt)'. La constante sola
+    no lleva paréntesis.
+    """
     parts = []
     has_const = (const != 0) or not terms
 
@@ -85,7 +91,14 @@ def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
         if coeff == 0:
             continue
         abs_c = abs(coeff)
-        c_str = "" if abs_c == 1 else format_fraction_str(abs_c)
+
+        if abs_c.denominator == 1:
+            # Entero: "2t" o "t" si es 1
+            n = abs_c.numerator
+            c_str = "" if n == 1 else str(n)
+        else:
+            # Fracción: "(1/2)t" para evitar leer "1/(2t)"
+            c_str = f"({abs_c.numerator}/{abs_c.denominator})"
 
         if not parts:
             prefix = "" if coeff > 0 else "-"
