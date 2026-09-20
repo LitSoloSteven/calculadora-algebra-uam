@@ -59,8 +59,10 @@ class MatrixOpsUI:
         respuesta_json_str = MatrixOpsController.process_expression(expresion, matrices_json)
         respuesta = json.loads(respuesta_json_str)
 
-        self.contenedor_resultados.classes(add='animate-slide-up')
+        self.contenedor_resultados.classes(remove='animate-slide-up')
+        
         self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(add='animate-slide-up')
 
         with self.contenedor_resultados:
             self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')

@@ -199,7 +199,7 @@ class LinearSystemsUI:
                     
                 import re
                 eqs_tex = r" \\ ".join(eqs)
-                eqs_tex = re.sub(r'\bx(\d+)\b', r'x_{\1}', eqs_tex)
+                eqs_tex = re.sub(r'\b([a-zA-Z]+)(\d+)\b', r'\1_{\2}', eqs_tex)
                 system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
                 
                 ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
