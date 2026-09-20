@@ -309,8 +309,8 @@ class MatrixCapturePanel:
                     # pero ahora se envía el string original al backend (no el float),
                     # para no perder precisión en fracciones con denominador > 1000.
                     # NOTA: Este cambio requiere que el backend use parse_number_exact 
-                    # para no fallar (será abordado en un commit de backend).
-                    success, _, msg = MatrixValidator.parse_number(val_str)
+                    # para no fallar (ya fue abordado en un commit de backend).
+                    success, _, msg = MatrixValidator.parse_number_exact(val_str)
                     if not success:
                         raise ValueError(f"Error en Matriz {name}, celda [{r+1},{c+1}]: {msg}")
                     row_vals.append(val_str)

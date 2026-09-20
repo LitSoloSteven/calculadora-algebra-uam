@@ -137,7 +137,7 @@ class LinearSystemsUI:
             from src.backend.utils.validators import MatrixValidator
             def sanitize(val):
                 if not val: return '0'
-                success, _, _ = MatrixValidator.parse_number(val)
+                success, _, _ = MatrixValidator.parse_number_exact(val)
                 if not success: return r"\color{gray}{?}"
                 return val
             
