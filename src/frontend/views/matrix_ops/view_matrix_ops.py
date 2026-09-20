@@ -1,5 +1,6 @@
 import json
 import asyncio
+import html
 from nicegui import ui
 from src.frontend.components.navbar import create_navbar
 from src.frontend.components.matrix_capture import MatrixCapturePanel
@@ -58,7 +59,8 @@ class MatrixOpsUI:
                     ui.label('Evaluación paso a paso:').classes('font-bold text-xl text-main mb-4')
                     for i, step in enumerate(respuesta["segment_steps"]):
                         with ui.column().classes('w-full panel-card p-6 mb-4'):
-                            ui.label(step.get("operation_display", f"Paso {i+1}")).classes('text-lg font-bold text-sec mb-2')
+                            op_tex = html.escape(step.get("operation_display") or f"\\text{{Paso {i+1}}}")
+                            ui.html(f'<div class="math-scroll-container math-label text-lg font-bold">$$ {op_tex} $$</div>')
                             
                             with ui.row().classes('w-full items-center justify-center gap-4 py-4'):
                                 ui.html(f'<div class="math-scroll-container math-label text-xl">$$ {step.get("symbolic_matrix_latex", "")} $$</div>')
