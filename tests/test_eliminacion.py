@@ -8,8 +8,7 @@ sys.path.insert(0, ruta_raiz)
 
 # 2. Ahora sí importamos las clases de tu compañero de forma segura
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.linear_systems import GaussSolver
-
+from src.backend.solvers.linear_systems.gauss import GaussSolver
 class TestGaussSolverOOP(unittest.TestCase):
 
     def test_caso_solucion_unica(self):
@@ -29,7 +28,7 @@ class TestGaussSolverOOP(unittest.TestCase):
         self.assertEqual(resultado["status"], "UNIQUE_SOLUTION")
         self.assertIsNotNone(resultado["solution"])
         # Verifica que la solución calculada sea correcta (x=2, y=1)
-        self.assertEqual(resultado["solution"], [2.0, 1.0])
+        self.assertEqual(resultado["solution"], ["2", "1"])
 
     def test_caso_infinitas_soluciones(self):
         """Evalúa el Caso 2: Sistema con Infinitas Soluciones[cite: 2]."""
@@ -45,7 +44,10 @@ class TestGaussSolverOOP(unittest.TestCase):
         resultado = solver.solve()
         
         self.assertEqual(resultado["status"], "INFINITE_SOLUTIONS")
-        self.assertIsNone(resultado["solution"])
+        self.assertIsNotNone(resultado["solution"])
+        # Sistema indeterminado: la solución se expresa en términos de
+        # la variable libre t.
+        self.assertTrue(any("t" in s for s in resultado["solution"]))
 
     def test_caso_inconsistente(self):
         """Evalúa el Caso 3: Sistema Sin Solución (Inconsistente)[cite: 2]."""
