@@ -21,7 +21,7 @@ class GaussSolver:
 
     def _set_row(self, row_idx: int, row_values: list) -> None:
         # No forzar a float: Matrix._normalize_val conserva Fraction/int tal cual,
-        # así se preserva la precisión exacta ganada en _eliminate_row_with_lcm.
+        # así se preserva la precisión exacta ganada en _eliminate_row_exact.
         for c, val in enumerate(row_values):
             self.matrix.set(row_idx, c, val)
 
@@ -41,9 +41,11 @@ class GaussSolver:
 
         return "UNIQUE_SOLUTION", "Sistema Consistente Determinado: Presenta Solución Única."
 
-    def _eliminate_row_with_lcm(self, pivot_row: list, target_row: list, col_idx: int, target_idx: int, pivot_idx: int) -> tuple[list, str]:
-        # Aritmética exacta con Fraction: nunca se redondea el coeficiente pivote
-        # ni el objetivo antes de operar, así se preservan fracciones y decimales.
+    def _eliminate_row_exact(self, pivot_row: list, target_row: list, col_idx: int, target_idx: int, pivot_idx: int) -> tuple[list, str]:
+        # Eliminación con aritmética exacta: el factor se calcula como
+        # target_val / pivot_val y se aplica con Fraction, sin redondeos
+        # intermedios. Se preserva la representación exacta de fracciones
+        # y decimales a lo largo de la eliminación..
         pivot_val = Fraction(pivot_row[col_idx])
         target_val = Fraction(target_row[col_idx])
 
@@ -115,7 +117,7 @@ class GaussSolver:
             for r in target_rows:
                 if abs(self.matrix.get(r, col)) > self.eps:
                     row_target = self._get_row(r)
-                    new_row, op_desc = self._eliminate_row_with_lcm(row_piv, row_target, col, r, pivot_row)
+                    new_row, op_desc = self._eliminate_row_exact(row_piv, row_target, col, r, pivot_row)
                     self._set_row(r, new_row)
                     self._log_step(op_desc, self.matrix)
 
