@@ -13,7 +13,7 @@ class CalculatorPanel:
         # Símbolos para modo Ecuaciones: variables y operadores adicionales
         self.symbols_equations = [
             '7', '8', '9', '+', '-',
-            '4', '5', '6', '*', '/',
+            '4', '5', '6', '⌫', '/',
             '1', '2', '3', 'x', 'y',
             '0', '.', '=', 'z', 'C'
         ]
@@ -30,8 +30,12 @@ class CalculatorPanel:
             
             function insertSymbol(sym) {
                 if (!sym) return;
-                let active = window.lastFocusedInput || document.activeElement;
-                if (active && active.tagName !== 'INPUT') active = window.lastFocusedInput;
+                let active = window.lastFocusedInput;
+                if (!active || !active.isConnected) {
+                    active = document.querySelector('.matrix-input input');
+                    if (!active) return;
+                    active.focus();
+                }
                 if (active && active.tagName === 'INPUT') {
                     if (sym === 'C') {
                         active.value = '';
@@ -90,8 +94,8 @@ class CalculatorPanel:
                     with ui.grid(columns=5).classes('w-full gap-3'):
                         for sym in self.symbols_equations:
                             if sym:
-                                classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-main' if sym != 'C' else '')
+                                classes = 'btn-neo-calc w-full h-12 p-0 text-lg font-bold ' + ('text-main' if sym not in ['C', '⌫'] else '')
                                 btn = ui.button(sym, on_click=lambda s=sym: ui.run_javascript(f"insertSymbol('{s}')"), color=None).classes(classes).props('ripple=false flat')
-                                if sym == 'C': btn.style('color: var(--error)')
+                                if sym in ['C', '⌫']: btn.style('color: var(--error)')
                             else:
                                 ui.label('').classes('w-full h-12')

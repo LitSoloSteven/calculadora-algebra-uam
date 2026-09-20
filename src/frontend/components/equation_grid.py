@@ -27,6 +27,8 @@ class EquationGrid:
                 if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
                 let r = parseInt(active.dataset.row), c = parseInt(active.dataset.col);
                 if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    if (e.key === 'ArrowLeft' && active.selectionStart !== 0) return;
+                    if (e.key === 'ArrowRight' && active.selectionEnd !== active.value.length) return;
                     if (e.key === 'ArrowRight') c++; if (e.key === 'ArrowLeft') c--;
                     if (e.key === 'ArrowDown') r++; if (e.key === 'ArrowUp') r--;
                 } else if (e.key === 'Enter') r++;
@@ -42,7 +44,7 @@ class EquationGrid:
                 if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
                 e.preventDefault();
                 let pasteData = (e.clipboardData || window.clipboardData).getData('text');
-                let rows = pasteData.trim().split('\\n');
+                let rows = pasteData.replace(/\\s+$/, '').split('\\n');
                 let startR = parseInt(active.dataset.row), startC = parseInt(active.dataset.col);
                 
                 rows.forEach((rowStr, rIdx) => {
@@ -93,9 +95,13 @@ class EquationGrid:
         ''')
 
     async def adjust_size(self, delta_m=0, delta_n=0):
-        if delta_m and not (1 <= self.m + delta_m <= 10):
+        if delta_m > 0 and self.m >= 10:
             return
-        if delta_n and not (1 <= self.n + delta_n <= 10):
+        if delta_m < 0 and self.m <= 1:
+            return
+        if delta_n > 0 and self.n >= 10:
+            return
+        if delta_n < 0 and self.n <= 1:
             return
             
         is_remove = (delta_m < 0 or delta_n < 0)
@@ -141,13 +147,15 @@ class EquationGrid:
             '''
             await ui.run_javascript(js_salida)
             
-        if 1 <= self.m + delta_m <= 10: self.m += delta_m
-        if 1 <= self.n + delta_n <= 10: self.n += delta_n
+        self.m += delta_m
+        self.n += delta_n
         
         # Purgar caché fuera de rango
         self._cache_A = {(r, c): v for (r, c), v in self._cache_A.items() if r < self.m and c < self.n}
         self._cache_b = {r: v for r, v in self._cache_b.items() if r < self.m}
         
+        self.entradas_A.clear()
+        self.entradas_b.clear()
         self.generar_cuadricula()
         if self.on_data_change: self.on_data_change()
         
@@ -291,10 +299,15 @@ class EquationGrid:
         ecuaciones = []
         matrix_A, vector_b = self.get_matrix_data()
         
+        from src.backend.utils.validators import MatrixValidator
         for i, row in enumerate(matrix_A):
             terms = []
             for j, val in enumerate(row):
                 if val and val != '0':
+                    success, num, _ = MatrixValidator.parse_number_exact(val)
+                    if not success:
+                        continue
+                    
                     sign = "-" if val.startswith("-") else "+"
                     val_abs = val.lstrip("+-").strip()
                     

@@ -205,7 +205,8 @@ class GaussSolver:
             back_sub_steps.append(f"{var_label} = {res_str}")
 
         solution = [format_parametric_expr(expr_const[i], expr_terms[i]) for i in range(num_vars)]
-        return solution, back_sub_steps
+        exact_solution = None if free_cols else expr_const
+        return solution, back_sub_steps, exact_solution
 
     def solve(self):
         rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
@@ -222,7 +223,7 @@ class GaussSolver:
                 "back_substitution_steps": []
             }
 
-        solution, back_steps = self._back_substitute(pivot_cols)
+        solution, back_steps, exact_solution = self._back_substitute(pivot_cols)
 
         return {
             "status": status,
@@ -230,6 +231,7 @@ class GaussSolver:
             "message": message,
             "echelon_matrix": self.matrix,
             "solution": solution,
+            "exact_solution": exact_solution,
             "steps": self.steps,
             "back_substitution_steps": back_steps
         }

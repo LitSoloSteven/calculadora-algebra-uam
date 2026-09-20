@@ -59,8 +59,8 @@ class NumericSystemsUI:
                 # Input gigante
                 with ui.column().classes('w-full gap-1'):
                     with ui.row().classes('w-full relative'):
-                        self.input_valor = ui.input(placeholder='0').classes('w-full matrix-input').style('font-size: var(--fs-display) !important; padding: 20px;')
-                        self.input_valor.props('id="input-conversor" autocomplete="off" spellcheck="false"')
+                        self.input_valor = ui.input(placeholder='0').classes('w-full matrix-input conversor-input').style('font-size: var(--fs-display) !important; padding: 20px;')
+                        self.input_valor.props('autocomplete="off" spellcheck="false"')
                         self.input_valor.on_value_change(self._on_input_change)
                         
                         # Botones limpiar / pegar dentro del input
@@ -95,6 +95,7 @@ class NumericSystemsUI:
         self.tabs_destino.set_value('todas')
         
         self.ai_panel.build()
+        self._actualizar_ejemplos()
 
     def _crear_tarjeta_resultado(self, id_base, titulo, subindice):
         with ui.column().classes('panel-card p-5 relative overflow-hidden transition-all duration-300 opacity-0 translate-y-4').style('min-height: 120px;') as card:
@@ -131,7 +132,7 @@ class NumericSystemsUI:
     def _swap_origen_destino(self, e):
         ui.run_javascript('''
             const btn = document.activeElement;
-            if (btn) {
+            if (btn && btn.tagName === 'BUTTON') {
                 let currentRot = parseInt(btn.dataset.rot || "0");
                 currentRot += 180;
                 btn.dataset.rot = currentRot;
@@ -174,11 +175,19 @@ class NumericSystemsUI:
     async def _copiar_resultado(self, id_base, btn):
         val = self.resultados.get(id_base, '').replace(' ', '')
         if not val: return
-        ui.run_javascript(f'navigator.clipboard.writeText("{val}")')
+        try:
+            success = await ui.run_javascript(f'navigator.clipboard.writeText("{val}").then(() => true).catch(() => false)', timeout=2.0)
+            if not success:
+                ui.notify("No se pudo copiar", type="warning")
+                return
+        except Exception:
+            pass
+            
         btn.props('icon=check color=positive')
         
         def reset_icon():
-            btn.props('icon=content_copy color=None')
+            btn.props(remove='color')
+            btn.props('icon=content_copy')
             
         ui.timer(2.0, reset_icon, once=True)
 
@@ -195,7 +204,7 @@ class NumericSystemsUI:
         if val and not re.match(self.regex_bases[self.base_activa], val.replace(" ", "")):
             # Shake effect CSS 
             await ui.run_javascript('''
-                const inp = document.getElementById("input-conversor");
+                const inp = document.querySelector(".conversor-input");
                 if(inp) {
                     inp.classList.remove("animate-shake");
                     void inp.offsetWidth; // trigger reflow
@@ -240,6 +249,7 @@ class NumericSystemsUI:
         self._render_bits(res['binario'].replace('-', ''))
         
         self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
+        self._mostrar_procedimiento()
         return True
 
     def _aplicar_opacidad_tarjetas(self, revelar=True):
@@ -345,7 +355,10 @@ class NumericSystemsUI:
                             filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center font-mono'>{t['digito']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>{t['valor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>{paso['base_origen']}<sup>{t['potencia']}</sup></td><td class='p-2 border-b border-[var(--border-input)] text-center'>{t['peso']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--accent)]'>{t['producto']}</td></tr>"
                             eq_str += f"({t['valor']} \\times {paso['base_origen']}^{{{t['potencia']}}}) + "
                             
-                        eq_str = eq_str[:-3] + f" = {paso['total']}"
+                        eq_str = eq_str[:-3]
+                        if paso.get("es_negativo"):
+                            eq_str = f"-\\left[ {eq_str} \\right]"
+                        eq_str += f" = {paso['total']}"
                         
                         tabla = f"""
                         <table class="w-full text-sm mt-4 mb-6 border-collapse">
@@ -371,7 +384,7 @@ class NumericSystemsUI:
                         
                         filas_html = ""
                         for f in paso["filas"]:
-                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-white bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
+                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
                             
                         tabla = f"""
                         <div class="flex items-center gap-6 mt-4 font-normal">

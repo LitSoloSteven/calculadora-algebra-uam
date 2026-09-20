@@ -110,7 +110,7 @@ def setup_theme():
               if(document.body) {
                   document.body.animate(
                       [ { transform: 'translateY(16px)' }, { transform: 'translateY(0)' } ],
-                      { duration: 400, easing: 'ease-out', fill: 'forwards' }
+                      { duration: 400, easing: 'ease-out' }
                   );
               }
           }, 2600);
@@ -123,7 +123,7 @@ def setup_theme():
         <script>
             window.MathJax = {
                 tex: {
-                    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                    inlineMath: [['\\\\(', '\\\\)']],
                     displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
                 },
                 svg: {
@@ -413,13 +413,18 @@ def setup_theme():
                 transition: background-color 5000s ease-in-out 0s;
             }
 
+            .matrix-input {
+                font-size: var(--fs-mono-math);
+                text-align: center;
+            }
+
             .matrix-input .q-field__native, .matrix-input .q-field__input {
                 font-family: 'Space Grotesk', 'Cambria Math', serif !important;
-                font-size: var(--fs-mono-math) !important;
+                font-size: inherit;
                 font-variant-numeric: tabular-nums;
                 color: var(--input-text) !important;
                 -webkit-text-fill-color: var(--input-text) !important;
-                text-align: center;
+                text-align: inherit;
                 transition: color var(--dur-fast) var(--ease-std);
             }
 
@@ -527,7 +532,8 @@ def setup_theme():
             /* === TABS MÉTODO (corte recto al centro) === */
             .neo-tabs.method-tabs {
                 padding: 0 !important;
-                width: 320px !important;
+                width: 100% !important;
+                max-width: 320px !important;
                 overflow: hidden !important;
             }
             .neo-tabs.method-tabs .q-tab {

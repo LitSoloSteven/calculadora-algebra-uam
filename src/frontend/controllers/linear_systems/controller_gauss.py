@@ -100,12 +100,16 @@ class MatrixController:
             A_vals = [[augmented_data[i][j] for j in range(n)] for i in range(m)]
             b_vals = [augmented_data[i][n] for i in range(m)]
 
+            exact_solution = result.get("exact_solution")
             x_vals = []
-            for s in solution:
-                try:
-                    x_vals.append(float(Fraction(str(s))))
-                except (ValueError, ZeroDivisionError):
-                    x_vals.append(0.0)
+            if exact_solution is not None:
+                x_vals = [float(val) for val in exact_solution]
+            else:
+                for s in solution:
+                    try:
+                        x_vals.append(float(Fraction(str(s))))
+                    except (ValueError, ZeroDivisionError):
+                        x_vals.append(0.0)
 
             _, verification_steps_latex = MatrixValidator.verify_solution(
                 A=A_vals,

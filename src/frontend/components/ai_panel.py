@@ -9,20 +9,32 @@ logger = logging.getLogger(__name__)
 
 class AIPanel:
     @property
+    def _storage(self):
+        try:
+            # Check if app.storage.user is available (requires storage_secret)
+            app.storage.user.get('__test_storage__')
+            return app.storage.user
+        except Exception as e:
+            if not hasattr(self, '_storage_warned'):
+                logger.warning(f"No se pudo usar app.storage.user (¿falta STORAGE_SECRET?): {e}. Fallback a app.storage.client.")
+                self._storage_warned = True
+            return app.storage.client
+
+    @property
     def is_open(self):
-        return app.storage.client.get('ai_panel_open', False)
+        return self._storage.get('ai_panel_open', False)
 
     @is_open.setter
     def is_open(self, value):
-        app.storage.client['ai_panel_open'] = value
+        self._storage['ai_panel_open'] = value
 
     @property
     def chat_history(self):
-        return app.storage.client.get('ai_chat_history', [])
+        return self._storage.get('ai_chat_history', [])
 
     @chat_history.setter
     def chat_history(self, value):
-        app.storage.client['ai_chat_history'] = value
+        self._storage['ai_chat_history'] = value
 
     def __init__(self, active_ui):
         self.active_ui = active_ui
@@ -34,10 +46,11 @@ class AIPanel:
         self.context_chip = None
         self.attached_context = ""
         
-        if 'ai_chat_history' not in app.storage.client:
-            app.storage.client['ai_chat_history'] = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
-        if 'ai_panel_open' not in app.storage.client:
-            app.storage.client['ai_panel_open'] = False
+        storage = self._storage
+        if 'ai_chat_history' not in storage:
+            storage['ai_chat_history'] = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
+        if 'ai_panel_open' not in storage:
+            storage['ai_panel_open'] = False
 
     def toggle(self):
         self.is_open = not self.is_open
@@ -46,10 +59,10 @@ class AIPanel:
     def _update_visibility(self):
         if not self.panel_container: return
         if self.is_open:
-            self.panel_container.style('transform: translateX(0); opacity: 1;')
+            self.panel_container.style('transform: translateX(0); opacity: 1; visibility: visible; pointer-events: auto;')
             self.overlay.style('opacity: 1; pointer-events: auto;')
         else:
-            self.panel_container.style('transform: translateX(calc(100% + 32px)); opacity: 0;')
+            self.panel_container.style('transform: translateX(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none;')
             self.overlay.style('opacity: 0; pointer-events: none;')
             
     def attach_context(self):
@@ -101,14 +114,16 @@ class AIPanel:
         
         with self.chat_area:
             for i, msg in enumerate(self.chat_history):
-                self._render_message(msg['text'], msg['sent'], idx=i)
+                self._render_message(msg, idx=i)
                 
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 100);")
 
     def _render_typing_indicator(self):
         ui.html('<div style="display:flex; gap:2px; font-weight:bold; font-size:1.2em;"><span style="animation: bounce 1.4s infinite ease-in-out both; animation-delay: -0.32s;">.</span><span style="animation: bounce 1.4s infinite ease-in-out both; animation-delay: -0.16s;">.</span><span style="animation: bounce 1.4s infinite ease-in-out both;">.</span></div>')
 
-    def _render_message(self, text, sent, idx=None, is_typing=False):
+    def _render_message(self, msg, idx=None):
+        text = msg.get('text', '')
+        sent = msg.get('sent', False)
         align = 'justify-end' if sent else 'justify-start'
         bg = 'var(--btn-primary-bg)' if sent else 'var(--bg-panel)'
         color = 'var(--btn-primary-text)' if sent else 'var(--text-main)'
@@ -117,15 +132,13 @@ class AIPanel:
         with ui.row().classes(f'w-full {align} mb-4'):
             container = ui.column().classes('p-3').style(f'background: {bg}; color: {color}; border-radius: {radius}; box-shadow: var(--elev-1); max-width: 85%;')
             with container:
-                if is_typing:
-                    self._render_typing_indicator()
+                msg_id = f"ai-msg-{id(text)}-{idx}" if not sent and msg.get('animate') else None
+                if msg_id:
+                    msg['animate'] = False
+                    ui.html(f'<div id="{msg_id}"></div>').classes('whitespace-pre-wrap math-label')
+                    ui.timer(0.05, lambda t=text, mid=msg_id: ui.run_javascript(f'typewriterEffect("{mid}", {json.dumps(t)}, 15)'), once=True)
                 else:
-                    msg_id = f"ai-msg-{id(text)}-{idx}" if not sent and idx == len(self.chat_history) - 1 else None
-                    if msg_id:
-                        ui.html(f'<div id="{msg_id}"></div>').classes('whitespace-pre-wrap math-label')
-                        ui.timer(0.05, lambda t=text, mid=msg_id: ui.run_javascript(f'typewriterEffect("{mid}", {json.dumps(t)}, 15)'), once=True)
-                    else:
-                        ui.html(html.escape(text).replace('\n', '<br>')).classes('whitespace-pre-wrap math-label')
+                    ui.html(html.escape(text).replace('\n', '<br>')).classes('whitespace-pre-wrap math-label')
 
     async def send_message(self):
         text = self.input_field.value
@@ -162,8 +175,11 @@ class AIPanel:
         except Exception as e:
             ok, respuesta = False, f"Error al procesar tu mensaje: {e}"
             
-        typing_row.delete()
-        self.chat_history.append({"text": respuesta, "sent": False, "error": not ok})
+        try:
+            typing_row.delete()
+        except Exception:
+            pass
+        self.chat_history.append({"text": respuesta, "sent": False, "error": not ok, "animate": True})
         self.render_chat()
 
     def build(self):

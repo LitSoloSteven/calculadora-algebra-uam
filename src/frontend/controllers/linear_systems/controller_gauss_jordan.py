@@ -98,9 +98,15 @@ class GaussJordanController:
             })
 
         reporte_comprobacion = []
-        if clasificacion == "Sistema Consistente Determinado: Presenta Solución Única.":
+        if resultado.get("status") == "UNIQUE_SOLUTION":
+            exact_solution = resultado.get("exact_solution")
+            if exact_solution is not None:
+                x_vals = [float(val) for val in exact_solution]
+            else:
+                x_vals = [float(Fraction(str(x))) for x in solucion] if solucion else []
+                
             _, reporte_comprobacion = MatrixValidator.verify_solution(
-                A_fractions, solucion, b_fractions, as_latex=True
+                A_fractions, x_vals, b_fractions, as_latex=True
             )
 
         response = {

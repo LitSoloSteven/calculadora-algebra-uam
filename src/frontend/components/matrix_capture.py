@@ -21,6 +21,8 @@ class MatrixCapturePanel:
                     let r = parseInt(active.dataset.matrixRow), c = parseInt(active.dataset.matrixCol);
                     let mId = active.dataset.matrixId;
                     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        if (e.key === 'ArrowLeft' && active.selectionStart !== 0) return;
+                        if (e.key === 'ArrowRight' && active.selectionEnd !== active.value.length) return;
                         if (e.key === 'ArrowRight') c++; if (e.key === 'ArrowLeft') c--;
                         if (e.key === 'ArrowDown') r++; if (e.key === 'ArrowUp') r--;
                     } else if (e.key === 'Enter') r++;

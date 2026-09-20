@@ -7,7 +7,7 @@ class SystemParser:
     # Regex: Grupo 1 = Signo (+/-). Alternativa A (término con variable):
     # Grupo 2 = Coeficiente (ej: 2, 3.5, 1/2), Grupo 3 = Variable (ej: x, y, z, x1).
     # Alternativa B (término puramente numérico / constante en el LHS): Grupo 4.
-    TERM_REGEX = re.compile(r'([+-]?)\s*(?:([\d\.\/]*)\s*([a-zA-Z][a-zA-Z0-9_]*)|([\d\.\/]+))')
+    TERM_REGEX = re.compile(r'([+-]?)\s*(?:([\d\.\/]*)\s*\*?\s*([a-zA-Z][a-zA-Z0-9_]*)|([\d\.\/]+))')
 
     @classmethod
     def parse_system(cls, raw_text: str, strict_variables: bool = True) -> tuple[bool, Matrix | None, list[str], str]:

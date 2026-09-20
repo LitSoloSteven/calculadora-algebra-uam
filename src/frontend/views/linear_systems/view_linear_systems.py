@@ -46,6 +46,10 @@ class LinearSystemsUI:
             self.render_ecuaciones()
             self.update_sync_buttons()
 
+    def _on_equations_change(self, e=None):
+        self.update_sync_buttons()
+        self._trigger_live_preview()
+
     def render_ecuaciones(self):
         backup_vals = [inp.value for inp in self.ecuaciones_inputs]
         if self.contenedor_ecuaciones_lista:
@@ -56,7 +60,7 @@ class LinearSystemsUI:
                     val = backup_vals[i] if i < len(backup_vals) else ''
                     with ui.row().classes('w-full items-center gap-3 no-wrap mb-3'):
                         ui.label(f'{i+1}.').classes('font-bold text-sec w-6 text-right')
-                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self.update_sync_buttons).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
+                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self._on_equations_change).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
                         self.ecuaciones_inputs.append(inp)
 
     def sync_from_matrix(self):
@@ -71,7 +75,7 @@ class LinearSystemsUI:
                     val = eqs[i] if i < len(eqs) else ''
                     with ui.row().classes('w-full items-center gap-3 no-wrap mb-3'):
                         ui.label(f'{i+1}.').classes('font-bold text-sec w-6 text-right')
-                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self.update_sync_buttons).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
+                        inp = ui.input(value=val, placeholder=f'Ej. 2x + 3y = {i*2 + 4}', on_change=self._on_equations_change).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
                         self.ecuaciones_inputs.append(inp)
         
         self.update_sync_buttons()
@@ -260,6 +264,9 @@ class LinearSystemsUI:
                     ui.button('Restaurar', on_click=lambda e, data=h: self._restore_history(data), color=None).classes('btn-ghost text-xs w-full mt-2').props('ripple=false')
 
     def _restore_history(self, data):
+        if self.mode_tabs.value == 'Ecuaciones':
+            self.mode_tabs.set_value('Matriz')
+            
         self.grid.clear()
         self.grid.m = data['m']
         self.grid.n = data['n']
@@ -306,6 +313,7 @@ class LinearSystemsUI:
 
     def reset_resultados(self):
         self.contenedor_resultados.clear()
+        self.contenedor_resultados.classes(remove='items-start justify-start', add='items-center justify-center')
         with self.contenedor_resultados:
             ui.icon('calculate', size='4rem').classes('text-placeholder mb-4')
             ui.label('Listo para resolver').classes('text-xl font-bold text-main')
@@ -452,12 +460,14 @@ class LinearSystemsUI:
                             for paso in respuesta["verification_steps_latex"]:
                                 ui.html(f'<div class="math-scroll-container math-label">$$ {format_step_for_mathjax(paso)} $$</div>')
 
-        self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
+        if status != "error":
+            self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
 
         ui.run_javascript('typesetMathWhenReady();')
         
         with self.contenedor_resultados:
-            await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
+            if status != "error":
+                await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
             
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
@@ -482,8 +492,9 @@ class LinearSystemsUI:
         with ui.expansion('Visualización Gráfica', icon='insights').classes('w-full panel-card mt-4').props('header-class="font-bold text-main" default-opened'):
             try:
                 import plotly.graph_objects as go
-            except ImportError:
-                ui.label('Instalando dependencias gráficas... intente de nuevo en unos segundos.').classes('text-warning')
+            except ImportError as e:
+                logger.warning("No se pudo cargar el módulo de gráficos (plotly)", exc_info=e)
+                ui.label('No se pudo cargar el módulo de gráficos (plotly). Contactá al administrador o instalá la dependencia con "pip install plotly".').classes('text-warning')
                 return
 
             def _linspace(start, stop, num):
@@ -670,6 +681,7 @@ class LinearSystemsUI:
                         ui.tab('teclado', label='Teclado')
                         ui.tab('preview', label='Vista previa')
                         ui.tab('history', label='Historial')
+                    self.tools_tabs.on_value_change(lambda e: self._trigger_live_preview() if e.value == 'preview' else None)
                     
                     with ui.tab_panels(self.tools_tabs, value='teclado').classes('w-full p-0 bg-transparent').props('animated'):
                         with ui.tab_panel('teclado').classes('p-0 mt-4'):

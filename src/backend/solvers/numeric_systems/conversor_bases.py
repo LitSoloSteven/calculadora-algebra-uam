@@ -58,7 +58,7 @@ class ConversorBases:
     def _generar_pasos(self, limpio, magnitud, base_origen, base_destino_str, es_negativo):
         pasos = []
         if base_origen != 10:
-            pasos.append(self._generar_expansion_posicional(limpio, base_origen, magnitud))
+            pasos.append(self._generar_expansion_posicional(limpio, base_origen, magnitud, es_negativo))
             
         destinos = []
         if base_destino_str == 'todas':
@@ -70,11 +70,11 @@ class ConversorBases:
                 destinos.append(b)
                 
         for dest in destinos:
-            pasos.append(self._generar_divisiones_sucesivas(magnitud, dest))
+            pasos.append(self._generar_divisiones_sucesivas(magnitud, dest, es_negativo))
             
         return pasos
 
-    def _generar_expansion_posicional(self, limpio, base_origen, magnitud):
+    def _generar_expansion_posicional(self, limpio, base_origen, magnitud, es_negativo):
         terminos = []
         longitud = len(limpio)
         for i, digito in enumerate(limpio):
@@ -94,10 +94,11 @@ class ConversorBases:
             "tipo": "expansion_posicional",
             "base_origen": base_origen,
             "terminos": terminos,
-            "total": magnitud
+            "total": f"-{magnitud}" if es_negativo else str(magnitud),
+            "es_negativo": es_negativo
         }
 
-    def _generar_divisiones_sucesivas(self, magnitud, base_destino):
+    def _generar_divisiones_sucesivas(self, magnitud, base_destino, es_negativo):
         filas = []
         dividendo = magnitud
         if dividendo == 0:
@@ -121,7 +122,8 @@ class ConversorBases:
                 dividendo = cociente
                 
             chars = "0123456789ABCDEF"
-            resultado = "".join(chars[f["residuo"]] for f in reversed(filas))
+            resultado_abs = "".join(chars[f["residuo"]] for f in reversed(filas))
+            resultado = f"-{resultado_abs}" if es_negativo else resultado_abs
             
         return {
             "tipo": "division_sucesiva",
