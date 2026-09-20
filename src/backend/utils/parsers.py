@@ -10,7 +10,7 @@ class SystemParser:
     TERM_REGEX = re.compile(r'([+-]?)\s*(?:([\d\.\/]*)\s*([a-zA-Z][a-zA-Z0-9_]*)|([\d\.\/]+))')
 
     @classmethod
-    def parse_system(cls, raw_text: str, strict_variables: bool = True) -> tuple[bool, Matrix | None, list[str], str]:
+    def parse_system(cls, raw_text: str, strict_variables: bool = False) -> tuple[bool, Matrix | None, list[str], str]:
         """
         Procesa el texto ingresado y retorna:
         (éxito: bool, matriz_aumentada: Matrix, lista_variables: list[str], mensaje: str)
