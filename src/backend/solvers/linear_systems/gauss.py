@@ -5,6 +5,8 @@ from src.backend.models.matrix import Matrix
 from src.backend.utils.formatters import format_fraction_str, format_parametric_expr, format_variable_for_latex
 
 class GaussSolver:
+    FULL_REDUCTION: bool = False
+
     def __init__(self, augmented_matrix: Matrix, eps: float = ZERO_EPSILON,
              variable_names: list[str] | None = None):
         self.matrix = augmented_matrix.clone()
@@ -206,7 +208,7 @@ class GaussSolver:
         return solution, back_sub_steps
 
     def solve(self):
-        rank, pivot_cols = self._eliminate(full_reduction=False)
+        rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
         status, message = self._check_system_status(rank)
 
         if status == "NO_SOLUTION":
