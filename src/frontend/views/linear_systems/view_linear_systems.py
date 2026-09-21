@@ -627,6 +627,11 @@ class LinearSystemsUI:
             
             # Header con Título y Selector de Método
             with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
+                # Selector de Modo (Matriz/Ecuaciones)
+                with ui.tabs().classes('neo-tabs mode-tabs').props('dense no-caps') as self.mode_tabs:
+                    ui.tab('Matriz', icon='grid_4x4')
+                    ui.tab('Ecuaciones', icon='functions')
+
                 # Selector de Método
                 with ui.tabs().classes('neo-tabs method-tabs').props('dense no-caps') as self.method_tabs:
                     ui.tab('gauss', label='Gauss')
@@ -634,11 +639,6 @@ class LinearSystemsUI:
                 self.method_tabs.value = self.initial_method
                 self.method_tabs.on_value_change(self.trigger_flip_animation)
                 
-                # Selector de Modo (Matriz/Ecuaciones)
-                with ui.tabs().classes('neo-tabs mode-tabs').props('dense no-caps') as self.mode_tabs:
-                    ui.tab('Matriz', icon='grid_4x4')
-                    ui.tab('Ecuaciones', icon='functions')
-                    
                 def on_mode_change(e):
                     if e.value == 'Ecuaciones' and not self.is_matriz_empty():
                         self.sync_from_matrix()

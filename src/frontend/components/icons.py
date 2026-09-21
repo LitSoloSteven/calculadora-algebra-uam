@@ -34,6 +34,12 @@ def icon_svg(nombre: str) -> str:
             <path d="M19 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="currentColor" stroke="none"></path>
         </svg>'''
     
+    elif nombre == 'vectores':
+        return base + '''
+            <line x1="5" y1="19" x2="17" y2="7"></line>
+            <polyline points="9,7 17,7 17,15"></polyline>
+        </svg>'''
+    
     elif nombre == 'temas':
         return base + '''
             <circle cx="12" cy="12" r="8"></circle>

@@ -92,6 +92,21 @@ class AIPanel:
                 logger.exception("Error inesperado en attach_context")
                 ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
                 return
+        elif hasattr(self.active_ui, 'vector_panel'):
+            # VectorOpsUI
+            try:
+                vecs = self.active_ui.vector_panel.get_vectors_dict()
+                if vecs:
+                    ctx_text = "Vectores disponibles:\n"
+                    for k, v in vecs.items():
+                        ctx_text += f"Vector {k} ({v['orientation']}): {v['data']}\n"
+            except ValueError as e:
+                ui.notify(str(e), type='warning')
+                return
+            except Exception as e:
+                logger.exception("Error inesperado en attach_context (vector_ops)")
+                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
+                return
                 
         if ctx_text:
             self.attached_context = ctx_text

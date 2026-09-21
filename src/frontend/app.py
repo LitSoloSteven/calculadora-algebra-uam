@@ -1018,7 +1018,12 @@ def matrix_ops_page():
     app_ui = MatrixOpsUI()
     app_ui.build()
 
-
+@ui.page('/vectores')
+def vector_ops_page():
+    from src.frontend.views.vector_ops.view_vector_ops import VectorOpsUI
+    setup_theme()
+    app_ui = VectorOpsUI()
+    app_ui.build()
 
 # ---> AQUÍ PEGÁS LO NUEVO <---
 @ui.page('/conversor')
