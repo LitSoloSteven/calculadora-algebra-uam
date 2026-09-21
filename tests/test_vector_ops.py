@@ -5,9 +5,6 @@ Cubre operaciones con vectores fila y columna, transposición automática
 paso a paso.
 """
 from fractions import Fraction
-
-import pytest
-
 from src.backend.exceptions import InvalidVectorError
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
@@ -311,3 +308,4 @@ def test_error_message_uses_custom_name():
     res = VectorOpsSolver().add(v1, v2, name1="mi_vector")
 
     assert "mi_vector" in res["message"]
+    

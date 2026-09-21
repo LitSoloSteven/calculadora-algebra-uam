@@ -36,3 +36,4 @@ class SingularSystemError(AlgebraLinealError):
 class InvalidVectorError(AlgebraLinealError):
     """El valor no representa un vector válido (shape ni n×1 ni 1×n),
     o las dimensiones/orientaciones son incompatibles entre operandos."""
+    

@@ -6,9 +6,6 @@ todo el cómputo, coordenadas en los mensajes de error, y preservación
 de denominadores grandes.
 """
 from fractions import Fraction
-
-import pytest
-
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
 
@@ -179,3 +176,4 @@ def test_scalar_multiply_fraction_latex_uses_parentheses():
     detail = res["latex_details"][0]
     assert "\\frac" in detail
     assert "C_{1,1}" in detail
+    

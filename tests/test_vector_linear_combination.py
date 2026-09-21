@@ -436,3 +436,33 @@ def test_add_error_when_input_not_matrix():
 
     assert res["status"] == "ERROR"
     assert "Matrix" in res["message"]
+
+# ---------------------------------------------------------------------------
+# variable_names — validación de longitud
+# ---------------------------------------------------------------------------
+
+def test_error_on_variable_names_wrong_length():
+    """Con 3 vectores, variable_names debe tener 3 nombres."""
+    v1 = Matrix(2, 1, [[1], [0]])
+    v2 = Matrix(2, 1, [[0], [1]])
+    v3 = Matrix(2, 1, [[1], [1]])
+    b = Matrix(2, 1, [[2], [3]])
+
+    res = VectorOpsSolver().is_linear_combination(
+        b, [v1, v2, v3], variable_names=["alpha"]
+    )
+
+    assert res["status"] == "ERROR"
+    assert "variable_names tiene 1" in res["message"]
+
+
+def test_error_on_variable_names_not_list():
+    v1 = Matrix(2, 1, [[1], [0]])
+    b = Matrix(2, 1, [[3], [0]])
+
+    res = VectorOpsSolver().is_linear_combination(
+        b, [v1], variable_names="alpha"
+    )
+
+    assert res["status"] == "ERROR"
+    assert "lista" in res["message"]

@@ -23,6 +23,7 @@ from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.utils.formatters import format_fraction_str, number_to_latex
 from src.backend.utils.validators import MatrixValidator
 
+
 class VectorOpsSolver:
     """Operaciones vectoriales con trazabilidad paso a paso."""
 
@@ -436,6 +437,15 @@ class VectorOpsSolver:
         # --- 1. Validaciones tempranas ---
         if not isinstance(vectors, list) or len(vectors) == 0:
             return self._lc_error("Se requiere al menos un vector.")
+        
+        if variable_names is not None:
+            if not isinstance(variable_names, list):
+                return self._lc_error("variable_names debe ser una lista.")
+            if len(variable_names) != len(vectors):
+                return self._lc_error(
+                    f"variable_names tiene {len(variable_names)} nombres; "
+                    f"se esperaban {len(vectors)} (uno por vector)."
+                )
 
         try:
             self._assert_column_vector(b, "b")
@@ -542,3 +552,4 @@ class VectorOpsSolver:
 
         # Fallback defensivo: Gauss devolvió un status inesperado.
         return self._lc_error(f"Estado inesperado del solver: {gauss_status}")
+    
