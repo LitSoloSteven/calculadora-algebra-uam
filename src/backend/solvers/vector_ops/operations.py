@@ -375,9 +375,8 @@ class VectorOpsSolver:
         computed_plain = ", ".join(format_fraction_str(c) for c in computed)
         b_plain = ", ".join(format_fraction_str(b.get(i, 0)) for i in range(n))
 
-        computed_tex = ", ".join(number_to_latex(c) for c in computed)
-        b_tex = ", ".join(number_to_latex(b.get(i, 0)) for i in range(n))
-
+        computed_tex = " \\\\ ".join(number_to_latex(c) for c in computed)
+        b_tex = " \\\\ ".join(number_to_latex(b.get(i, 0)) for i in range(n))
         status_symbol = "\\checkmark" if todos_ok else "\\times"
 
         description = (

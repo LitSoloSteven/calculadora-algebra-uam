@@ -355,3 +355,22 @@ def test_uses_gauss_not_reimplemented():
     # El primer step del Gauss dice "Matriz inicial aumentada"
     first_desc = res["steps"][0]["description"]
     assert "inicial" in first_desc.lower()
+    
+def test_verification_step_uses_valid_pmatrix():
+    """El LaTeX del verification_step usa \\\\ como separador de filas en pmatrix."""
+    v1 = Matrix(2, 1, [[1], [0]])
+    v2 = Matrix(2, 1, [[0], [1]])
+    b = Matrix(2, 1, [[3], [2]])
+
+    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    detail = res["verification_step"]["detail_latex"]
+
+    # Las pmatrix del LHS computed y del b deben usar \\ como separador
+    assert "\\\\" in detail
+    # Y NO deben usar comas entre los elementos de la pmatrix
+    import re
+    matrices = re.findall(r"\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}", detail)
+    assert len(matrices) >= 2
+    for contenido in matrices:
+        # Sin comas dentro de una pmatrix (serían texto literal, no filas)
+        assert "," not in contenido
