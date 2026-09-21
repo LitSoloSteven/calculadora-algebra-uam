@@ -23,7 +23,11 @@ def create_navbar(active_ui=None, active_route='/'):
                 with ui.button(on_click=lambda: ui.navigate.to('/operaciones-matrices'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/operaciones-matrices')).props('flat ripple=false aria-label="Operaciones con Matrices"').tooltip('Operaciones con Matrices'):
                     ui.html(icon_svg('operaciones_matrices'))
 
-                # 3. Conversor de Bases Numéricas
+                # 3. Operaciones con Vectores
+                with ui.button(on_click=lambda: ui.navigate.to('/vectores'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/vectores')).props('flat ripple=false aria-label="Operaciones con Vectores"').tooltip('Operaciones con Vectores'):
+                    ui.html(icon_svg('vectores'))
+
+                # 4. Conversor de Bases Numéricas
                 with ui.button(on_click=lambda: ui.navigate.to('/conversor'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/conversor')).props('flat ripple=false aria-label="Conversor"').tooltip('Conversor de Bases'):
                     ui.html(icon_svg('conversor_bases'))
                 
