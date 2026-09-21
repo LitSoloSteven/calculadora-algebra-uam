@@ -1,8 +1,9 @@
 from fractions import Fraction
-from src.backend.models.matrix import Matrix
+from src.backend.models.matrix import Matrix, Numeric
 from src.backend.utils.validators import (
     validate_same_dimensions,
-    validate_multiplication_dimensions
+    validate_multiplication_dimensions,
+    MatrixValidator,
 )
 from src.backend.utils.formatters import format_fraction_str, number_to_latex
 
@@ -122,6 +123,68 @@ class MatrixOpsSolver:
         return {
             "status": "SUCCESS",
             "message": f"Resta completada con éxito ({m}×{n}).",
+            "result_matrix": result,
+            "steps": self.steps,
+            "latex_details": latex_details
+        }
+        
+    def scalar_multiply(self, scalar: Numeric, matrix_a: Matrix) -> dict:
+        """Multiplicación de un escalar por una matriz: C_{i,j} = k · A_{i,j}.
+
+        Correspondencia algebraica (Lay, sección 2.1): el múltiplo escalar rA
+        es la matriz cuyas entradas son r veces las entradas correspondientes
+        de A. La operación conserva el orden de la matriz original (m×n).
+
+        El escalar se parsea con `parse_number_exact` para preservar la
+        precisión exacta: '1/2' → Fraction(1,2), no float(0.5).
+        """
+        self.steps = []
+
+        # Parseo exacto del escalar — misma fuente de verdad que el resto del backend.
+        ok, scalar_frac, err = MatrixValidator.parse_number_exact(scalar)
+        if not ok:
+            return {
+                "status": "ERROR",
+                "message": f"Escalar inválido: {err}",
+                "result_matrix": None,
+                "steps": []
+            }
+
+        m, n = matrix_a.rows, matrix_a.cols
+        result = Matrix(m, n)
+
+        k_plain = format_fraction_str(scalar_frac)
+        self._log_step(f"Iniciando multiplicación escalar: {k_plain} · A ({m}×{n})")
+
+        latex_details = []
+        for r in range(m):
+            for c in range(n):
+                val_a = matrix_a.get(r, c)
+                prod_val = scalar_frac * val_a
+                result.set(r, c, prod_val)
+
+                a_plain = format_fraction_str(val_a)
+                res_plain = format_fraction_str(prod_val)
+
+                k_tex = number_to_latex(scalar_frac)
+                a_tex = number_to_latex(val_a)
+                res_tex = number_to_latex(prod_val)
+
+                detail_latex = (
+                    f"C_{{{r+1},{c+1}}} = ({k_tex}) \\cdot A_{{{r+1},{c+1}}} "
+                    f"= ({k_tex})({a_tex}) = {res_tex}"
+                )
+                latex_details.append(detail_latex)
+
+                self._log_step(
+                    f"Celda ({r+1}, {c+1}): {k_plain} · {a_plain} = {res_plain}",
+                    current_matrix=result,
+                    detail_latex=detail_latex
+                )
+
+        return {
+            "status": "SUCCESS",
+            "message": f"Multiplicación escalar completada con éxito ({m}×{n}).",
             "result_matrix": result,
             "steps": self.steps,
             "latex_details": latex_details
