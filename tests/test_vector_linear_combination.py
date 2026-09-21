@@ -139,7 +139,7 @@ def test_infinite_when_vectors_are_dependent():
     assert res["es_combinacion_lineal"] is True
     assert res["coeficientes"] is None
     assert res["solucion_parametrica"] is not None
-    assert len(res["parametros_libres"]) >= 1
+    assert res["parametros_libres"] == ["c_2"]
     assert "infinitas" in res["message"].lower()
 
 
@@ -374,3 +374,65 @@ def test_verification_step_uses_valid_pmatrix():
     for contenido in matrices:
         # Sin comas dentro de una pmatrix (serían texto literal, no filas)
         assert "," not in contenido
+        
+# ---------------------------------------------------------------------------
+# free_cols (fix de heuristica)
+# ---------------------------------------------------------------------------
+
+def test_free_cols_used_for_parameters_exact():
+    """Con 3 vectores donde v_3 = v_1 + v_2, el tercero es libre."""
+    v1 = Matrix(2, 1, [[1], [0]])
+    v2 = Matrix(2, 1, [[0], [1]])
+    v3 = Matrix(2, 1, [[1], [1]])   # = v_1 + v_2 → columna dependiente
+    b = Matrix(2, 1, [[2], [3]])
+
+    res = VectorOpsSolver().is_linear_combination(b, [v1, v2, v3])
+
+    assert res["status"] == "INFINITE"
+    # El pivote cae en las columnas 0 y 1; la 2 es libre.
+    assert res["parametros_libres"] == ["c_3"]
+
+
+def test_free_cols_respects_custom_variable_names():
+    """Con nombres custom, parametros_libres usa esos nombres."""
+    v1 = Matrix(2, 1, [[1], [0]])
+    v2 = Matrix(2, 1, [[0], [1]])
+    v3 = Matrix(2, 1, [[1], [1]])   # dependiente
+    b = Matrix(2, 1, [[2], [3]])
+
+    res = VectorOpsSolver().is_linear_combination(
+        b, [v1, v2, v3], variable_names=["alpha", "beta", "gamma"]
+    )
+
+    assert res["parametros_libres"] == ["gamma"]
+
+
+# ---------------------------------------------------------------------------
+# Type-check defensivo
+# ---------------------------------------------------------------------------
+
+def test_error_when_b_is_not_matrix():
+    """b = None no debe crashear con AttributeError."""
+    v1 = Matrix(2, 1, [[1], [0]])
+    res = VectorOpsSolver().is_linear_combination(None, [v1])
+
+    assert res["status"] == "ERROR"
+    assert "Matrix" in res["message"]
+
+
+def test_error_when_vector_in_list_is_not_matrix():
+    """Un vector no-Matrix se rechaza con mensaje claro."""
+    b = Matrix(2, 1, [[1], [2]])
+    res = VectorOpsSolver().is_linear_combination(b, ["no soy matriz"])
+
+    assert res["status"] == "ERROR"
+    assert "Matrix" in res["message"]
+
+
+def test_add_error_when_input_not_matrix():
+    """add() tambien rechaza entradas no-Matrix con mensaje claro."""
+    v1 = Matrix(2, 1, [[1], [0]])
+    res = VectorOpsSolver().add(v1, "no soy vector")
+
+    assert res["status"] == "ERROR"
+    assert "Matrix" in res["message"]

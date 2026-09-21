@@ -213,13 +213,12 @@ class GaussSolver:
         # NO son únicos (hay infinitas combinaciones); el consumidor debe leer
         # back_substitution_steps para la paramétrica.
         #
-        # Cuando free_cols == [], todas las columnas son pivote y expr_const[i]
-        # ya contiene el valor exacto de la variable i-ésima (los términos
-        # paramétricos quedaron vacíos). Es la única clave que agrega este
-        # método: `solution` (strings) se preserva intacta.
+        # free_cols se propaga al caller para que pueda mapear columnas libres
+        # a nombres de variable SIN re-implementar la heurística de parseo de
+        # los strings paramétricos.
         solution_exact = None if free_cols else list(expr_const)
 
-        return solution, solution_exact, back_sub_steps
+        return solution, solution_exact, back_sub_steps, free_cols
 
     def solve(self):
         rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
@@ -233,11 +232,12 @@ class GaussSolver:
                 "echelon_matrix": self.matrix,
                 "solution": None,
                 "solution_exact": None,
+                "free_cols": [],          # ← NUEVO: sin solución no hay back-substitution
                 "steps": self.steps,
                 "back_substitution_steps": []
             }
 
-        solution, solution_exact, back_steps = self._back_substitute(pivot_cols)
+        solution, solution_exact, back_steps, free_cols = self._back_substitute(pivot_cols)
 
         return {
             "status": status,
@@ -246,6 +246,7 @@ class GaussSolver:
             "echelon_matrix": self.matrix,
             "solution": solution,
             "solution_exact": solution_exact,
+            "free_cols": free_cols,       # ← NUEVO
             "steps": self.steps,
             "back_substitution_steps": back_steps
         }

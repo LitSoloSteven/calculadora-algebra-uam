@@ -154,3 +154,48 @@ def test_solution_exact_consistent_with_solution_strings():
 
     for frac, s in zip(result["solution_exact"], result["solution"]):
         assert format_fraction_str(frac) == s
+        
+# ---------------------------------------------------------------------------
+# free_cols — contrato del solver
+# ---------------------------------------------------------------------------
+
+def test_free_cols_empty_for_unique_solution():
+    A_aug = Matrix(2, 3, [[1, 0, 5], [0, 1, 3]])
+    result = GaussSolver(A_aug).solve()
+    assert result["free_cols"] == []
+
+
+def test_free_cols_single_free_variable():
+    """Sistema 1×3: 2 variables (x1, x2) + b. Pivote en col 0 → col 1 libre."""
+    A_aug = Matrix(1, 3, [[1, 2, 3]])
+    result = GaussSolver(A_aug).solve()
+    assert result["status"] == "INFINITE_SOLUTIONS"
+    # num_vars = n - 1 = 2. Pivote en col 0 → free_cols = [1].
+    # La col 2 es el término independiente, NO una variable.
+    assert result["free_cols"] == [1]
+
+
+def test_free_cols_multiple_free_variables():
+    """Sistema 1×4: 3 variables + b. Pivote en col 0 → cols 1 y 2 libres."""
+    A_aug = Matrix(1, 4, [[1, 2, 3, 4]])
+    result = GaussSolver(A_aug).solve()
+    assert result["status"] == "INFINITE_SOLUTIONS"
+    assert result["free_cols"] == [1, 2]
+
+
+def test_free_cols_empty_for_no_solution():
+    A_aug = Matrix(2, 3, [[1, 1, 1], [2, 2, 5]])
+    result = GaussSolver(A_aug).solve()
+    assert result["status"] == "NO_SOLUTION"
+    assert result["free_cols"] == []
+
+
+def test_free_cols_key_always_present():
+    casos = [
+        Matrix(1, 2, [[1, 1]]),                # UNIQUE
+        Matrix(1, 3, [[1, 1, 2]]),             # INFINITE
+        Matrix(2, 3, [[1, 1, 1], [2, 2, 5]]),  # NO_SOLUTION
+    ]
+    for A_aug in casos:
+        result = GaussSolver(A_aug).solve()
+        assert "free_cols" in result

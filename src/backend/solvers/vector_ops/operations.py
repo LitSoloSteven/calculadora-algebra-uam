@@ -58,7 +58,11 @@ class VectorOpsSolver:
         return m.rows if cls._is_column_vector(m) else m.cols
 
     @classmethod
-    def _assert_vector(cls, m: Matrix, name: str) -> None:
+    def _assert_vector(cls, m, name: str) -> None:
+        if not isinstance(m, Matrix):
+            raise InvalidVectorError(
+                f"{name}: se esperaba una Matrix, recibido {type(m).__name__}."
+            )
         if not cls._is_vector(m):
             raise InvalidVectorError(
                 f"{name}: se esperaba un vector (n×1 o 1×n), "
@@ -308,13 +312,17 @@ class VectorOpsSolver:
     # ------------------------------------------------------------------
 
     @classmethod
-    def _assert_column_vector(cls, m: Matrix, name: str) -> None:
+    def _assert_column_vector(cls, m, name: str) -> None:
         """Exige estrictamente shape n×1.
 
         A diferencia de suma/resta (que aceptan filas con auto-transposición),
         la combinación lineal es estricta: la semántica algebraica es
         [v_1|...|v_k] · c = b, y tanto b como cada v_i deben ser columnas.
         """
+        if not isinstance(m, Matrix):
+            raise InvalidVectorError(
+                f"{name}: se esperaba una Matrix, recibido {type(m).__name__}."
+            )
         if not cls._is_column_vector(m):
             raise InvalidVectorError(
                 f"{name}: se esperaba vector columna n×1, "
@@ -494,16 +502,13 @@ class VectorOpsSolver:
             }
 
         if gauss_status == "INFINITE_SOLUTIONS":
-            # Heurística robusta para identificar variables libres:
-            # format_parametric_expr para una variable libre X produce
-            # exactamente "X" (sin constante ni coeficientes). Las demás
-            # variables tienen al menos una constante o un coeficiente.
+            # free_cols viene de GaussSolver.solve(): contiene los índices de
+            # las columnas NO pivote (variables libres). Es la fuente de verdad
+            # — no re-implementamos la detección parseando los strings
+            # paramétricos.
             solucion = list(gauss_solution)
-            parametros_conocidos = {"t", "s", "r", "u", "v"}
-            libres = []
-            for idx, expr in enumerate(solucion):
-                if expr in parametros_conocidos or expr.startswith("t_"):
-                    libres.append(variable_names[idx])
+            free_cols = result.get("free_cols") or []
+            libres = [variable_names[c] for c in free_cols]
 
             return {
                 "status": "INFINITE",
