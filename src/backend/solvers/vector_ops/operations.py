@@ -19,9 +19,9 @@ from fractions import Fraction
 
 from src.backend.exceptions import InvalidVectorError
 from src.backend.models.matrix import Matrix, Numeric
+from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.utils.formatters import format_fraction_str, number_to_latex
 from src.backend.utils.validators import MatrixValidator
-
 
 class VectorOpsSolver:
     """Operaciones vectoriales con trazabilidad paso a paso."""
@@ -302,3 +302,239 @@ class VectorOpsSolver:
             "steps": self.steps,
             "latex_details": latex_details,
         }
+        
+    # ------------------------------------------------------------------
+    # Combinación lineal (reutiliza GaussSolver)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _assert_column_vector(cls, m: Matrix, name: str) -> None:
+        """Exige estrictamente shape n×1.
+
+        A diferencia de suma/resta (que aceptan filas con auto-transposición),
+        la combinación lineal es estricta: la semántica algebraica es
+        [v_1|...|v_k] · c = b, y tanto b como cada v_i deben ser columnas.
+        """
+        if not cls._is_column_vector(m):
+            raise InvalidVectorError(
+                f"{name}: se esperaba vector columna n×1, "
+                f"recibido {m.rows}×{m.cols}."
+            )
+
+    def _lc_error(self, message: str) -> dict:
+        return {
+            "status": "ERROR",
+            "es_combinacion_lineal": False,
+            "coeficientes": None,
+            "coeficientes_str": None,
+            "solucion_parametrica": None,
+            "parametros_libres": [],
+            "message": message,
+            "steps": [],
+            "back_substitution_steps": [],
+            "verification_step": None,
+        }
+
+    @staticmethod
+    def _build_verification_step(
+        b: Matrix,
+        vectors: list[Matrix],
+        coeficientes: list[Fraction],
+        variable_names: list[str],
+    ) -> dict:
+        """Paso de comprobación: sustituye los coeficientes y verifica
+        componente a componente que la combinación reproduce b.
+
+        Matemáticamente: c_1·v_1 + c_2·v_2 + ... + c_k·v_k debe dar exactamente
+        b. Se calcula con Fraction para garantizar coincidencia exacta.
+        """
+        # Armar el lado izquierdo simbólico (con coeficientes sustituidos)
+        terms_plain = []
+        terms_latex = []
+        for j, (v, c) in enumerate(zip(vectors, coeficientes)):
+            c_str = format_fraction_str(c)
+            c_tex = number_to_latex(c)
+            name = variable_names[j]
+            terms_plain.append(f"({c_str})·{name}")
+            terms_latex.append(f"({c_tex}) \\cdot {name}")
+
+        lhs_plain = " + ".join(terms_plain)
+        lhs_latex = " + ".join(terms_latex)
+
+        # Calcular el resultado componente a componente
+        n = b.rows
+        computed = []
+        for i in range(n):
+            comp = Fraction(0)
+            for j, v in enumerate(vectors):
+                comp += coeficientes[j] * v.get(i, 0)
+            computed.append(comp)
+
+        todos_ok = all(computed[i] == b.get(i, 0) for i in range(n))
+
+        computed_plain = ", ".join(format_fraction_str(c) for c in computed)
+        b_plain = ", ".join(format_fraction_str(b.get(i, 0)) for i in range(n))
+
+        computed_tex = ", ".join(number_to_latex(c) for c in computed)
+        b_tex = ", ".join(number_to_latex(b.get(i, 0)) for i in range(n))
+
+        status_symbol = "\\checkmark" if todos_ok else "\\times"
+
+        description = (
+            f"Comprobación: ({lhs_plain}) = ({computed_plain})ᵀ vs "
+            f"b = ({b_plain})ᵀ → {'OK' if todos_ok else 'FALLA'}"
+        )
+        detail_latex = (
+            f"\\text{{Comprobación: }} {lhs_latex} = "
+            f"\\begin{{pmatrix}} {computed_tex} \\end{{pmatrix}} "
+            f"\\stackrel{{?}}{{=}} "
+            f"\\begin{{pmatrix}} {b_tex} \\end{{pmatrix}} \\; {status_symbol}"
+        )
+
+        return {
+            "description": description,
+            "detail_latex": detail_latex,
+            "coincide": todos_ok,
+        }
+
+    def is_linear_combination(
+        self,
+        b: Matrix,
+        vectors: list[Matrix],
+        *,
+        variable_names: list[str] | None = None,
+    ) -> dict:
+        """Determina si b es combinación lineal de la lista de vectores.
+
+        Algebraicamente: ¿existen c_1, ..., c_k tales que
+            c_1·v_1 + c_2·v_2 + ... + c_k·v_k = b?
+        Esto equivale a resolver el sistema [v_1|...|v_k]·c = b, que se
+        resuelve con GaussSolver sobre la matriz aumentada [v_1|...|v_k|b].
+
+        Returns:
+            dict con:
+              - status: "UNIQUE" | "INFINITE" | "NO_SOLUTION" | "ERROR"
+              - es_combinacion_lineal: bool
+              - coeficientes: list[Fraction] | None (solo UNIQUE)
+              - coeficientes_str: list[str] | None (solo UNIQUE)
+              - solucion_parametrica: list[str] | None (solo INFINITE)
+              - parametros_libres: list[str] (variables c_i libres)
+              - message: str
+              - steps: pasos del Gauss subyacente
+              - back_substitution_steps: pasos de sustitución
+              - verification_step: dict | None (solo UNIQUE)
+        """
+        self.steps = []
+
+        # --- 1. Validaciones tempranas ---
+        if not isinstance(vectors, list) or len(vectors) == 0:
+            return self._lc_error("Se requiere al menos un vector.")
+
+        try:
+            self._assert_column_vector(b, "b")
+            for i, v in enumerate(vectors):
+                self._assert_column_vector(v, f"v_{i + 1}")
+
+            n = b.rows
+            for i, v in enumerate(vectors):
+                if v.rows != n:
+                    raise InvalidVectorError(
+                        f"Dimensiones incompatibles: b tiene dim {n}, "
+                        f"v_{i + 1} tiene dim {v.rows}."
+                    )
+        except InvalidVectorError as e:
+            return self._lc_error(str(e))
+
+        # --- 2. Construir matriz aumentada [v_1|...|v_k|b] ---
+        k = len(vectors)
+        augmented_data = []
+        for i in range(n):
+            row = [vectors[j].get(i, 0) for j in range(k)]
+            row.append(b.get(i, 0))
+            augmented_data.append(row)
+
+        augmented = Matrix(n, k + 1, augmented_data)
+
+        # --- 3. Nombres de variables (c_1, ..., c_k) ---
+        if variable_names is None:
+            variable_names = [f"c_{j + 1}" for j in range(k)]
+
+        # --- 4. Resolver con Gauss ---
+        solver = GaussSolver(augmented, variable_names=variable_names)
+        result = solver.solve()
+
+        gauss_status = result["status"]
+        gauss_steps = result["steps"]
+        gauss_solution = result["solution"]
+        gauss_solution_exact = result["solution_exact"]
+        gauss_back_sub = result["back_substitution_steps"]
+
+        # --- 5. Mapear a la respuesta semántica de vectores ---
+        if gauss_status == "UNIQUE_SOLUTION":
+            coeficientes = list(gauss_solution_exact)
+            coeficientes_str = list(gauss_solution)
+
+            verification = self._build_verification_step(
+                b, vectors, coeficientes, variable_names
+            )
+
+            return {
+                "status": "UNIQUE",
+                "es_combinacion_lineal": True,
+                "coeficientes": coeficientes,
+                "coeficientes_str": coeficientes_str,
+                "solucion_parametrica": None,
+                "parametros_libres": [],
+                "message": (
+                    f"b es combinación lineal de los {k} vectores "
+                    f"(representación única)."
+                ),
+                "steps": gauss_steps,
+                "back_substitution_steps": gauss_back_sub,
+                "verification_step": verification,
+            }
+
+        if gauss_status == "INFINITE_SOLUTIONS":
+            # Heurística robusta para identificar variables libres:
+            # format_parametric_expr para una variable libre X produce
+            # exactamente "X" (sin constante ni coeficientes). Las demás
+            # variables tienen al menos una constante o un coeficiente.
+            solucion = list(gauss_solution)
+            parametros_conocidos = {"t", "s", "r", "u", "v"}
+            libres = []
+            for idx, expr in enumerate(solucion):
+                if expr in parametros_conocidos or expr.startswith("t_"):
+                    libres.append(variable_names[idx])
+
+            return {
+                "status": "INFINITE",
+                "es_combinacion_lineal": True,
+                "coeficientes": None,
+                "coeficientes_str": None,
+                "solucion_parametrica": solucion,
+                "parametros_libres": libres,
+                "message": (
+                    f"b es combinación lineal de los {k} vectores. "
+                    f"Existen infinitas representaciones; se muestra la paramétrica."
+                ),
+                "steps": gauss_steps,
+                "back_substitution_steps": gauss_back_sub,
+                "verification_step": None,
+            }
+
+        if gauss_status == "NO_SOLUTION":
+            return {
+                "status": "NO_SOLUTION",
+                "es_combinacion_lineal": False,
+                "coeficientes": None,
+                "coeficientes_str": None,
+                "solucion_parametrica": None,
+                "parametros_libres": [],
+                "message": f"b NO es combinación lineal de los {k} vectores.",
+                "steps": gauss_steps,
+                "back_substitution_steps": [],
+                "verification_step": None,
+            }
+
+        # Fallback defensivo: Gauss devolvió un status inesperado.
+        return self._lc_error(f"Estado inesperado del solver: {gauss_status}")
