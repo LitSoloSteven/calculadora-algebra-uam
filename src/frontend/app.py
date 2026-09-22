@@ -587,6 +587,68 @@ def setup_theme():
                 font-family: 'Space Grotesk', sans-serif !important;
             }
 
+            /* === SELECT NEUMÓRFICO === */
+            .neo-select .q-field__control {
+                background: var(--input-bg) !important;
+                border: none !important;
+                border-radius: var(--radius-input) !important;
+                box-shadow: var(--elev-inset) !important;
+                min-height: 44px;
+                transition: box-shadow var(--dur-fast) var(--ease-std),
+                            background var(--dur-fast) var(--ease-std);
+            }
+            .neo-select .q-field__control:before,
+            .neo-select .q-field__control:after { display: none !important; }
+            .neo-select .q-field__native,
+            .neo-select .q-field__input {
+                color: var(--text-main) !important;
+                font-weight: 600;
+                font-family: 'Space Grotesk', sans-serif !important;
+            }
+            .neo-select .q-field__marginal .q-icon { color: var(--text-sec) !important; }
+            .neo-select.q-field--focused .q-field__control {
+                outline: 2px solid var(--focus-ring) !important;
+                outline-offset: 2px;
+            }
+            .neo-select-menu.q-menu {
+                background: var(--bg-elevated) !important;
+                box-shadow: var(--elev-2) !important;
+                padding: 4px !important;
+            }
+            .neo-select-menu .q-item {
+                color: var(--text-main) !important;
+                border-radius: var(--radius-input) !important;
+                transition: background var(--dur-fast) var(--ease-std);
+            }
+            .neo-select-menu .q-item:hover,
+            .neo-select-menu .q-item.q-manual-focusable--focused {
+                background: var(--accent-soft) !important;
+            }
+            .neo-select-menu .q-item--active {
+                color: var(--accent) !important;
+                font-weight: 700;
+            }
+
+            /* === CHECKBOX NEUMÓRFICO === */
+            .neo-checkbox .q-checkbox__label {
+                color: var(--text-main) !important;
+                font-family: 'Space Grotesk', sans-serif !important;
+                font-weight: 500;
+            }
+            .neo-checkbox .q-checkbox__bg {
+                border: 2px solid var(--text-sec) !important;
+                border-radius: var(--radius-badge) !important;
+                transition: background var(--dur-fast) var(--ease-std),
+                            border-color var(--dur-fast) var(--ease-std);
+            }
+            .neo-checkbox.q-checkbox--checked .q-checkbox__bg {
+                background: var(--accent) !important;
+                border-color: var(--accent) !important;
+            }
+            .neo-checkbox.q-checkbox--checked .q-checkbox__icon {
+                color: var(--btn-primary-text) !important;
+            }
+
             /* === ANIMACIONES === */
             @keyframes slideUpFadeIn {
                 0%   { opacity: 0; transform: translateY(30px); }
