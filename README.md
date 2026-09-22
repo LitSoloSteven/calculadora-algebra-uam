@@ -355,12 +355,13 @@ Un detalle a favor de la resiliencia: la app busca el `.env` en **dos ubicacione
 ### 5. Ejecutar
 
 ```bash
-python -m src.frontend.app
+python -m src.main
 ```
+*(También podés ejecutar directamente `python src/main.py`)*
 
 Abrí **http://localhost:8080** en tu navegador. NiceGUI levanta el servidor con recarga automática ante cambios en el código.
 
-> ⚠️ Nota técnica: el entry point ejecutable real vive en `src/frontend/app.py` (bloque `if __name__ in {"__main__", "__mp_main__"}`). `src/main.py` existe como placeholder pero aún no delega la ejecución — usá el comando de arriba con `-m` para que los imports absolutos (`from src.backend...`) resuelvan correctamente desde la raíz del proyecto.
+> ℹ️ El entry point principal vive en `src/main.py`, que delega en el composition root `src/frontend/app.py` y asegura la recarga automática (multiprocessing de NiceGUI) y resolución de módulos desde la raíz.
 
 ### Higiene del repositorio
 
