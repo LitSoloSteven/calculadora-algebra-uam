@@ -204,7 +204,19 @@ body {
 .math-scroll-container {
     overflow-x: auto;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding-bottom: 8px;
+    box-sizing: border-box;
+}
+
+/* Soporte para flex-items que envuelven math-scroll-container (ej. ui.html en NiceGUI ui.row) */
+.row > div:has(> .math-scroll-container),
+.nicegui-row > div:has(> .math-scroll-container),
+.row > .math-scroll-container,
+.nicegui-row > .math-scroll-container {
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* Font scale para math label en móviles */

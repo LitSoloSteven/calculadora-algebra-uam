@@ -1,5 +1,11 @@
 from fractions import Fraction
-from src.backend.utils.formatters import format_fraction_str, number_to_latex
+from src.backend.utils.formatters import (
+    format_fraction_str,
+    number_to_latex,
+    matrix_to_latex,
+    sum_sub_matrix_to_latex,
+    multiply_matrix_to_latex,
+)
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.linear_systems.gauss import GaussSolver
 
@@ -70,3 +76,40 @@ def test_solution_keeps_simple_fraction():
     solver = GaussSolver(Matrix(1, 2, [[7, 2]]))
     result = solver.solve()
     assert result["solution"] == ["2/7"]
+
+
+# --- Auditoría de llaves LaTeX en formateadores de matrices ---
+
+def test_matrix_to_latex_single_braces():
+    """matrix_to_latex genera \\begin{bmatrix} y \\end{bmatrix} sin llaves dobles."""
+    mat = Matrix(2, 2, [[1, 2], [3, 4]])
+    tex = matrix_to_latex(mat)
+    assert r"\begin{bmatrix}" in tex
+    assert r"\end{bmatrix}" in tex
+    assert "{{" not in tex
+    assert "}}" not in tex
+
+
+def test_sum_sub_matrix_to_latex_single_braces():
+    """sum_sub_matrix_to_latex genera \\begin{bmatrix} y \\end{bmatrix} sin llaves dobles."""
+    A = Matrix(2, 2, [[1, -2], [3, 4]])
+    B = Matrix(2, 2, [[5, 6], [-7, 8]])
+    tex_add = sum_sub_matrix_to_latex(A, B, "+")
+    tex_sub = sum_sub_matrix_to_latex(A, B, "-")
+
+    for tex in (tex_add, tex_sub):
+        assert r"\begin{bmatrix}" in tex
+        assert r"\end{bmatrix}" in tex
+        assert "{{" not in tex
+        assert "}}" not in tex
+
+
+def test_multiply_matrix_to_latex_single_braces():
+    """multiply_matrix_to_latex genera \\begin{bmatrix} y \\end{bmatrix} sin llaves dobles."""
+    A = Matrix(2, 2, [[1, 2], [3, 4]])
+    B = Matrix(2, 2, [[5, 6], [7, 8]])
+    tex = multiply_matrix_to_latex(A, B)
+    assert r"\begin{bmatrix}" in tex
+    assert r"\end{bmatrix}" in tex
+    assert "{{" not in tex
+    assert "}}" not in tex

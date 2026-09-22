@@ -100,7 +100,8 @@ class MatrixOpsUI:
                                             continue
                                         ui.html(f'<div class="math-scroll-container math-label w-full py-1">$$ {detail} $$</div>')
                 
-                if respuesta.get("final_variable") and respuesta.get("result_matrix_latex"):
+                mostrar_resultado_final = len(respuesta.get("segment_steps", [])) != 1
+                if mostrar_resultado_final and respuesta.get("final_variable") and respuesta.get("result_matrix_latex"):
                     ui.label('Resultado Final:').classes('font-bold text-xl text-main mt-6 mb-4')
                     with ui.row().classes('w-full justify-center items-center panel-card p-6 overflow-x-auto'):
                         ui.html(f'<div class="math-scroll-container math-label text-2xl font-bold">$$ {respuesta["final_variable"]} = {respuesta["result_matrix_latex"]} $$</div>')

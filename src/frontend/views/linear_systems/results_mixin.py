@@ -63,7 +63,7 @@ class LinearSystemsResultsMixin:
                     latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
 
                 spec = "c" * n + "|c"
-                matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{{array}} \right]"
+                matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
                 matrix_tex = html.escape(matrix_tex)
 
                 ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
