@@ -6,10 +6,16 @@ from src.frontend.components.calculator import CalculatorPanel
 from src.frontend.components.ai_panel import AIPanel
 from .sync_mixin import LinearSystemsSyncMixin
 from .history_mixin import LinearSystemsHistoryMixin
+from .graphics_mixin import LinearSystemsGraphicsMixin
 from .results_mixin import LinearSystemsResultsMixin
 
 
-class LinearSystemsUI(LinearSystemsSyncMixin, LinearSystemsHistoryMixin, LinearSystemsResultsMixin):
+class LinearSystemsUI(
+    LinearSystemsSyncMixin,
+    LinearSystemsHistoryMixin,
+    LinearSystemsGraphicsMixin,
+    LinearSystemsResultsMixin
+):
     """Controlador de vista modular para Sistemas Lineales."""
 
     def __init__(self, initial_method='gauss'):
