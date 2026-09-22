@@ -17,82 +17,7 @@ class EquationGrid:
         self.btn_n_inc = None
 
     def inject_scripts(self):
-        ui.add_head_html('''
-            <script>
-            if (!window.__matrix_listeners_active) {
-                window.__matrix_listeners_active = true;
-                // Navegación con teclado
-                document.addEventListener('keydown', function(e) {
-                    let active = document.activeElement;
-                if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
-                let r = parseInt(active.dataset.row), c = parseInt(active.dataset.col);
-                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                    if (e.key === 'ArrowLeft' && active.selectionStart !== 0) return;
-                    if (e.key === 'ArrowRight' && active.selectionEnd !== active.value.length) return;
-                    if (e.key === 'ArrowRight') c++; if (e.key === 'ArrowLeft') c--;
-                    if (e.key === 'ArrowDown') r++; if (e.key === 'ArrowUp') r--;
-                } else if (e.key === 'Enter') r++;
-                else return;
-                
-                let next = document.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
-                if (next) { next.focus(); setTimeout(() => next.select(), 10); e.preventDefault(); }
-            });
-
-            // Soporte Paste TSV (Excel/Portapapeles)
-            document.addEventListener('paste', function(e) {
-                let active = document.activeElement;
-                if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
-                e.preventDefault();
-                let pasteData = (e.clipboardData || window.clipboardData).getData('text');
-                let rows = pasteData.replace(/\\s+$/, '').split('\\n');
-                let startR = parseInt(active.dataset.row), startC = parseInt(active.dataset.col);
-                
-                rows.forEach((rowStr, rIdx) => {
-                    let cols = rowStr.split('\\t');
-                    cols.forEach((val, cIdx) => {
-                        let input = document.querySelector(`input[data-row="${startR + rIdx}"][data-col="${startC + cIdx}"]`);
-                        if (input) {
-                            input.value = val.trim();
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    });
-                });
-            });
-            
-            // Cross-highlighting de celdas
-            document.addEventListener('focusin', function(e) {
-                let active = e.target;
-                if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
-                let r = active.dataset.row;
-                let c = active.dataset.col;
-                
-                let container = active.closest('.panel-card');
-                if(!container) return;
-                
-                container.querySelectorAll('input[data-row]').forEach(inp => {
-                    let isSame = (inp.dataset.row === r || inp.dataset.col === c);
-                    let control = inp.closest('.q-field__control');
-                    if(control && isSame) {
-                        control.style.background = 'color-mix(in srgb, var(--accent) 15%, var(--input-bg))';
-                    }
-                });
-            });
-            
-            document.addEventListener('focusout', function(e) {
-                let active = e.target;
-                if (active.tagName !== 'INPUT' || active.dataset.row === undefined) return;
-                
-                let container = active.closest('.panel-card');
-                if(!container) return;
-                
-                container.querySelectorAll('input[data-row]').forEach(inp => {
-                    let control = inp.closest('.q-field__control');
-                    if(control) control.style.background = '';
-                });
-            });
-            }
-            </script>
-        ''')
+        ui.add_head_html('<script src="/assets/js/equation_grid.js"></script>')
 
     async def adjust_size(self, delta_m=0, delta_n=0):
         if delta_m > 0 and self.m >= 10:
@@ -103,10 +28,10 @@ class EquationGrid:
             return
         if delta_n < 0 and self.n <= 1:
             return
-            
+
         is_remove = (delta_m < 0 or delta_n < 0)
         is_add = (delta_m > 0 or delta_n > 0)
-        
+
         if self.btn_m_dec: self.btn_m_dec.disable()
         if self.btn_m_inc: self.btn_m_inc.disable()
         if self.btn_n_dec: self.btn_n_dec.disable()
@@ -116,77 +41,25 @@ class EquationGrid:
             target = f"[data-row='{self.m - 1}']" if delta_m < 0 else f"[data-col='{self.n - 1}']"
             idx_row = self.m - 1
             is_m = 'true' if delta_m < 0 else 'false'
-            
-            js_salida = f'''
-                return new Promise(resolve => {{
-                    let cells = document.querySelectorAll(`input{target}`);
-                    const anims = [];
-                    cells.forEach((input, i) => {{
-                        let ctrl = input.closest('.q-field__control');
-                        if (ctrl) {{
-                            anims.push(ctrl.animate(
-                                [{{opacity: 1, transform: 'scale(1)', filter: 'blur(0)'}},
-                                 {{opacity: 0, transform: 'scale(0.85) translateY(-8px)', filter: 'blur(2px)'}}],
-                                {{duration: 240, delay: i * 25, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards'}}
-                            ).finished);
-                        }}
-                    }});
-                    if ({is_m}) {{
-                        let rowContainer = document.querySelector(`[data-grid-row="{idx_row}"]`);
-                        if (rowContainer) {{
-                            rowContainer.style.overflow = 'hidden';
-                            anims.push(rowContainer.animate(
-                                [{{height: rowContainer.offsetHeight + 'px', opacity: 1, marginTop: '0px', marginBottom: '8px'}},
-                                 {{height: '0px', opacity: 0, marginTop: '0px', marginBottom: '0px'}}],
-                                {{duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards'}}
-                            ).finished);
-                        }}
-                    }}
-                    Promise.all(anims).then(resolve);
-                }});
-            '''
-            await ui.run_javascript(js_salida)
-            
+            await ui.run_javascript(f'return window.animateGridCellRemoval("{target}", {is_m}, {idx_row});')
+
         self.m += delta_m
         self.n += delta_n
-        
+
         # Purgar caché fuera de rango
         self._cache_A = {(r, c): v for (r, c), v in self._cache_A.items() if r < self.m and c < self.n}
         self._cache_b = {r: v for r, v in self._cache_b.items() if r < self.m}
-        
+
         self.entradas_A.clear()
         self.entradas_b.clear()
         self.generar_cuadricula()
         if self.on_data_change: self.on_data_change()
-        
+
         if is_add:
             target = f"[data-row='{self.m - 1}']" if delta_m > 0 else f"[data-col='{self.n - 1}']"
-            
             import asyncio
             await asyncio.sleep(0.05)
-            
-            js_entrada = f'''
-                return new Promise(resolve => {{
-                    let cells = document.querySelectorAll(`input{target}`);
-                    const anims = [];
-                    cells.forEach((input, i) => {{
-                        let ctrl = input.closest('.q-field__control');
-                        if (ctrl) {{
-                            anims.push(ctrl.animate(
-                                [{{opacity: 0, transform: 'scale(0.85) translateY(8px)', filter: 'blur(2px)'}},
-                                 {{opacity: 1, transform: 'scale(1)', filter: 'blur(0)'}}],
-                                {{duration: 240, delay: i * 25, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards'}}
-                            ).finished);
-                        }}
-                    }});
-                    if (anims.length > 0) {{
-                        Promise.all(anims).then(resolve);
-                    }} else {{
-                        resolve();
-                    }}
-                }});
-            '''
-            await ui.run_javascript(js_entrada)
+            await ui.run_javascript(f'return window.animateGridCellAddition("{target}");')
 
     def build_grid_container(self):
         with ui.row().classes('w-full justify-between items-end mb-4 px-2'):
