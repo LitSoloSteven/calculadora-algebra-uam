@@ -546,6 +546,11 @@ def setup_theme():
             .neo-tabs.method-tabs .q-focus-helper { border-radius: 0 !important; }
             .neo-tabs.method-tabs .q-tab__indicator { border-radius: 0 !important; }
 
+            /* Variante ancha: permite que method-tabs ocupe todo el espacio flexible disponible */
+            .neo-tabs.method-tabs.tabs-wide {
+                max-width: none !important;
+            }
+
             /* === BOTONES NEUMÓRFICOS (ICONOS) === */
             .btn-neo-icon {
                 background: var(--bg-panel) !important;
@@ -604,6 +609,8 @@ def setup_theme():
                 color: var(--text-main) !important;
                 font-weight: 600;
                 font-family: 'Space Grotesk', sans-serif !important;
+                justify-content: center;
+                text-align: center;
             }
             .neo-select .q-field__marginal .q-icon { color: var(--text-sec) !important; }
             .neo-select.q-field--focused .q-field__control {

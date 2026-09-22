@@ -73,7 +73,7 @@ class VectorOpsUI:
                             with ui.row().classes('w-full justify-between items-center mb-4 panel-card p-4'):
                                 with ui.row().classes('gap-4 items-center'):
                                     ui.label('Operación:').classes('font-bold')
-                                    self.op_select = ui.select({'add': 'Suma (v1 + v2)', 'subtract': 'Resta (v1 - v2)'}, value=self.add_sub_operation, on_change=lambda e: setattr(self, 'add_sub_operation', e.value)).classes('neo-select w-56').props('popup-content-class="neo-select-menu"')
+                                    self.op_select = ui.select({'add': 'Suma', 'subtract': 'Resta'}, value=self.add_sub_operation, on_change=lambda e: setattr(self, 'add_sub_operation', e.value)).classes('neo-select w-44').props('popup-content-class="neo-select-menu"')
                                 self.strict_check = ui.checkbox('Estricto (No auto-transponer)', value=self.add_sub_strict, on_change=lambda e: setattr(self, 'add_sub_strict', e.value)).classes('neo-checkbox')
                                 
                             self.panel_add_sub.build_container()
