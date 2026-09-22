@@ -32,58 +32,61 @@ def setup_theme():
           overlay.style.cssText = 'position: fixed; inset: 0; z-index: 99999; background: var(--bg-page); display: flex; flex-direction: column; align-items: center; justify-content: center; view-transition-name: none; transform-origin: center;';
           
           overlay.innerHTML = `
-            <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px;">
-              <img id="splash-logo" src="${logo}" style="width: 80px; height: 80px; object-fit: contain; opacity: 0; transform: scale(0.88);" alt="Logo">
-              <svg id="splash-ring" style="position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg);" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="58" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="365" stroke-dashoffset="365"></circle>
-              </svg>
-            </div>
-            <div style="margin-top: 24px; font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-              <div style="display: flex; gap: 6px;">
-                <span id="splash-t1" style="clip-path: inset(0 100% 0 0);">Álgebra</span>
-                <span id="splash-t2" style="clip-path: inset(0 100% 0 0);">Lineal</span>
+              <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px;">
+                <img id="splash-logo" src="${logo}" style="width: 80px; height: 80px; object-fit: contain; opacity: 0; transform: scale(0.88);" alt="Logo">
+                <svg id="splash-ring" style="position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg);" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="58" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="365" stroke-dashoffset="365"></circle>
+                </svg>
               </div>
-              <span id="splash-t3" style="opacity: 0; color: var(--accent);">UAM</span>
-            </div>
-          `;
-          document.documentElement.appendChild(overlay);
+              <div style="margin-top: 20px; font-family: 'Space Grotesk', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;">
+                <span id="splash-t1" style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-main); clip-path: inset(0 100% 0 0); display: inline-block;">Scalaris</span>
+                <span id="splash-t2" style="font-size: 11px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; opacity: 0; color: var(--accent); margin-top: 2px;">UAM</span>
+              </div>
+            `;
+            document.documentElement.appendChild(overlay);
 
-          if (reduced) {
-              overlay.animate([ { opacity: 1 }, { opacity: 0 } ], { duration: dur, fill: 'forwards' });
-              setTimeout(() => overlay.remove(), dur);
-              return;
-          }
+            if (reduced) {
+                overlay.animate([ { opacity: 1 }, { opacity: 0 } ], { duration: dur, fill: 'forwards' });
+                setTimeout(() => overlay.remove(), dur);
+                return;
+            }
 
-          var logoEl = overlay.querySelector('#splash-logo');
-          var ringCircle = overlay.querySelector('#splash-ring circle');
-          var ringEl = overlay.querySelector('#splash-ring');
-          var t1 = overlay.querySelector('#splash-t1');
-          var t2 = overlay.querySelector('#splash-t2');
-          var t3 = overlay.querySelector('#splash-t3');
+            var logoEl = overlay.querySelector('#splash-logo');
+            var ringCircle = overlay.querySelector('#splash-ring circle');
+            var ringEl = overlay.querySelector('#splash-ring');
+            var t1 = overlay.querySelector('#splash-t1');
+            var t2 = overlay.querySelector('#splash-t2');
+            var t3 = overlay.querySelector('#splash-t3');
 
-          // 0-600: Logo entra
-          logoEl.animate(
-              [ { transform: 'scale(0.88)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 } ],
-              { duration: 600, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
-          );
+            // 0-600: Logo entra
+            logoEl.animate(
+                [ { transform: 'scale(0.88)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 } ],
+                { duration: 600, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
+            );
 
-          // 600-1800: Anillo traza y textos
-          ringCircle.animate(
-              [ { strokeDashoffset: 365 }, { strokeDashoffset: 0 } ],
-              { duration: 1200, delay: 600, easing: 'ease-in-out', fill: 'forwards' }
-          );
-          t1.animate(
-              [ { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' } ],
-              { duration: 400, delay: 800, easing: 'ease-out', fill: 'forwards' }
-          );
-          t2.animate(
-              [ { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' } ],
-              { duration: 400, delay: 920, easing: 'ease-out', fill: 'forwards' }
-          );
-          t3.animate(
-              [ { opacity: 0 }, { opacity: 1 } ],
-              { duration: 400, delay: 1200, easing: 'ease-out', fill: 'forwards' }
-          );
+            // 600-1800: Anillo traza y textos
+            ringCircle.animate(
+                [ { strokeDashoffset: 365 }, { strokeDashoffset: 0 } ],
+                { duration: 1200, delay: 600, easing: 'ease-in-out', fill: 'forwards' }
+            );
+            if (t1) {
+                t1.animate(
+                    [ { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' } ],
+                    { duration: 500, delay: 800, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
+                );
+            }
+            if (t2) {
+                t2.animate(
+                    [ { opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' } ],
+                    { duration: 400, delay: 1200, easing: 'ease-out', fill: 'forwards' }
+                );
+            }
+            if (t3) {
+                t3.animate(
+                    [ { opacity: 0 }, { opacity: 1 } ],
+                    { duration: 400, delay: 1200, easing: 'ease-out', fill: 'forwards' }
+                );
+            }
 
           // 1800-2600: Pulso del anillo y barra
           ringEl.animate(
@@ -139,7 +142,7 @@ def setup_theme():
         
         <style>
             /* ======================================================================
-               SISTEMA DE TOKENS — Calculadora Álgebra Lineal UAM
+               SISTEMA DE TOKENS — Scalaris
                Concepto: "Neumorfismo editorial de precisión"
                ====================================================================== */
 
@@ -568,6 +571,48 @@ def setup_theme():
                 transform: scale(0.95);
             }
 
+            /* === BRAND LOGO (SCALARIS) === */
+            .brand-logo-link {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                transition: transform var(--dur-med) var(--ease-elastic);
+            }
+            .brand-logo-link:hover {
+                transform: scale(1.08);
+            }
+            .brand-logo-link:active {
+                transform: scale(0.94);
+            }
+
+            .brand-corner-link {
+                filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.08));
+            }
+            html[data-theme="medianoche"] .brand-corner-link {
+                filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.4));
+            }
+
+            @media (max-width: 640px) {
+                .brand-corner-link {
+                    display: none !important;
+                }
+            }
+
+            .brand-logo-light {
+                display: none !important;
+            }
+            .brand-logo-dark {
+                display: block !important;
+            }
+
+            html[data-theme="medianoche"] .brand-logo-light {
+                display: block !important;
+            }
+            html[data-theme="medianoche"] .brand-logo-dark {
+                display: none !important;
+            }
+
             /* === BOTONES CALCULADORA === */
             .btn-neo-calc {
                 background: var(--bg-calc-btn) !important;
@@ -901,6 +946,12 @@ def setup_theme():
                 document.documentElement.setAttribute('data-theme', themeName);
                 document.documentElement.style.colorScheme = (themeName === 'medianoche') ? 'dark' : 'light';
                 localStorage.setItem('theme', themeName);
+                
+                var logoSrc = (themeName === 'medianoche') ? '/assets/LogoClaro.png' : '/assets/LogoOscuro.png';
+                document.querySelectorAll('img.brand-logo-reactive').forEach(function(img) {
+                    img.src = logoSrc;
+                });
+
                 setTimeout(() => updatePlotlyTheme(themeName), 100);
             }
 
@@ -1112,6 +1163,6 @@ if __name__ in {"__main__", "__mp_main__"}:
     from dotenv import load_dotenv
     load_dotenv(".env")
     load_dotenv("src/ai/.env")
-    ui.run(title="Calculadora Álgebra Lineal UAM",
+    ui.run(title="Scalaris",
            favicon="src/frontend/assets/LogoOscuro.png",
            storage_secret=os.getenv("STORAGE_SECRET"))
