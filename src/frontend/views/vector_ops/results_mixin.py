@@ -1,4 +1,5 @@
 """Mixin de renderizado de resultados y pasos para Operaciones con Vectores."""
+import re
 from nicegui import ui
 from src.backend.utils.formatters import matrix_to_latex
 
@@ -48,12 +49,14 @@ class VectorOpsResultsMixin:
                 self.render_linear_combination_result(res)
 
     def render_steps_and_result(self, res: dict):
-        if 'latex_details' in res and res['latex_details']:
+        final_latex = res.get('result_vector_latex')
+        if not final_latex and 'latex_details' in res and res['latex_details']:
             final_latex = res['latex_details'][-1]
-            if final_latex:
-                ui.label('Resultado').classes('text-xl font-bold mb-4 text-main')
-                with ui.card().classes('panel-card w-full p-6 mb-6 items-center justify-center'):
-                    ui.html(f'<div class="math-label overflow-x-auto p-4 text-lg">$$ {final_latex} $$</div>')
+
+        if final_latex:
+            ui.label('Resultado').classes('text-xl font-bold mb-4 text-main')
+            with ui.card().classes('panel-card w-full p-6 mb-6 items-center justify-center'):
+                ui.html(f'<div class="math-label overflow-x-auto p-4 text-lg text-center">$$ {final_latex} $$</div>')
 
         steps = res.get('steps', [])
         if len(steps) > 1:
@@ -61,7 +64,7 @@ class VectorOpsResultsMixin:
                 'w-full panel-card rounded-xl overflow-hidden'
             ).props('header-class="text-main font-bold"'):
                 with ui.column().classes('w-full p-4 gap-6 bg-[var(--input-bg)]'):
-                    for i, step in enumerate(steps):
+                    for i, step in enumerate(steps, start=1):
                         desc = step.get('description', '')
                         latex = step.get('detail_latex', '')
 
@@ -85,24 +88,51 @@ class VectorOpsResultsMixin:
             v_step = res.get('verification_step')
             if v_step:
                 with ui.card().classes('panel-card w-full p-4 mb-6'):
-                    ui.label('Verificación:').classes('font-bold mb-2')
-                    ui.label(v_step.get('description', '')).classes('text-sm text-sec mb-2')
-                    ui.html(f'<div class="math-label overflow-x-auto">$$ {v_step.get("detail_latex", "")} $$</div>')
+                    ui.label('Verificación formal (y = c₁v₁ + ... + cᵣvᵣ):').classes('font-bold mb-2')
+                    detail_tex = v_step.get("detail_latex") or v_step.get("formula_latex", "")
+                    if detail_tex:
+                        ui.html(f'<div class="math-label overflow-x-auto">$$ {detail_tex} $$</div>')
 
         elif status == 'INFINITE':
             sol_str = ", ".join(res.get('solucion_parametrica', []))
             ui.markdown(f"**Solución paramétrica:** `{sol_str}`").classes('mb-4')
             ui.markdown(f"**Variables libres:** `{', '.join(res.get('parametros_libres', []))}`").classes('mb-4')
 
-        steps = res.get('steps', [])
-        if steps:
-            with ui.expansion('Ver Eliminación Gaussiana', icon='functions').classes(
+        # 1. ACORDEÓN DE PLANTEAMIENTO ALGEBRAICO
+        setup_steps = res.get('setup_steps', [])
+        if setup_steps:
+            with ui.expansion('Ver Planteamiento Algebraico', icon='view_timeline').classes(
+                'w-full panel-card rounded-xl overflow-hidden mb-4'
+            ).props('header-class="text-main font-bold" default-opened'):
+                with ui.column().classes('w-full p-4 gap-6 bg-[var(--input-bg)]'):
+                    for step in setup_steps:
+                        desc = step.get('description', '')
+                        latex = step.get('detail_latex', '')
+                        with ui.column().classes('w-full'):
+                            ui.label(desc).classes('text-sm font-bold text-sec mb-2')
+                            if latex:
+                                ui.html(
+                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                )
+
+        # 2. ACORDEÓN DE ELIMINACIÓN GAUSSIANA
+        # Preferir 'gauss_steps' (solo eliminación). Fallback a 'steps' omitiendo setup_steps si vinieran mezclados.
+        gauss_steps = res.get('gauss_steps')
+        if gauss_steps is None:
+            raw_steps = res.get('steps', [])
+            gauss_steps = raw_steps[len(setup_steps):] if setup_steps else raw_steps
+
+        if gauss_steps:
+            with ui.expansion('Ver Eliminación Gaussiana', icon='calculate').classes(
                 'w-full panel-card rounded-xl overflow-hidden mb-4'
             ).props('header-class="text-main font-bold"'):
                 with ui.column().classes('w-full p-4 gap-6 bg-[var(--input-bg)]'):
-                    for i, step in enumerate(steps):
+                    for i, step in enumerate(gauss_steps, start=1):
                         desc = step.get('description', '')
+                        desc = re.sub(r'^\d+\.\s*', '', desc)
                         latex = step.get('detail_latex', '')
+                        if not latex and step.get('matrix'):
+                            latex = matrix_to_latex(step['matrix'])
 
                         with ui.column().classes('w-full'):
                             ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2')
@@ -111,6 +141,7 @@ class VectorOpsResultsMixin:
                                     f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
                                 )
 
+        # 3. ACORDEÓN DE SUSTITUCIÓN HACIA ATRÁS
         back_steps = res.get('back_substitution_steps', [])
         if back_steps:
             with ui.expansion('Ver Sustitución Hacia Atrás', icon='arrow_upward').classes(
