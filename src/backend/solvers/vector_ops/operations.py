@@ -21,8 +21,20 @@ import re
 from src.backend.exceptions import InvalidVectorError
 from src.backend.models.matrix import Matrix, Numeric
 from src.backend.solvers.linear_systems.gauss import GaussSolver
-from src.backend.utils.formatters import format_fraction_str, number_to_latex
 from src.backend.utils.validators import MatrixValidator
+from src.backend.utils.formatters import format_fraction_str, number_to_latex
+
+from .formatters import (
+    augmented_gauss_matrix_to_latex,
+    augmented_matrix_to_latex,
+    col_vector_to_latex,
+    format_linear_expression,
+    format_scalar_component,
+    format_var_latex,
+    format_vec_latex,
+    format_vector_linear_combination,
+    vector_to_latex,
+)
 
 
 class VectorOpsSolver:
@@ -182,11 +194,11 @@ class VectorOpsSolver:
                 detail_latex=detail_latex,
             )
 
-        res_tex = _vector_to_latex(result)
-        v1_tex = _vector_to_latex(v1)
-        v2_tex = _vector_to_latex(v2)
-        v1_name = _format_vec_latex(name1)
-        v2_name = _format_vec_latex(name2)
+        res_tex = vector_to_latex(result)
+        v1_tex = vector_to_latex(v1)
+        v2_tex = vector_to_latex(v2)
+        v1_name = format_vec_latex(name1)
+        v2_name = format_vec_latex(name2)
 
         final_vector_latex = (
             rf"\mathbf{{w}} = {v1_name} {latex_symbol} {v2_name} = "
@@ -316,10 +328,10 @@ class VectorOpsSolver:
             )
 
         k_bracket = rf"\left({k_tex}\right)" if k_frac.denominator != 1 else f"({k_tex})"
-        v_tex = _vector_to_latex(v)
-        res_tex = _vector_to_latex(result)
-        v_name = _format_vec_latex(name)
-        res_name = _format_vec_latex(result_name)
+        v_tex = vector_to_latex(v)
+        res_tex = vector_to_latex(result)
+        v_name = format_vec_latex(name)
+        res_name = format_vec_latex(result_name)
 
         if self._is_column_vector(v):
             prod_rows = [f"({k_tex}) \\cdot ({number_to_latex(v.get(i, 0))})" for i in range(dim)]
@@ -393,18 +405,18 @@ class VectorOpsSolver:
         """Genera los 5 pasos de planteamiento previo pedagógico (David C. Lay)."""
         k = len(vectors)
         n = b.rows
-        var_tex_list = [_format_var_latex(var) for var in variable_names]
-        b_col_latex = _col_vector_to_latex(b)
+        var_tex_list = [format_var_latex(var) for var in variable_names]
+        b_col_latex = col_vector_to_latex(b)
 
         # Paso 1: Ecuación Vectorial con Escalares Externos
-        step1_terms = [f"{var} {_col_vector_to_latex(v)}" for var, v in zip(var_tex_list, vectors)]
+        step1_terms = [f"{var} {col_vector_to_latex(v)}" for var, v in zip(var_tex_list, vectors)]
         step1_latex = " + ".join(step1_terms) + f" = {b_col_latex}"
 
         # Paso 2: Multiplicación de Escalar por Vector (Distribución en Componentes)
         step2_vecs = []
         for j, v in enumerate(vectors):
             var = var_tex_list[j]
-            comp_rows = [_format_scalar_component(v.get(i, 0), var) for i in range(n)]
+            comp_rows = [format_scalar_component(v.get(i, 0), var) for i in range(n)]
             step2_vecs.append(r"\begin{bmatrix} " + r" \\ ".join(comp_rows) + r" \end{bmatrix}")
         step2_latex = " + ".join(step2_vecs) + f" = {b_col_latex}"
 
@@ -412,7 +424,7 @@ class VectorOpsSolver:
         lhs_rows = []
         for i in range(n):
             row_coeffs = [vectors[j].get(i, 0) for j in range(k)]
-            lhs_rows.append(_format_linear_expression(row_coeffs, var_tex_list))
+            lhs_rows.append(format_linear_expression(row_coeffs, var_tex_list))
         step3_latex = r"\begin{bmatrix} " + r" \\ ".join(lhs_rows) + r" \end{bmatrix} = " + b_col_latex
 
         if k == 1:
@@ -425,7 +437,7 @@ class VectorOpsSolver:
         step4_latex = r"\begin{cases} " + r" \\ ".join(equations) + r" \end{cases}"
 
         # Paso 5: Representación en Matriz Aumentada
-        step5_latex = _augmented_matrix_to_latex(vectors, b)
+        step5_latex = augmented_matrix_to_latex(vectors, b)
 
         aug_matrix = augmented.clone() if augmented else None
 
@@ -481,8 +493,8 @@ class VectorOpsSolver:
         if vector_names is None:
             vector_names = [f"v_{j + 1}" for j in range(k)]
 
-        var_tex_list = [_format_var_latex(var) for var in variable_names]
-        vec_tex_list = [_format_vec_latex(v_name) for v_name in vector_names]
+        var_tex_list = [format_var_latex(var) for var in variable_names]
+        vec_tex_list = [format_vec_latex(v_name) for v_name in vector_names]
 
         # 1. Definición Simbólica / Fórmula: y = c_1 v_1 + c_2 v_2 + ...
         formula_rhs = " + ".join([f"{var}{v_tex}" for var, v_tex in zip(var_tex_list, vec_tex_list)])
@@ -497,7 +509,7 @@ class VectorOpsSolver:
                 term_c = rf"\left({c_tex}\right)"
             else:
                 term_c = f"({c_tex})"
-            sub_terms.append(f"{term_c} {_col_vector_to_latex(v)}")
+            sub_terms.append(f"{term_c} {col_vector_to_latex(v)}")
         lhs_substitution_latex = " + ".join(sub_terms)
         substitution_latex = rf"\mathbf{{y}} = {lhs_substitution_latex}"
 
@@ -510,19 +522,19 @@ class VectorOpsSolver:
             y_vals.append(comp)
 
         y_matrix = Matrix(n, 1, [[comp] for comp in y_vals])
-        y_col_latex = _col_vector_to_latex(y_matrix)
+        y_col_latex = col_vector_to_latex(y_matrix)
         evaluated_vector_latex = rf"\mathbf{{y}} = {y_col_latex}"
 
         # 4. Comparación con b
         coincide = all(y_vals[i] == Fraction(b.get(i, 0)) for i in range(n))
-        b_col_latex = _col_vector_to_latex(b)
+        b_col_latex = col_vector_to_latex(b)
         status_text = r"(\checkmark \text{ Coincide})" if coincide else r"(\times \text{ No coincide})"
         comparison_latex = (
             rf"\mathbf{{y}} = {y_col_latex} \stackrel{{?}}{{=}} {b_col_latex} = \mathbf{{b}} \quad {status_text}"
         )
 
         # 5. Bloque unificado detail_latex
-        comb_symb = _format_vector_linear_combination(coeficientes, vector_names)
+        comb_symb = format_vector_linear_combination(coeficientes, vector_names)
         eq_symbol = "=" if coincide else r"\neq"
 
         # Compatibilidad hacia atrás: incluir variables y pmatrix con separador \\ en comentario LaTeX
@@ -671,7 +683,7 @@ class VectorOpsSolver:
             m = g_step.get("matrix")
             mat_latex = g_step.get("detail_latex")
             if not mat_latex and m:
-                mat_latex = _augmented_gauss_matrix_to_latex(m, k)
+                mat_latex = augmented_gauss_matrix_to_latex(m, k)
 
             raw_desc = g_step.get("description", "")
             clean_desc = re.sub(r'^\d+\.\s*', '', raw_desc)
@@ -761,136 +773,3 @@ class VectorOpsSolver:
         return self._lc_error(f"Estado inesperado del solver: {gauss_status}")
 
 
-# ----------------------------------------------------------------------
-# Helpers matemáticos para representación en LaTeX de vectores y sistemas
-# ----------------------------------------------------------------------
-
-def _vector_to_latex(v: Matrix) -> str:
-    """Renderiza un vector como matriz LaTeX \\begin{bmatrix} ... \\end{bmatrix}."""
-    if v.rows == 1 and v.cols > 1:
-        cols = [number_to_latex(v.get(0, j)) for j in range(v.cols)]
-        return r"\begin{bmatrix} " + r" & ".join(cols) + r" \end{bmatrix}"
-    rows = [number_to_latex(v.get(i, 0)) for i in range(v.rows)]
-    return r"\begin{bmatrix} " + r" \\ ".join(rows) + r" \end{bmatrix}"
-
-
-def _col_vector_to_latex(v: Matrix) -> str:
-    """Renderiza un vector columna como matriz LaTeX \\begin{bmatrix} ... \\end{bmatrix}."""
-    return _vector_to_latex(v)
-
-
-def _augmented_gauss_matrix_to_latex(m: Matrix, num_vars: int | None = None) -> str:
-    """Renderiza una matriz aumentada [A|b] con barra divisoria vertical."""
-    vars_count = (m.cols - 1) if num_vars is None else num_vars
-    col_spec = ("c" * vars_count) + "|c"
-    rows = []
-    for i in range(m.rows):
-        row_vals = [number_to_latex(m.get(i, j)) for j in range(m.cols)]
-        rows.append(" & ".join(row_vals))
-    body = " \\\\ ".join(rows)
-    return rf"\left[ \begin{{array}}{{{col_spec}}} {body} \end{{array}} \right]"
-
-
-def _format_var_latex(var_name: str) -> str:
-    """Normaliza el nombre de una variable a LaTeX math mode."""
-    if var_name.startswith("\\"):
-        return var_name
-    m = re.match(r'^([a-zA-Z]+)_?(\d+)$', var_name)
-    if m:
-        letters, digits = m.groups()
-        return f"{letters}_{{{digits}}}"
-    return var_name
-
-
-def _format_vec_latex(vec_name: str) -> str:
-    """Formatea el símbolo de un vector en negrita canónica LaTeX."""
-    if vec_name.startswith(r"\mathbf{"):
-        return vec_name
-    m = re.match(r'^([a-zA-Z]+)_?(\d+)$', vec_name)
-    if m:
-        letters, digits = m.groups()
-        if len(digits) == 1:
-            return rf"\mathbf{{{letters}}}_{digits}"
-        return rf"\mathbf{{{letters}}}_{{{digits}}}"
-    return rf"\mathbf{{{vec_name}}}"
-
-
-def _format_scalar_component(val: Fraction | int | float, var: str) -> str:
-    """Multiplicación de escalar por variable para las entradas de Paso 2."""
-    f = Fraction(val)
-    if f == 0:
-        return "0"
-    if f == 1:
-        return var
-    if f == -1:
-        return f"-{var}"
-    if f.denominator == 1:
-        return f"{f.numerator} {var}"
-    return f"{number_to_latex(f)} {var}"
-
-
-def _format_linear_expression(coeffs: list[Fraction | int | float], vars: list[str]) -> str:
-    """Combina los términos de una fila en una expresión lineal respetando signos (+ y -)."""
-    parts = []
-    for c_raw, var in zip(coeffs, vars):
-        c = Fraction(c_raw)
-        if c == 0:
-            continue
-
-        abs_c = abs(c)
-        if abs_c == 1:
-            term = var
-        elif abs_c.denominator == 1:
-            term = f"{abs_c.numerator} {var}"
-        else:
-            term = f"{number_to_latex(abs_c)} {var}"
-
-        if not parts:
-            parts.append(f"-{term}" if c < 0 else term)
-        else:
-            sign = "-" if c < 0 else "+"
-            parts.append(f"{sign} {term}")
-
-    return " ".join(parts) if parts else "0"
-
-
-def _augmented_matrix_to_latex(vectors: list[Matrix], b: Matrix) -> str:
-    """Renderiza la matriz aumentada [A | b] con línea divisoria [array{c...c|c}]."""
-    k = len(vectors)
-    n = b.rows
-    col_spec = ("c" * k) + "|c"
-    rows = []
-    for i in range(n):
-        row_vals = [number_to_latex(vectors[j].get(i, 0)) for j in range(k)]
-        row_vals.append(number_to_latex(b.get(i, 0)))
-        rows.append(" & ".join(row_vals))
-    body = " \\\\ ".join(rows)
-    return rf"\left[ \begin{{array}}{{{col_spec}}} {body} \end{{array}} \right]"
-
-
-def _format_vector_linear_combination(coeffs: list[Fraction | int | float], vec_names: list[str]) -> str:
-    """Formatea la combinación escalar-vector para la comprobación formal."""
-    parts = []
-    for c_raw, v_name in zip(coeffs, vec_names):
-        c = Fraction(c_raw)
-        v_tex = _format_vec_latex(v_name)
-        if c == 0:
-            continue
-
-        abs_c = abs(c)
-        if abs_c == 1:
-            term = v_tex
-        elif abs_c.denominator == 1:
-            term = f"{abs_c.numerator}{v_tex}"
-        else:
-            term = f"{number_to_latex(abs_c)}{v_tex}"
-
-        if not parts:
-            parts.append(f"-{term}" if c < 0 else term)
-        else:
-            sign = "-" if c < 0 else "+"
-            parts.append(f"{sign} {term}")
-
-    return " ".join(parts) if parts else "0"
-
-    
