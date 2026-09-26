@@ -345,16 +345,23 @@ def test_custom_variable_names_in_back_substitution():
 # ---------------------------------------------------------------------------
 
 def test_uses_gauss_not_reimplemented():
-    """El primer step del Gauss es la matriz aumentada [v_1|...|v_k|b]."""
+    """Los steps de Gauss están poblados: el solver delega en GaussSolver.
+    
+    El primer step de setup es algebraico (planteamiento), no matricial.
+    Los pasos matriciales viven en `gauss_steps`.
+    """
     v1 = Matrix(2, 1, [[1], [0]])
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
     res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
 
-    # El primer step del Gauss dice "Matriz inicial aumentada"
-    first_desc = res["steps"][0]["description"]
-    assert "inicial" in first_desc.lower()
+    # gauss_steps debe estar poblado (viene de GaussSolver internamente)
+    assert len(res["gauss_steps"]) > 0
+    # Cada paso lleva su matriz y una descripción de operación matricial
+    for step in res["gauss_steps"]:
+        assert step.get("matrix") is not None
+        assert step.get("description")
     
 def test_verification_step_uses_valid_pmatrix():
     """El LaTeX del verification_step usa \\\\ como separador de filas en pmatrix."""
