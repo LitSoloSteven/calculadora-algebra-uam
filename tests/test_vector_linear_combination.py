@@ -1,4 +1,4 @@
-"""Tests de VectorOpsSolver.is_linear_combination.
+"""Tests de LinearCombinationSolver.solve.
 
 Cubre:
   - UNIQUE con coeficientes enteros, fraccionarios y denominadores grandes.
@@ -11,6 +11,7 @@ Cubre:
 from fractions import Fraction
 
 from src.backend.models.matrix import Matrix
+from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
 
 
@@ -24,7 +25,7 @@ def test_uniqueness_with_basis():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "UNIQUE"
     assert res["es_combinacion_lineal"] is True
@@ -39,7 +40,7 @@ def test_unique_with_fractions():
     v2 = Matrix(2, 1, [[0], [3]])
     b = Matrix(2, 1, [[1], [1]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "UNIQUE"
     assert res["coeficientes"] == [Fraction(1, 2), Fraction(1, 3)]
@@ -53,7 +54,7 @@ def test_unique_preserves_large_denominator():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[1], [0]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "UNIQUE"
     assert res["coeficientes"][0] == Fraction(1, 1001)
@@ -65,7 +66,7 @@ def test_unique_in_r3_with_three_vectors():
     v2 = Matrix(3, 1, [[2], [5], [6]])
     b = Matrix(3, 1, [[7], [4], [-3]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     # b = 3·v1 + 2·v2
     assert res["status"] == "UNIQUE"
@@ -78,7 +79,7 @@ def test_unique_returns_gauss_steps():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert len(res["steps"]) > 0
     assert res["steps"][0]["matrix"] is not None
@@ -89,7 +90,7 @@ def test_unique_includes_back_substitution_steps():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert len(res["back_substitution_steps"]) > 0
 
@@ -103,7 +104,7 @@ def test_verification_step_present_on_unique():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["verification_step"] is not None
     assert res["verification_step"]["coincide"] is True
@@ -117,7 +118,7 @@ def test_verification_step_marks_ok():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert "\\checkmark" in res["verification_step"]["detail_latex"]
     assert res["verification_step"]["coincide"] is True
@@ -133,7 +134,7 @@ def test_infinite_when_vectors_are_dependent():
     v2 = Matrix(2, 1, [[2], [4]])
     b = Matrix(2, 1, [[3], [6]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "INFINITE"
     assert res["es_combinacion_lineal"] is True
@@ -149,7 +150,7 @@ def test_infinite_has_no_verification_step():
     v2 = Matrix(2, 1, [[2], [4]])
     b = Matrix(2, 1, [[3], [6]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["verification_step"] is None
 
@@ -164,7 +165,7 @@ def test_no_solution_when_b_outside_span():
     v2 = Matrix(2, 1, [[2], [0]])
     b = Matrix(2, 1, [[0], [1]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "NO_SOLUTION"
     assert res["es_combinacion_lineal"] is False
@@ -179,7 +180,7 @@ def test_no_solution_in_r3():
     v3 = Matrix(3, 1, [[1], [1], [0]])  # coplanar con v1, v2
     b = Matrix(3, 1, [[0], [0], [1]])   # fuera del plano
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2, v3])
+    res = LinearCombinationSolver().solve(b, [v1, v2, v3])
 
     assert res["status"] == "NO_SOLUTION"
 
@@ -194,7 +195,7 @@ def test_zero_b_always_is_combination_when_unique():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[0], [0]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "UNIQUE"
     assert res["coeficientes"] == [Fraction(0), Fraction(0)]
@@ -205,7 +206,7 @@ def test_zero_b_with_dependent_vectors_is_infinite():
     v2 = Matrix(2, 1, [[2], [2]])
     b = Matrix(2, 1, [[0], [0]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "INFINITE"
 
@@ -216,7 +217,7 @@ def test_zero_b_with_dependent_vectors_is_infinite():
 
 def test_error_on_empty_vectors_list():
     b = Matrix(2, 1, [[1], [2]])
-    res = VectorOpsSolver().is_linear_combination(b, [])
+    res = LinearCombinationSolver().solve(b, [])
 
     assert res["status"] == "ERROR"
     assert "al menos un vector" in res["message"]
@@ -224,7 +225,7 @@ def test_error_on_empty_vectors_list():
 
 def test_error_on_non_list_vectors():
     b = Matrix(2, 1, [[1], [2]])
-    res = VectorOpsSolver().is_linear_combination(b, "no soy lista")
+    res = LinearCombinationSolver().solve(b, "no soy lista")
 
     assert res["status"] == "ERROR"
 
@@ -234,7 +235,7 @@ def test_error_on_row_vector_b():
     v1 = Matrix(2, 1, [[1], [0]])
     b_row = Matrix(1, 2, [[3, 2]])
 
-    res = VectorOpsSolver().is_linear_combination(b_row, [v1])
+    res = LinearCombinationSolver().solve(b_row, [v1])
 
     assert res["status"] == "ERROR"
     assert "b" in res["message"]
@@ -247,7 +248,7 @@ def test_error_on_row_vector_in_list():
     v2_row = Matrix(1, 2, [[0, 1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1_col, v2_row])
+    res = LinearCombinationSolver().solve(b, [v1_col, v2_row])
 
     assert res["status"] == "ERROR"
     assert "v_2" in res["message"]
@@ -258,7 +259,7 @@ def test_error_on_non_vector_b():
     v1 = Matrix(2, 1, [[1], [0]])
     b_matrix = Matrix(2, 3, [[1, 2, 3], [4, 5, 6]])
 
-    res = VectorOpsSolver().is_linear_combination(b_matrix, [v1])
+    res = LinearCombinationSolver().solve(b_matrix, [v1])
 
     assert res["status"] == "ERROR"
     assert "2×3" in res["message"]
@@ -270,7 +271,7 @@ def test_error_on_dimension_mismatch():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(3, 1, [[1], [2], [3]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "ERROR"
     assert "Dimensiones incompatibles" in res["message"]
@@ -284,7 +285,7 @@ def test_error_on_inconsistent_vector_dimensions():
     v2 = Matrix(3, 1, [[0], [1], [2]])
     b = Matrix(2, 1, [[1], [1]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     assert res["status"] == "ERROR"
     assert "v_2" in res["message"]
@@ -298,7 +299,7 @@ def test_all_contract_keys_present_on_success():
     """Todas las claves del contrato están presentes en éxito."""
     v1 = Matrix(2, 1, [[1], [0]])
     b = Matrix(2, 1, [[3], [0]])
-    res = VectorOpsSolver().is_linear_combination(b, [v1])
+    res = LinearCombinationSolver().solve(b, [v1])
 
     expected_keys = {
         "status", "es_combinacion_lineal", "coeficientes", "coeficientes_str",
@@ -311,7 +312,7 @@ def test_all_contract_keys_present_on_success():
 def test_all_contract_keys_present_on_error():
     """Todas las claves del contrato están presentes en error."""
     b = Matrix(2, 1, [[1], [2]])
-    res = VectorOpsSolver().is_linear_combination(b, [])
+    res = LinearCombinationSolver().solve(b, [])
 
     expected_keys = {
         "status", "es_combinacion_lineal", "coeficientes", "coeficientes_str",
@@ -331,7 +332,7 @@ def test_custom_variable_names_in_back_substitution():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(
+    res = LinearCombinationSolver().solve(
         b, [v1, v2], variable_names=["alpha", "beta"]
     )
 
@@ -354,7 +355,7 @@ def test_uses_gauss_not_reimplemented():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
 
     # gauss_steps debe estar poblado (viene de GaussSolver internamente)
     assert len(res["gauss_steps"]) > 0
@@ -369,7 +370,7 @@ def test_verification_step_uses_valid_pmatrix():
     v2 = Matrix(2, 1, [[0], [1]])
     b = Matrix(2, 1, [[3], [2]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2])
+    res = LinearCombinationSolver().solve(b, [v1, v2])
     detail = res["verification_step"]["detail_latex"]
 
     # Las pmatrix del LHS computed y del b deben usar \\ como separador
@@ -393,7 +394,7 @@ def test_free_cols_used_for_parameters_exact():
     v3 = Matrix(2, 1, [[1], [1]])   # = v_1 + v_2 → columna dependiente
     b = Matrix(2, 1, [[2], [3]])
 
-    res = VectorOpsSolver().is_linear_combination(b, [v1, v2, v3])
+    res = LinearCombinationSolver().solve(b, [v1, v2, v3])
 
     assert res["status"] == "INFINITE"
     # El pivote cae en las columnas 0 y 1; la 2 es libre.
@@ -407,7 +408,7 @@ def test_free_cols_respects_custom_variable_names():
     v3 = Matrix(2, 1, [[1], [1]])   # dependiente
     b = Matrix(2, 1, [[2], [3]])
 
-    res = VectorOpsSolver().is_linear_combination(
+    res = LinearCombinationSolver().solve(
         b, [v1, v2, v3], variable_names=["alpha", "beta", "gamma"]
     )
 
@@ -421,7 +422,7 @@ def test_free_cols_respects_custom_variable_names():
 def test_error_when_b_is_not_matrix():
     """b = None no debe crashear con AttributeError."""
     v1 = Matrix(2, 1, [[1], [0]])
-    res = VectorOpsSolver().is_linear_combination(None, [v1])
+    res = LinearCombinationSolver().solve(None, [v1])
 
     assert res["status"] == "ERROR"
     assert "Matrix" in res["message"]
@@ -430,7 +431,7 @@ def test_error_when_b_is_not_matrix():
 def test_error_when_vector_in_list_is_not_matrix():
     """Un vector no-Matrix se rechaza con mensaje claro."""
     b = Matrix(2, 1, [[1], [2]])
-    res = VectorOpsSolver().is_linear_combination(b, ["no soy matriz"])
+    res = LinearCombinationSolver().solve(b, ["no soy matriz"])
 
     assert res["status"] == "ERROR"
     assert "Matrix" in res["message"]
@@ -455,7 +456,7 @@ def test_error_on_variable_names_wrong_length():
     v3 = Matrix(2, 1, [[1], [1]])
     b = Matrix(2, 1, [[2], [3]])
 
-    res = VectorOpsSolver().is_linear_combination(
+    res = LinearCombinationSolver().solve(
         b, [v1, v2, v3], variable_names=["alpha"]
     )
 
@@ -467,9 +468,67 @@ def test_error_on_variable_names_not_list():
     v1 = Matrix(2, 1, [[1], [0]])
     b = Matrix(2, 1, [[3], [0]])
 
-    res = VectorOpsSolver().is_linear_combination(
+    res = LinearCombinationSolver().solve(
         b, [v1], variable_names="alpha"
     )
 
     assert res["status"] == "ERROR"
     assert "lista" in res["message"]
+
+
+def test_message_singular_for_single_vector_unique():
+    """Bug A: con k=1 el mensaje debe decir 'del vector', no 'de los 1 vectores'."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+
+    v1 = Matrix(3, 1, [[2], [4], [6]])
+    b = Matrix(3, 1, [[6], [12], [18]])
+
+    res = LinearCombinationSolver().solve(b, [v1])
+
+    assert res["status"] == "UNIQUE"
+    assert "del vector" in res["message"]
+    assert "de los 1 vectores" not in res["message"]
+
+
+def test_message_singular_for_single_vector_no_solution():
+    """Bug A: NO_SOLUTION con k=1 debe decir 'del vector'."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+
+    v1 = Matrix(3, 1, [[2], [4], [6]])
+    b = Matrix(3, 1, [[1], [0], [0]])
+
+    res = LinearCombinationSolver().solve(b, [v1])
+
+    assert res["status"] == "NO_SOLUTION"
+    assert "del vector" in res["message"]
+    assert "de los 1 vectores" not in res["message"]
+
+
+def test_message_singular_for_single_vector_infinite():
+    """Bug A: INFINITE con k=1 (vector cero y b=0) debe decir 'del vector'."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+
+    v1 = Matrix(3, 1, [[0], [0], [0]])
+    b = Matrix(3, 1, [[0], [0], [0]])
+
+    res = LinearCombinationSolver().solve(b, [v1])
+
+    assert res["status"] == "INFINITE"
+    assert "del vector" in res["message"]
+    assert "de los 1 vectores" not in res["message"]
+    
+def test_solve_does_not_require_vector_ops_solver():
+    """Regresión: LinearCombinationSolver.solve funciona sin VectorOpsSolver."""
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+    from src.backend.solvers.vector_ops.operations import VectorOpsSolver
+
+    v1 = Matrix(2, 1, [[1], [0]])
+    v2 = Matrix(2, 1, [[0], [1]])
+    b = Matrix(2, 1, [[3], [4]])
+
+    res_new = LinearCombinationSolver().solve(b, [v1, v2])
+    assert res_new["status"] == "UNIQUE"
+    assert res_new["coeficientes"] == [Fraction(3), Fraction(4)]

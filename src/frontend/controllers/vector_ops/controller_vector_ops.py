@@ -1,6 +1,7 @@
 import json
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
+from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.vector_ops._shared import parse_payload
 
@@ -87,12 +88,12 @@ class VectorOpsController:
             for v_data in vectors_raw:
                 vectors.append(build_vector_from_dict(v_data))
             
-            solver = VectorOpsSolver()
-            res = solver.is_linear_combination(b, vectors)
+            solver = LinearCombinationSolver()
+            res = solver.solve(b, vectors)
             
             # Formatear matrices de Gauss
             if "steps" in res:
-                from src.backend.utils.formatters import matrix_to_latex
+                from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
                 for step in res["steps"]:
                     if step.get("matrix") is not None:
                         # Si no hay detail_latex, formateamos la matriz

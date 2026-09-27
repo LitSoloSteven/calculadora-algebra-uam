@@ -13,8 +13,8 @@ mismatch de shape. El resultado siempre tiene la orientación del primer
 operando.
 
 La combinación lineal vive en `linear_combination.LinearCombinationSolver`.
-Se expone vía la fachada `VectorOpsSolver.is_linear_combination`, que
-delega y preserva el contrato público para los consumidores existentes.
+Es la entrada canónica: `LinearCombinationSolver().solve(b, vectors, ...)`.
+No hay fachada en VectorOpsSolver desde la Fase 3 del refactor del backend.
 """
 
 from src.backend.exceptions import InvalidVectorError
@@ -258,33 +258,3 @@ class VectorOpsSolver(_VectorOpsBase):
             "latex_details": latex_details,
         }
         
-    # ------------------------------------------------------------------
-    # Combinación lineal (reutiliza GaussSolver)
-    # ------------------------------------------------------------------
-    def is_linear_combination(
-        self,
-        b: Matrix,
-        vectors: list[Matrix],
-        *,
-        variable_names: list[str] | None = None,
-        vector_names: list[str] | None = None,
-    ) -> dict:
-        """Determina si b es combinación lineal de la lista de vectores.
-
-        Fachada de compatibilidad hacia atrás: delega en
-        `LinearCombinationSolver.solve`. La implementación real vive en
-        `linear_combination.py`, junto con el planteamiento pedagógico
-        (5 pasos algebraicos) y la verificación formal.
-
-        Se mantiene este método en `VectorOpsSolver` para no romper a los
-        consumidores que hoy llaman `VectorOpsSolver().is_linear_combination(...)`
-        (controllers, tests, frontend).
-        """
-        from .linear_combination import LinearCombinationSolver
-
-        return LinearCombinationSolver().solve(
-            b,
-            vectors,
-            variable_names=variable_names,
-            vector_names=vector_names,
-        )

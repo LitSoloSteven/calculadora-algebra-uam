@@ -12,6 +12,7 @@ from src.backend.models.matrix import Matrix
 from src.backend.utils.validators import MatrixValidator
 from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
+from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
 
 def test_gauss_module():
     print("==================================================")
@@ -88,13 +89,12 @@ def test_linear_combination_canonical_flow():
     a2 = Matrix(3, 1, [[2], [5], [6]])
     b = Matrix(3, 1, [[7], [4], [-3]])
 
-    solver = VectorOpsSolver()
-    res = solver.is_linear_combination(
+    solver = LinearCombinationSolver()
+    res = solver.solve(
         b, [a1, a2],
         variable_names=["x_1", "x_2"],
         vector_names=["a_1", "a_2"],
     )
-
     print(f"Estado: {res['status']}")
     print(f"Mensaje: {res['message']}")
     print(f"Coeficientes: {res['coeficientes']}")
@@ -160,7 +160,7 @@ def test_linear_combination_canonical_flow():
 
     # 5. Caso NO_SOLUTION preserva los 5 setup_steps
     b_incompatible = Matrix(3, 1, [[1], [1], [100]])
-    res_no = solver.is_linear_combination(
+    res_no = solver.solve(
         b_incompatible, [a1, a2],
         variable_names=["x_1", "x_2"],
         vector_names=["a_1", "a_2"],
@@ -170,7 +170,7 @@ def test_linear_combination_canonical_flow():
     assert res_no["verification_step"] is None
 
     # 6. Caso de ERROR temprano devuelve setup_steps = []
-    res_err = solver.is_linear_combination(b, [])
+    res_err = solver.solve(b, [])
     assert res_err["status"] == "ERROR"
     assert res_err["setup_steps"] == []
 
@@ -187,8 +187,8 @@ def test_linear_combination_fraction_coefficients():
     v2 = Matrix(2, 1, [[0], [3]])
     b = Matrix(2, 1, [[1], [1]])
 
-    solver = VectorOpsSolver()
-    res = solver.is_linear_combination(
+    solver = LinearCombinationSolver()
+    res = solver.solve(
         b, [v1, v2],
         variable_names=["c_1", "c_2"],
         vector_names=["v_1", "v_2"],
@@ -227,8 +227,8 @@ def test_linear_combination_single_vector():
     v1 = Matrix(3, 1, [[2], [4], [6]])
     b = Matrix(3, 1, [[6], [12], [18]])
 
-    solver = VectorOpsSolver()
-    res = solver.is_linear_combination(b, [v1], variable_names=["c_1"], vector_names=["v_1"])
+    solver = LinearCombinationSolver()
+    res = solver.solve(b, [v1], variable_names=["c_1"], vector_names=["v_1"])
 
     assert res["status"] == "UNIQUE"
     assert res["es_combinacion_lineal"] is True
