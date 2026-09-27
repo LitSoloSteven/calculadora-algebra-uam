@@ -2,7 +2,7 @@
 
 Agrupa los helpers que tanto `VectorOpsSolver` (operaciones binarias:
 add/subtract/scalar_multiply) como `LinearCombinationSolver`
-(is_linear_combination) necesitan:
+(combinación lineal) necesitan::
 
 - Trazabilidad de pasos (`_log_step`).
 - Clasificación de shapes (`_is_column_vector`, `_is_row_vector`,

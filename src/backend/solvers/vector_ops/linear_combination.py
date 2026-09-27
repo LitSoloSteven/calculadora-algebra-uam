@@ -14,10 +14,8 @@ previos que hacen explícita la equivalencia entre:
 
 Referencia pedagógica: David C. Lay, Linear Algebra and Its Applications.
 
-La fachada pública vive en `VectorOpsSolver.is_linear_combination`, que
-delega en `LinearCombinationSolver().solve(...)`. Este split permite
-testear el análisis de combinación lineal por separado de las
-operaciones binarias (suma/resta/escalar).
+`LinearCombinationSolver.solve(...)` es la entrada canónica. No existe
+fachada en VectorOpsSolver desde la Fase 3 del refactor del backend.
 """
 from fractions import Fraction
 import re
