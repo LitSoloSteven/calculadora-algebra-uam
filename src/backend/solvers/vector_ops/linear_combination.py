@@ -279,6 +279,7 @@ class LinearCombinationSolver(_VectorOpsBase):
             return self._lc_error("Se requiere al menos un vector.")
 
         k = len(vectors)
+        subject = "del vector" if k == 1 else f"de los {k} vectores"
         if variable_names is not None:
             if not isinstance(variable_names, list):
                 return self._lc_error("variable_names debe ser una lista.")
@@ -385,7 +386,7 @@ class LinearCombinationSolver(_VectorOpsBase):
                 "solucion_parametrica": None,
                 "parametros_libres": [],
                 "message": (
-                    f"b es combinación lineal de los {k} vectores "
+                    f"b es combinación lineal {subject} "
                     f"(representación única)."
                 ),
                 "setup_steps": setup_steps,
@@ -408,7 +409,7 @@ class LinearCombinationSolver(_VectorOpsBase):
                 "solucion_parametrica": solucion,
                 "parametros_libres": libres,
                 "message": (
-                    f"b es combinación lineal de los {k} vectores. "
+                    f"b es combinación lineal {subject}. "
                     f"Existen infinitas representaciones; se muestra la paramétrica."
                 ),
                 "setup_steps": setup_steps,
@@ -426,7 +427,7 @@ class LinearCombinationSolver(_VectorOpsBase):
                 "coeficientes_str": None,
                 "solucion_parametrica": None,
                 "parametros_libres": [],
-                "message": f"b NO es combinación lineal de los {k} vectores.",
+                "message": f"b NO es combinación lineal {subject}.",
                 "setup_steps": setup_steps,
                 "steps": combined_steps,
                 "gauss_steps": cleaned_gauss_steps,

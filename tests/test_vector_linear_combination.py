@@ -473,3 +473,48 @@ def test_error_on_variable_names_not_list():
 
     assert res["status"] == "ERROR"
     assert "lista" in res["message"]
+
+
+def test_message_singular_for_single_vector_unique():
+    """Bug A: con k=1 el mensaje debe decir 'del vector', no 'de los 1 vectores'."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+
+    v1 = Matrix(3, 1, [[2], [4], [6]])
+    b = Matrix(3, 1, [[6], [12], [18]])
+
+    res = LinearCombinationSolver().solve(b, [v1])
+
+    assert res["status"] == "UNIQUE"
+    assert "del vector" in res["message"]
+    assert "de los 1 vectores" not in res["message"]
+
+
+def test_message_singular_for_single_vector_no_solution():
+    """Bug A: NO_SOLUTION con k=1 debe decir 'del vector'."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+
+    v1 = Matrix(3, 1, [[2], [4], [6]])
+    b = Matrix(3, 1, [[1], [0], [0]])
+
+    res = LinearCombinationSolver().solve(b, [v1])
+
+    assert res["status"] == "NO_SOLUTION"
+    assert "del vector" in res["message"]
+    assert "de los 1 vectores" not in res["message"]
+
+
+def test_message_singular_for_single_vector_infinite():
+    """Bug A: INFINITE con k=1 (vector cero y b=0) debe decir 'del vector'."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+
+    v1 = Matrix(3, 1, [[0], [0], [0]])
+    b = Matrix(3, 1, [[0], [0], [0]])
+
+    res = LinearCombinationSolver().solve(b, [v1])
+
+    assert res["status"] == "INFINITE"
+    assert "del vector" in res["message"]
+    assert "de los 1 vectores" not in res["message"]
