@@ -2,6 +2,8 @@ from fractions import Fraction
 from src.backend.utils.formatters import (
     format_fraction_str,
     number_to_latex,
+)
+from src.backend.solvers.matrix_ops.formatters import (
     matrix_to_latex,
     sum_sub_matrix_to_latex,
     multiply_matrix_to_latex,
@@ -112,4 +114,4 @@ def test_multiply_matrix_to_latex_single_braces():
     assert r"\begin{bmatrix}" in tex
     assert r"\end{bmatrix}" in tex
     assert "{{" not in tex
-    assert "}}" not in tex
+    assert "}}" not in tex

@@ -3,7 +3,7 @@ from fractions import Fraction
 from typing import Dict, List, Tuple, Union
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
-from src.backend.utils.formatters import (
+from src.backend.solvers.matrix_ops.formatters import (
     matrix_to_latex,
     sum_sub_matrix_to_latex,
     multiply_matrix_to_latex
