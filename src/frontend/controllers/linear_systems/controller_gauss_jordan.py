@@ -1,7 +1,7 @@
 import json
 
 from src.backend.solvers.linear_systems.gauss_jordan import GaussJordanSolver
-from src.backend.utils.formatters import matrix_to_latex
+from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.linear_systems._shared import (
     parse_payload,

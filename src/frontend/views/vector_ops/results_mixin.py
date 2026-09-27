@@ -1,7 +1,7 @@
 """Mixin de renderizado de resultados y pasos para Operaciones con Vectores."""
 import re
 from nicegui import ui
-from src.backend.utils.formatters import matrix_to_latex
+from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
 
 
 class VectorOpsResultsMixin:
