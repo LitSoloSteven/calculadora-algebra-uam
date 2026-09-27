@@ -261,9 +261,12 @@ def test_add_latex_details_count_matches_components():
     v2 = Matrix(3, 1, [[4], [5], [6]])
     res = VectorOpsSolver().add(v1, v2)
 
-    assert len(res["latex_details"]) == 3
-    for detail in res["latex_details"]:
+    # 3 componentes + 1 entrada final con el vector resultante completo = 4
+    assert len(res["latex_details"]) == 4
+    for detail in res["latex_details"][:3]:
         assert "w_{" in detail
+    # La última entrada es el vector resultado completo
+    assert res["latex_details"][-1] == res["result_vector_latex"]
 
 
 def test_add_steps_accumulate_result_matrix():
