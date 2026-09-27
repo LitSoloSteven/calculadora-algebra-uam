@@ -24,8 +24,20 @@ class MatrixOpsSolver:
             "detail_latex": detail_latex
         })
 
-    def add(self, matrix_a: Matrix, matrix_b: Matrix) -> dict:
-        """Suma elemento a elemento: C_{i,j} = A_{i,j} + B_{i,j}"""
+    def _elementwise_binary_op(
+        self,
+        matrix_a: Matrix,
+        matrix_b: Matrix,
+        *,
+        op_symbol: str,
+        op_word: str,
+    ) -> dict:
+        """Suma o resta elemento a elemento: C_{i,j} = A_{i,j} ± B_{i,j}.
+
+        Helper compartido por `add` y `subtract`. `op_symbol` es "+" o "-",
+        `op_word` es "suma" o "resta". El resultado es byte a byte idéntico
+        al de la implementación previa duplicada.
+        """
         self.steps = []
 
         try:
@@ -41,92 +53,54 @@ class MatrixOpsSolver:
         m, n = matrix_a.rows, matrix_a.cols
         result = Matrix(m, n)
 
-        self._log_step(f"Iniciando suma de matrices {m}×{n}")
+        self._log_step(f"Iniciando {op_word} de matrices {m}×{n}")
 
         latex_details = []
         for r in range(m):
             for c in range(n):
                 val_a = matrix_a.get(r, c)
                 val_b = matrix_b.get(r, c)
-                sum_val = val_a + val_b
-                result.set(r, c, sum_val)
+                res_val = val_a + val_b if op_symbol == "+" else val_a - val_b
+                result.set(r, c, res_val)
 
                 a_plain = format_fraction_str(val_a)
                 b_plain = format_fraction_str(val_b)
-                res_plain = format_fraction_str(sum_val)
+                res_plain = format_fraction_str(res_val)
 
                 a_tex = number_to_latex(val_a)
                 b_tex = number_to_latex(val_b)
-                res_tex = number_to_latex(sum_val)
+                res_tex = number_to_latex(res_val)
 
-                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} + B_{{{r+1},{c+1}}} = ({a_tex}) + ({b_tex}) = {res_tex}"
+                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} {op_symbol} B_{{{r+1},{c+1}}} = ({a_tex}) {op_symbol} ({b_tex}) = {res_tex}"
                 latex_details.append(detail_latex)
 
                 self._log_step(
-                    f"Celda ({r+1}, {c+1}): {a_plain} + {b_plain} = {res_plain}",
+                    f"Celda ({r+1}, {c+1}): {a_plain} {op_symbol} {b_plain} = {res_plain}",
                     current_matrix=result,
                     detail_latex=detail_latex
                 )
 
         return {
             "status": "SUCCESS",
-            "message": f"Suma completada con éxito ({m}×{n}).",
+            "message": f"{op_word.capitalize()} completada con éxito ({m}×{n}).",
             "result_matrix": result,
             "steps": self.steps,
             "latex_details": latex_details
         }
+
+    def add(self, matrix_a: Matrix, matrix_b: Matrix) -> dict:
+        """Suma elemento a elemento: C_{i,j} = A_{i,j} + B_{i,j}"""
+        return self._elementwise_binary_op(
+            matrix_a, matrix_b,
+            op_symbol="+", op_word="suma",
+        )
 
     def subtract(self, matrix_a: Matrix, matrix_b: Matrix) -> dict:
         """Resta elemento a elemento: C_{i,j} = A_{i,j} - B_{i,j}"""
-        self.steps = []
-
-        try:
-            validate_same_dimensions(matrix_a, matrix_b)
-        except ValueError as e:
-            return {
-                "status": "ERROR",
-                "message": str(e),
-                "result_matrix": None,
-                "steps": []
-            }
-
-        m, n = matrix_a.rows, matrix_a.cols
-        result = Matrix(m, n)
-
-        self._log_step(f"Iniciando resta de matrices {m}×{n}")
-
-        latex_details = []
-        for r in range(m):
-            for c in range(n):
-                val_a = matrix_a.get(r, c)
-                val_b = matrix_b.get(r, c)
-                diff_val = val_a - val_b
-                result.set(r, c, diff_val)
-
-                a_plain = format_fraction_str(val_a)
-                b_plain = format_fraction_str(val_b)
-                res_plain = format_fraction_str(diff_val)
-
-                a_tex = number_to_latex(val_a)
-                b_tex = number_to_latex(val_b)
-                res_tex = number_to_latex(diff_val)
-
-                detail_latex = f"C_{{{r+1},{c+1}}} = A_{{{r+1},{c+1}}} - B_{{{r+1},{c+1}}} = ({a_tex}) - ({b_tex}) = {res_tex}"
-                latex_details.append(detail_latex)
-
-                self._log_step(
-                    f"Celda ({r+1}, {c+1}): {a_plain} - {b_plain} = {res_plain}",
-                    current_matrix=result,
-                    detail_latex=detail_latex
-                )
-
-        return {
-            "status": "SUCCESS",
-            "message": f"Resta completada con éxito ({m}×{n}).",
-            "result_matrix": result,
-            "steps": self.steps,
-            "latex_details": latex_details
-        }
+        return self._elementwise_binary_op(
+            matrix_a, matrix_b,
+            op_symbol="-", op_word="resta",
+        )
         
     def scalar_multiply(self, scalar: Numeric, matrix_a: Matrix) -> dict:
         """Multiplicación de un escalar por una matriz: C_{i,j} = k · A_{i,j}.
