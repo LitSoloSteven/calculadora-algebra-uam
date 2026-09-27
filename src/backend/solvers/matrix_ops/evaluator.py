@@ -110,11 +110,6 @@ class MatrixExpressionEvaluator:
         new_data = [[val * scalar for val in row] for row in matrix.data]
         return Matrix(matrix.rows, matrix.cols, new_data)
 
-    def _transpose(self, matrix: Matrix) -> Matrix:
-        """Transposición manual de la matriz."""
-        new_data = [[matrix.data[j][i] for j in range(matrix.rows)] for i in range(matrix.cols)]
-        return Matrix(matrix.cols, matrix.rows, new_data)
-
     def evaluate(self, expression: str, matrices_dict: Dict[str, Matrix]) -> dict:
         self.global_steps = []
         try:
@@ -149,7 +144,7 @@ class MatrixExpressionEvaluator:
                     
                 temp_name = f"T_{{{temp_counter}}}"
                 temp_counter += 1
-                res_mat = self._transpose(val)
+                res_mat = self.ops_solver.transpose(val)
                 
                 self.global_steps.append({
                     "temp_variable": temp_name,

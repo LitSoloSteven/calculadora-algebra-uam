@@ -177,3 +177,77 @@ def test_scalar_multiply_fraction_latex_uses_parentheses():
     assert "\\frac" in detail
     assert "C_{1,1}" in detail
     
+def test_transpose_square_matrix():
+    """Transpuesta de matriz cuadrada intercambia filas y columnas."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
+
+    A = Matrix(2, 2, [[1, 2], [3, 4]])
+    T = MatrixOpsSolver().transpose(A)
+
+    assert T.rows == 2 and T.cols == 2
+    assert T.get(0, 0) == 1
+    assert T.get(0, 1) == 3
+    assert T.get(1, 0) == 2
+    assert T.get(1, 1) == 4
+
+
+def test_transpose_rectangular_matrix():
+    """Transpuesta de 2×3 es 3×2."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
+
+    A = Matrix(2, 3, [[1, 2, 3], [4, 5, 6]])
+    T = MatrixOpsSolver().transpose(A)
+
+    assert T.rows == 3 and T.cols == 2
+    assert T.get(0, 0) == 1
+    assert T.get(1, 0) == 2
+    assert T.get(2, 0) == 3
+    assert T.get(0, 1) == 4
+    assert T.get(1, 1) == 5
+    assert T.get(2, 1) == 6
+
+
+def test_transpose_preserves_fractions_exactly():
+    """Transpuesta preserva Fraction sin aproximar."""
+    from fractions import Fraction
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
+
+    A = Matrix(2, 2, [[Fraction(1, 3), Fraction(2, 7)],
+                      [Fraction(-5, 11), Fraction(1, 1001)]])
+    T = MatrixOpsSolver().transpose(A)
+
+    assert T.get(0, 0) == Fraction(1, 3)
+    assert T.get(0, 1) == Fraction(-5, 11)
+    assert T.get(1, 0) == Fraction(2, 7)
+    assert T.get(1, 1) == Fraction(1, 1001)
+
+
+def test_transpose_row_vector_becomes_column():
+    """Transpuesta de fila 1×n es columna n×1."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
+
+    v_row = Matrix(1, 3, [[1, 2, 3]])
+    T = MatrixOpsSolver().transpose(v_row)
+
+    assert T.rows == 3 and T.cols == 1
+    assert [T.get(i, 0) for i in range(3)] == [1, 2, 3]
+
+
+def test_transpose_does_not_mutate_original():
+    """transpose() es puro: no muta la matriz de entrada."""
+    from src.backend.models.matrix import Matrix
+    from src.backend.solvers.matrix_ops.operations import MatrixOpsSolver
+
+    A = Matrix(2, 2, [[1, 2], [3, 4]])
+    T = MatrixOpsSolver().transpose(A)
+
+    # Original intacto
+    assert A.get(0, 0) == 1 and A.get(0, 1) == 2
+    assert A.get(1, 0) == 3 and A.get(1, 1) == 4
+    # T es una instancia distinta
+    assert T is not A
+    assert T.data is not A.data                              

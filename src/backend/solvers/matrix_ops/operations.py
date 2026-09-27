@@ -219,3 +219,20 @@ class MatrixOpsSolver(StepTraceMixin):
             "steps": self.steps,
             "latex_details": latex_details
         }
+
+    def transpose(self, matrix_a: Matrix) -> Matrix:
+        """Transpuesta: (Aᵀ)_{i,j} = A_{j,i}.
+
+        Devuelve una Matrix nueva del shape traspuesto. La operación es
+        pura: no registra steps (no hay cálculo celda a celda que mostrar,
+        solo un reindexado) y no muta el operando.
+
+        Correspondencia algebraica (Lay, sección 2.1): la transpuesta de
+        una matriz A de m×n es la matriz Aᵀ de n×m cuyas columnas son las
+        filas de A.
+        """
+        new_data = [
+            [matrix_a.get(i, j) for i in range(matrix_a.rows)]
+            for j in range(matrix_a.cols)
+        ]
+        return Matrix(matrix_a.cols, matrix_a.rows, new_data)
