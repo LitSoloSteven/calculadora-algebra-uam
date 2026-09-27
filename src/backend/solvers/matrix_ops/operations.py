@@ -1,5 +1,6 @@
 from fractions import Fraction
 from src.backend.models.matrix import Matrix, Numeric
+from src.backend.solvers._tracing import StepTraceMixin
 from src.backend.utils.validators import (
     validate_same_dimensions,
     validate_multiplication_dimensions,
@@ -7,22 +8,11 @@ from src.backend.utils.validators import (
 )
 from src.backend.utils.formatters import format_fraction_str, number_to_latex
 
-class MatrixOpsSolver:
+class MatrixOpsSolver(StepTraceMixin):
     """
     Clase para realizar operaciones básicas entre matrices (Suma, Resta, Multiplicación)
     registrando la trazabilidad paso a paso para el frontend.
     """
-
-    def __init__(self):
-        self.steps = []
-
-    def _log_step(self, description: str, current_matrix: Matrix = None, detail_latex: str = None):
-        """Registra un paso intermedio en la ejecución."""
-        self.steps.append({
-            "description": description,
-            "matrix": current_matrix.clone() if current_matrix else None,
-            "detail_latex": detail_latex
-        })
 
     def _elementwise_binary_op(
         self,

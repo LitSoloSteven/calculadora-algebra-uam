@@ -20,29 +20,11 @@ pueda heredar sin importar el módulo entero de operaciones binarias
 """
 from src.backend.exceptions import InvalidVectorError
 from src.backend.models.matrix import Matrix
+from src.backend.solvers._tracing import StepTraceMixin
 
 
-class _VectorOpsBase:
+class _VectorOpsBase(StepTraceMixin):
     """Helpers compartidos por los solvers de vectores."""
-
-    def __init__(self):
-        self.steps: list[dict] = []
-
-    # ------------------------------------------------------------------
-    # Trazabilidad
-    # ------------------------------------------------------------------
-
-    def _log_step(
-        self,
-        description: str,
-        current_matrix: Matrix = None,
-        detail_latex: str = None,
-    ) -> None:
-        self.steps.append({
-            "description": description,
-            "matrix": current_matrix.clone() if current_matrix else None,
-            "detail_latex": detail_latex,
-        })
 
     # ------------------------------------------------------------------
     # Clasificación de shapes
