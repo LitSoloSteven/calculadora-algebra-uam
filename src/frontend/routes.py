@@ -52,3 +52,11 @@ def register_routes():
         setup_theme()
         app_ui = NumericSystemsUI()
         app_ui.build()
+
+    # --- NUEVA VISTA DEDICADA: NÚMEROS ROMANOS ---
+    @ui.page('/romanos')
+    def roman_calculator_page():
+        from src.frontend.views.numeric_systems.view_roman_calculator import RomanCalculatorUI
+        setup_theme()
+        app_ui = RomanCalculatorUI()
+        app_ui.build()
