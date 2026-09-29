@@ -42,8 +42,16 @@ def create_navbar(active_ui=None, active_route='/'):
                 # 4. Conversor de Bases Numéricas
                 with ui.button(on_click=lambda: ui.navigate.to('/conversor'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/conversor')).props('flat ripple=false aria-label="Conversor"').tooltip('Conversor de Bases'):
                     ui.html(icon_svg('conversor_bases'))
+
+                # 5. Calculadora de Números Romanos (Nuevo botón)
+                with ui.button(on_click=lambda: ui.navigate.to('/romanos'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/romanos')).props('flat ripple=false aria-label="Números Romanos"').tooltip('Números Romanos'):
+                    ui.html('''
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 6h4M6 6v12M4 18h4M13 6l3.5 12 3.5-12"/>
+                        </svg>
+                    ''')
                 
-                # 5. Tutor IA
+                # 6. Tutor IA
                 def toggle_ai_panel():
                     if active_ui and hasattr(active_ui, 'ai_panel'):
                         active_ui.ai_panel.toggle()
