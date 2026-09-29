@@ -7,6 +7,7 @@ from src.backend.utils.validators import (
     MatrixValidator,
 )
 from src.backend.utils.formatters import format_fraction_str, number_to_latex
+from src.backend.exceptions import DimensionMismatchError
 
 class MatrixOpsSolver(StepTraceMixin):
     """
@@ -236,3 +237,79 @@ class MatrixOpsSolver(StepTraceMixin):
             for j in range(matrix_a.cols)
         ]
         return Matrix(matrix_a.cols, matrix_a.rows, new_data)
+    
+    def determinant(self, matrix_a: Matrix) -> Fraction:
+        """Determinante de una matriz cuadrada.
+
+        Algoritmo: eliminación a forma triangular superior con pivoteo
+        parcial + producto de la diagonal × (-1)^(swaps). NO usa
+        cofactores recursivos (O(n!), inviable para n > 10 — ver PPT
+        Determinantes, pág. 15-16).
+
+        Correspondencia algebraica (PPT Determinantes):
+        - n=2: det = ad - bc (pág. 3).
+        - Triangular (sup/inf): det = producto de la diagonal (pág. 15).
+        - Swap de filas: det cambia de signo (pág. 18-19).
+        - det(A) = 0 ⇔ A singular (pág. 25).
+
+        Devuelve Fraction puro (análogo a `transpose`). No registra steps:
+        el cálculo no tiene trazabilidad pedagógica que exponer al frontend.
+        Si el controller necesita mostrar el procedimiento, lo genera a
+        partir de la matriz original.
+
+        Raises:
+            DimensionMismatchError: si matrix_a no es cuadrada.
+        """
+        n_rows, n_cols = matrix_a.rows, matrix_a.cols
+        if n_rows != n_cols:
+            raise DimensionMismatchError(
+                operation="determinant (A debe ser cuadrada)",
+                shape_a=(n_rows, n_cols),
+                shape_b=(n_rows, n_rows),
+            )
+        n = n_rows
+
+        # --- Casos base con fórmula directa ---
+        if n == 1:
+            return Fraction(matrix_a.get(0, 0))
+        if n == 2:
+            a = Fraction(matrix_a.get(0, 0))
+            b = Fraction(matrix_a.get(0, 1))
+            c = Fraction(matrix_a.get(1, 0))
+            d = Fraction(matrix_a.get(1, 1))
+            return a * d - b * c
+
+        # --- n >= 3: eliminación a triangular con pivoteo parcial ---
+        # Clonamos para no mutar el input (consistente con el resto del solver).
+        M = matrix_a.clone()
+        sign = Fraction(1)
+
+        for col in range(n):
+            # Pivoteo parcial: mayor valor absoluto en la columna, desde 'col'.
+            pivot_row = col
+            for r in range(col + 1, n):
+                if abs(M.get(r, col)) > abs(M.get(pivot_row, col)):
+                    pivot_row = r
+
+            pivot_val = M.get(pivot_row, col)
+            if pivot_val == 0:
+                # Toda la columna debajo del pivote es cero → singular.
+                return Fraction(0)
+
+            if pivot_row != col:
+                M.swap_rows(col, pivot_row)
+                sign = -sign
+                pivot_val = M.get(col, col)
+
+            # Eliminar debajo del pivote. Conserva el determinante.
+            for r in range(col + 1, n):
+                val = M.get(r, col)
+                if val != 0:
+                    factor = Fraction(val) / Fraction(pivot_val)
+                    M.add_scaled_row(r, col, -factor)
+
+        # det(A) = signo · producto de la diagonal de la triangular superior.
+        det = sign
+        for i in range(n):
+            det *= Fraction(M.get(i, i))
+        return det

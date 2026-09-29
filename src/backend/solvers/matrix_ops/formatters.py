@@ -58,3 +58,27 @@ def multiply_matrix_to_latex(matrix_a: Matrix, matrix_b: Matrix) -> str:
         rows_str.append(" & ".join(row_vals))
     body = " \\\\\n".join(rows_str)
     return f"\\begin{{bmatrix}}\n{body}\n\\end{{bmatrix}}"
+
+def partitioned_matrix_to_latex(m: Matrix, num_left_cols: int) -> str:
+    """Renderiza una matriz aumentada [A | B] con línea divisoria vertical.
+
+    `num_left_cols` es la cantidad de columnas a la izquierda de la línea.
+    Para [A | I] con A de n×n, num_left_cols = n.
+
+    Salida: \\left[ \\begin{array}{c...c|c...c} ... \\end{array} \\right]
+
+    Si num_left_cols no parte la matriz en dos bloques no vacíos,
+    cae a `matrix_to_latex` (bmatrix simple).
+    """
+    total = m.cols
+    right = total - num_left_cols
+    if num_left_cols < 1 or right < 1:
+        return matrix_to_latex(m)
+
+    col_spec = ("c" * num_left_cols) + "|" + ("c" * right)
+    rows = []
+    for i in range(m.rows):
+        row_vals = [number_to_latex(m.get(i, j)) for j in range(total)]
+        rows.append(" & ".join(row_vals))
+    body = " \\\\ ".join(rows)
+    return rf"\left[ \begin{{array}}{{{col_spec}}} {body} \end{{array}} \right]"
