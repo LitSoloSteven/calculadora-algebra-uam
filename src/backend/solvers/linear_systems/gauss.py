@@ -5,14 +5,47 @@ from src.backend.models.matrix import Matrix
 from src.backend.utils.formatters import format_fraction_str, format_parametric_expr, format_variable_for_latex
 
 class GaussSolver:
+    """Solver de eliminación gaussiana con aritmética exacta (Fraction).
+
+    Soporta uno o varios RHS en la matriz aumentada:
+      - num_rhs=1 (default): comportamiento clásico [A|b] con back-substitution.
+        Es el modo que usan Gauss (FULL_REDUCTION=False) y Gauss-Jordan
+        (FULL_REDUCTION=True) para resolver sistemas lineales.
+      - num_rhs=k > 1: el solver corre eliminación sobre [A | B] (B de n×k)
+        pero no hace back-substitution. El consumidor lee el resultado
+        directo de la matriz reducida vía `solve_reduction()`. Este modo
+        lo usa MatrixInverseSolver ([A|I] → [I|A⁻¹]) y, en el futuro,
+        resolver ecuaciones matriciales AX = B.
+    """
+
     FULL_REDUCTION: bool = False
 
     def __init__(self, augmented_matrix: Matrix, eps: float = ZERO_EPSILON,
-             variable_names: list[str] | None = None):
+             variable_names: list[str] | None = None, num_rhs: int = 1):
+        if not isinstance(num_rhs, int) or isinstance(num_rhs, bool) or num_rhs < 1:
+            raise ValueError(
+                f"num_rhs debe ser un entero >= 1 (recibido {num_rhs!r})."
+            )
+        if num_rhs >= augmented_matrix.cols:
+            raise ValueError(
+                f"num_rhs ({num_rhs}) debe ser menor que las columnas de la "
+                f"matriz aumentada ({augmented_matrix.cols}); si no, no "
+                f"quedan columnas para las variables."
+            )
         self.matrix = augmented_matrix.clone()
         self.eps = eps
         self.variable_names = variable_names
+        self.num_rhs = num_rhs
         self.steps = []
+
+    def _num_vars(self) -> int:
+        """Cantidad de columnas que se tratan como variables.
+
+        Con num_rhs=1 es matrix.cols - 1 (idéntico al comportamiento
+        previo). Con num_rhs=k es matrix.cols - k, las columnas
+        restantes se tratan como términos independientes.
+        """
+        return self.matrix.cols - self.num_rhs
 
     def _log_step(self, description: str, current_matrix: Matrix):
         self.steps.append({
@@ -31,8 +64,7 @@ class GaussSolver:
 
     def _check_system_status(self, rank: int) -> tuple[str, str]:
         m = self.matrix.rows
-        n = self.matrix.cols
-        num_vars = n - 1
+        num_vars = self._num_vars()
 
         for r in range(m):
             all_zeros = all(abs(self.matrix.get(r, c)) < self.eps for c in range(num_vars))
@@ -76,7 +108,7 @@ class GaussSolver:
 
         self._log_step("Matriz inicial aumentada [A|b]:", self.matrix)
 
-        for col in range(n - 1):
+        for col in range(self._num_vars()):
             if pivot_row >= m:
                 break
 
@@ -147,7 +179,7 @@ class GaussSolver:
         return rank, pivot_cols
 
     def _back_substitute(self, pivot_cols: list[int]):
-        num_vars = self.matrix.cols - 1
+        num_vars = self._num_vars()
         free_cols = [c for c in range(num_vars) if c not in pivot_cols]
         param_names = ['t', 's', 'r', 'u', 'v']
         
@@ -220,7 +252,35 @@ class GaussSolver:
 
         return solution, solution_exact, back_sub_steps, free_cols
 
+    def solve_reduction(self) -> dict:
+        """Corre la eliminación sin back-substitution.
+
+        Pensado para num_rhs >= 1 cuando el consumidor lee el resultado
+        directo de la matriz reducida (por ejemplo, [A|I] → [I|A⁻¹] con
+        Gauss-Jordan). El solver NO modifica la semántica de la
+        eliminación: usa el mismo `_eliminate()` que `solve()`.
+
+        Returns:
+            dict con:
+              - reduced_matrix: Matrix reducida (mismo shape que self.matrix).
+              - rank: cantidad de pivotes encontrados.
+              - pivot_cols: columnas donde se encontraron pivotes.
+              - steps: lista de pasos de la eliminación.
+        """
+        rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
+        return {
+            "reduced_matrix": self.matrix,
+            "rank": rank,
+            "pivot_cols": pivot_cols,
+            "steps": self.steps,
+        }
+    
     def solve(self):
+        if self.num_rhs != 1:
+            raise ValueError(
+                    f"solve() requiere num_rhs=1 (recibido {self.num_rhs}). "
+                    f"Para múltiples RHS, usar solve_reduction()."
+                )
         rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
         status, message = self._check_system_status(rank)
 
