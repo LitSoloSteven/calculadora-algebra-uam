@@ -149,14 +149,35 @@ class SquareMatrixPanel:
                     self.rows_ui.append(row_ui)
                     self.cells.append(row_cells)
 
+    def _is_alive(self) -> bool:
+        """True si el panel está construido y su cliente (pestaña) sigue vivo."""
+        try:
+            return self.container is not None and not self.container.is_deleted
+        except Exception:
+            return False
+
+    async def _animate(self, idx: int, mode: str) -> None:
+        """Animación JS puramente cosmética: nunca debe romper el redimensionado."""
+        if not self._is_alive():
+            return
+        try:
+            await ui.run_javascript(
+                f"return window.animateSquareResize('{MATRIX_ID}', {idx}, '{mode}');",
+                timeout=5.0,
+            )
+        except Exception as exc:  # timeout o cliente desconectado/eliminado
+            logger.debug("Animación de redimensionado omitida: %s", exc)
+
     async def resize(self, delta: int):
         """Maneja el cambio de tamaño acumulando deltas para clicks rápidos."""
+        if not self._is_alive():
+            return
         self._pending += delta
         if self._resizing:
             return
         self._resizing = True
         try:
-            while self._pending != 0:
+            while self._pending != 0 and self._is_alive():
                 paso = 1 if self._pending > 0 else -1
                 if not (MIN_N <= self.n + paso <= MAX_N):
                     self._pending = 0
@@ -165,18 +186,18 @@ class SquareMatrixPanel:
                 await self._apply_step(paso)
         finally:
             self._resizing = False
-            self._update_controls()
+            self._pending = 0
+            self._update_controls()  # seguro: tiene su propio guard
 
     async def _apply_step(self, delta: int):
         """Aplica un cambio atómico de dimensión ±1 con animación."""
+        if not self._is_alive():
+            return
+
         if delta == -1:
-            try:
-                await ui.run_javascript(
-                    f"return window.animateSquareResize('{MATRIX_ID}', {self.n - 1}, 'remove');",
-                    timeout=5.0,
-                )
-            except Exception:
-                pass
+            await self._animate(self.n - 1, "remove")
+            if not self._is_alive():  # el cliente pudo morir durante la animación
+                return
 
             # 1. Quitar última columna de cada fila 0..n-2
             for i in range(self.n - 1):
@@ -217,20 +238,18 @@ class SquareMatrixPanel:
 
             self.n += 1
             await asyncio.sleep(0.05)
-            try:
-                await ui.run_javascript(
-                    f"return window.animateSquareResize('{MATRIX_ID}', {self.n - 1}, 'add');",
-                    timeout=5.0,
-                )
-            except Exception:
-                pass
+            await self._animate(self.n - 1, "add")
 
+        if not self._is_alive():
+            return
         self._update_controls()
         if not self._suspend_events and self.on_data_change:
             self.on_data_change()
 
     def _update_controls(self):
         """Actualiza etiquetas y estados de botones según la dimensión actual."""
+        if not self._is_alive():
+            return
         if self.lbl_n:
             self.lbl_n.set_text(str(self.n))
         if self.lbl_badge:
@@ -240,17 +259,13 @@ class SquareMatrixPanel:
         if self.btn_dec:
             if self.n <= MIN_N:
                 self.btn_dec.disable()
-                self.btn_dec.tooltip("Mínimo 1×1")
             else:
                 self.btn_dec.enable()
-                self.btn_dec.tooltip("Quitar fila y columna")
         if self.btn_inc:
             if self.n >= MAX_N:
                 self.btn_inc.disable()
-                self.btn_inc.tooltip(f"Máximo {MAX_N}×{MAX_N}")
             else:
                 self.btn_inc.enable()
-                self.btn_inc.tooltip("Añadir fila y columna")
 
     def get_matrix_data(self) -> list[list[str]]:
         """Devuelve la matriz de datos como lista de listas de strings. Celdas vacías pasan a '0'."""

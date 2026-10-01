@@ -38,7 +38,7 @@ class InverseOpsResultsMixin:
     async def _update_preview(self):
         """Genera y renderiza el preview de la matriz en MathJax."""
         await asyncio.sleep(0.3)
-        if not self.preview_container:
+        if not self.preview_container or self.preview_container.is_deleted:
             return
 
         try:
@@ -92,6 +92,8 @@ class InverseOpsResultsMixin:
 
                 ui.run_javascript(f"typesetMathWhenReady({json.dumps(typeset_ids)});")
         except Exception as e:
+            if not self.preview_container or self.preview_container.is_deleted:
+                return
             logger.error("Error al actualizar vista previa de matriz inversa", exc_info=e)
             with self.preview_container:
                 ui.label('No se pudo generar la vista previa.').classes(
@@ -199,6 +201,9 @@ class InverseOpsResultsMixin:
             payload = json.dumps({"n": n, "data": self.square_panel.get_matrix_data()})
             result = await run.io_bound(InverseOpsController.process_inverse, payload)
 
+            if self.contenedor_resultados.is_deleted:
+                return
+
             self.last_result = result
             self.contenedor_resultados.style('opacity: 1;')
             self._render_result(result)
@@ -220,10 +225,13 @@ class InverseOpsResultsMixin:
         except Exception as e:
             self._mostrar_error_inesperado(e)
         finally:
-            sender.props('loading=false')
+            if not sender.is_deleted:
+                sender.props('loading=false')
 
     def _mostrar_error_inesperado(self, exc: Exception):
         """Muestra un badge de error ante excepciones no controladas."""
+        if self.contenedor_resultados.is_deleted:
+            return
         logger.error("Error inesperado en calcular matriz inversa", exc_info=exc)
         self.contenedor_resultados.clear()
         self.contenedor_resultados.classes(
