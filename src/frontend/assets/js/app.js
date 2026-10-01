@@ -151,7 +151,10 @@ function animateGarbageCollection() {
   let delay = 0;
   let animatedCount = 0;
 
-  inputs.forEach((input) => {
+  Array.from(inputs).filter(i => {
+    const r = i.getBoundingClientRect();
+    return i.value && i.value !== '0' && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+  }).slice(0, 40).forEach((input) => {
     if (!input.value || input.value === '0' || input.value.trim() === '') return;
     animatedCount++;
 

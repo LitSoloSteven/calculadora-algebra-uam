@@ -39,6 +39,13 @@ def register_routes():
         app_ui = MatrixOpsUI()
         app_ui.build()
 
+    @ui.page('/matriz-inversa')
+    def matrix_inverse_page():
+        from src.frontend.views.inverse_ops.view_inverse_ops import InverseOpsUI
+        setup_theme()
+        app_ui = InverseOpsUI()
+        app_ui.build()
+
     @ui.page('/vectores')
     def vector_ops_page():
         from src.frontend.views.vector_ops.view_vector_ops import VectorOpsUI

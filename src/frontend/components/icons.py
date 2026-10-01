@@ -46,4 +46,15 @@ def icon_svg(nombre: str) -> str:
             <path d="M17.65 6.35A8 8 0 0 0 6.35 17.65Z" fill="currentColor" stroke="none"></path>
         </svg>'''
     
+    elif nombre == 'matriz_inversa':
+        return base + '''
+            <path d="M6 4H4v16h2"></path>
+            <path d="M12 4h2v16h-2"></path>
+            <circle cx="7" cy="9" r="1" fill="currentColor" stroke="none"></circle>
+            <circle cx="11" cy="15" r="1" fill="currentColor" stroke="none"></circle>
+            <path d="M16.5 7h3"></path>
+            <path d="M22 4.5v5"></path>
+        </svg>'''
+    
     return ''
+

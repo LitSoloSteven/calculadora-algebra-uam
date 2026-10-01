@@ -12,3 +12,7 @@ FRACTION_RECONSTRUCTION_LIMIT = 1000
 # Límites de visualización (formatters).
 FRACTION_DISPLAY_LIMIT = 1000
 LATEX_DENOMINATOR_LIMIT = 100
+
+# Matriz inversa: tamaño máximo aceptado (UI y controller) y n máximo para usar MathJax.
+INVERSE_MAX_DIMENSION = 50
+INVERSE_LATEX_MAX_DIMENSION = 8

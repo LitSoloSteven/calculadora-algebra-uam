@@ -678,3 +678,29 @@ html[data-theme="medianoche"] .brand-logo-dark {
         transition-duration: 120ms !important;
     }
 }
+
+/* === MATRIZ INVERSA === */
+.inv-scroll { overflow: auto; max-width: 100%; max-height: 60vh; border-radius: var(--radius-input); box-shadow: var(--elev-inset); background: var(--bg-panel); }
+.inv-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; font-size: var(--fs-small); color: var(--text-main); }
+.inv-table th, .inv-table td { padding: 6px 12px; text-align: center; white-space: nowrap; background: var(--bg-elevated); border-bottom: 1px solid var(--border-input); max-width: 16ch; overflow: hidden; text-overflow: ellipsis; transition: background var(--dur-med) var(--ease-std); }
+.inv-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bg-panel); color: var(--text-sec); }
+.inv-table .row-label { position: sticky; left: 0; z-index: 1; background: var(--bg-panel); color: var(--text-sec); font-weight: 700; }
+.inv-table .sep-left { border-left: 2px solid var(--accent); }
+.inv-table tr.row-changed td { background: var(--accent-soft); }
+.inv-table tr.row-changed .row-label { color: var(--accent); }
+.inv-table tr.row-swap td { background: var(--badge-warn-bg); color: var(--badge-warn-text); }
+.inv-table td.cell-pivot { outline: 2px solid var(--accent); outline-offset: -2px; font-weight: 700; }
+.inv-table.is-result td.block-result { background: var(--badge-suc-bg); color: var(--badge-suc-text); font-weight: 700; }
+.inv-table.compact th, .inv-table.compact td { padding: 3px 6px; font-size: 0.75rem; }
+.inv-frac { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; vertical-align: middle; }
+.inv-frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 3px 1px; }
+.inv-frac > span:last-child { padding: 1px 3px 0; }
+.chip-kind { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-badge); font-size: var(--fs-small); font-weight: 700; box-shadow: var(--elev-1); }
+.chip-kind .material-icons { font-size: 16px; }
+.chip-inicial, .chip-eliminacion, .chip-otro { background: var(--accent-soft); color: var(--accent); }
+.chip-intercambio { background: var(--badge-warn-bg); color: var(--badge-warn-text); }
+.chip-pivote { background: var(--bg-elevated); color: var(--accent); outline: 1px solid var(--accent); }
+.chip-normalizacion { background: var(--badge-suc-bg); color: var(--badge-suc-text); }
+.chip-final { background: var(--btn-primary-bg); color: var(--btn-primary-text); }
+.inv-slider.q-slider, .inv-progress.q-linear-progress { color: var(--accent) !important; }
+

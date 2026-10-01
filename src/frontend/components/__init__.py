@@ -5,6 +5,7 @@ from .vector_capture import VectorCapturePanel
 from .ai_panel import AIPanel
 from .calculator import CalculatorPanel
 from .navbar import create_navbar
+from .square_matrix_panel import SquareMatrixPanel
 
 __all__ = [
     "EquationGrid",
@@ -13,4 +14,6 @@ __all__ = [
     "AIPanel",
     "CalculatorPanel",
     "create_navbar",
+    "SquareMatrixPanel",
 ]
+

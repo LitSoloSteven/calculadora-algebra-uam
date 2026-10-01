@@ -107,6 +107,18 @@ class AIPanel:
                 logger.exception("Error inesperado en attach_context (vector_ops)")
                 ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
                 return
+        elif hasattr(self.active_ui, 'get_ai_context'):
+            # Vista de Matriz Inversa: la propia vista construye el contexto.
+            try:
+                ctx_text = self.active_ui.get_ai_context()
+            except ValueError as e:
+                ui.notify(str(e), type='warning')
+                return
+            except Exception:
+                logger.exception("Error inesperado en attach_context (matriz inversa)")
+                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
+                return
+
                 
         if ctx_text:
             self.attached_context = ctx_text
