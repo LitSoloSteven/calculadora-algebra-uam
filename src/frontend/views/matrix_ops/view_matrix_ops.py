@@ -5,7 +5,7 @@ import html
 from nicegui import ui
 
 logger = logging.getLogger(__name__)
-from src.frontend.components.navbar import create_navbar
+from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.matrix_capture import MatrixCapturePanel
 from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixOpsController
@@ -114,7 +114,7 @@ class MatrixOpsUI:
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route=route_of('matrices'))
+        create_app_shell(self, active_route=route_of('matrices'))
         self.capture_panel.inject_scripts()
         
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
@@ -125,6 +125,30 @@ class MatrixOpsUI:
                 # Panel izquierdo (Matrices y expresión)
                 with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
                     self.capture_panel.build_container()
+                    
+                    def do_invert(name, mat):
+                        if mat['m'] != mat['n']:
+                            ui.notify(f"La matriz {name} debe ser cuadrada para invertirla.", type='warning')
+                            return
+                        if mat['m'] > 10:
+                            ui.notify(f"La herramienta de inversa admite hasta 10x10. La matriz {name} es de {mat['m']}x{mat['n']}.", type='warning')
+                            return
+                        
+                        data = []
+                        for r in range(mat['m']):
+                            row = []
+                            for c in range(mat['n']):
+                                val = str(mat['cache'].get((r, c), '0')).strip()
+                                if not val: val = '0'
+                                row.append(val)
+                            data.append(row)
+                        
+                        from src.frontend.components.handoff import put_matrix, handoff_url
+                        from src.frontend.navigation import route_of
+                        token = put_matrix('matrices', data)
+                        ui.navigate.to(handoff_url(route_of('inversa'), token))
+
+                    self.capture_panel.on_invert = do_invert
                     
                     with ui.column().classes('w-full panel-card p-6 mt-4'):
                         ui.label('Expresión Matemática').classes('text-lg font-bold text-main mb-2')

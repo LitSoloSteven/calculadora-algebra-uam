@@ -1,7 +1,7 @@
 """Vista principal del Conversor de Sistemas Numéricos en Scalaris."""
 from nicegui import ui
 from src.backend.solvers.numeric_systems.conversor_bases import ConversorBases
-from src.frontend.components.navbar import create_navbar
+from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from .interaction_mixin import NumericSystemsInteractionMixin
@@ -33,7 +33,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route=route_of('bases'))
+        create_app_shell(self, active_route=route_of('bases'))
 
         with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
             # --- HERO SECTION (Entrada) ---

@@ -15,11 +15,10 @@ def client():
     return TestClient(app, follow_redirects=False)
 
 
-def test_ten_legacy_routes_status_and_location(client):
-    """Verifica que las 10 rutas legacy devuelvan código 302 y el Location exacto."""
+def test_legacy_routes_with_hub_status_and_location(client):
+    """Verifica que las rutas legacy devuelvan código 302 y el Location exacto con Hub activado."""
     expected_redirects = {
-        "/": "/algebra-lineal/sistemas",
-        "/ia": "/algebra-lineal/sistemas",
+        "/ia": "/?glosa=1",
         "/sistemas-lineales": "/algebra-lineal/sistemas",
         "/gauss": "/algebra-lineal/sistemas?method=gauss",
         "/gauss-jordan": "/algebra-lineal/sistemas?method=gauss-jordan",
@@ -36,6 +35,19 @@ def test_ten_legacy_routes_status_and_location(client):
         assert response.headers["location"] == expected_location, (
             f"Ruta {path} redirigió a {response.headers['location']}, se esperaba {expected_location}"
         )
+
+
+def test_legacy_routes_without_hub(monkeypatch):
+    """Verifica que con HUB_ENABLED=False, '/' y '/ia' redirijan a /algebra-lineal/sistemas con 302."""
+    monkeypatch.setattr(navigation, "HUB_ENABLED", False)
+    app = FastAPI()
+    register_legacy_redirects(app)
+    c = TestClient(app, follow_redirects=False)
+
+    for path in ("/", "/ia"):
+        resp = c.get(path)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "/algebra-lineal/sistemas"
 
 
 def test_query_preservation_and_precedence(client):

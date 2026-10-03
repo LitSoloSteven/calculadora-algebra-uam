@@ -9,7 +9,7 @@ from src.backend.utils.formatters import format_fraction_str
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.components.calculator import CalculatorPanel
-from src.frontend.components.navbar import create_navbar
+from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.square_matrix_panel import SquareMatrixPanel
 from src.frontend.views.inverse_ops._config import AI_CONTEXT_MAX_N
@@ -41,16 +41,17 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
         self.play_timer = None
         self._uid_counter = itertools.count()
 
-    def build(self):
+    def build(self, handoff_token: str = ''):
         """Construye la interfaz completa de la vista."""
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route=route_of('inversa'))
+        create_app_shell(self, active_route=route_of('inversa'))
 
         self.square_panel.inject_scripts()
         self.square_panel.on_data_change = self._on_matrix_change
         self.calculator.inject_scripts()
 
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
+            self.handoff_slot = ui.column().classes('w-full')
             # Encabezado
             with ui.column().classes('mb-8'):
                 ui.label('Matriz Inversa').classes('text-2xl font-bold text-main')
@@ -114,6 +115,17 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
 
         # Panel flotante de Tutor IA
         self.ai_panel.build()
+
+        from src.frontend.components.handoff import consume_matrix, render_handoff_notice, clean_handoff_url
+        from src.backend.constants import INVERSE_MAX_DIMENSION
+        res = consume_matrix(handoff_token, max_n=INVERSE_MAX_DIMENSION)
+        if res is not None:
+            with self.handoff_slot:
+                n = len(res.data) if res.data else 0
+                render_handoff_notice(res, f"Cargamos A ({n}×{n}) desde {res.source_name}. Presiona Calcular inversa para ver A⁻¹.")
+            if res.status == 'ok':
+                self.square_panel.set_data(res.data)
+            clean_handoff_url()
 
     def get_ai_context(self) -> str:
         """Genera el texto de contexto de la matriz para el chat del Tutor IA."""

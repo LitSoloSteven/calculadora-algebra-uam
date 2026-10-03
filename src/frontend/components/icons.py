@@ -56,8 +56,41 @@ def icon_svg(nombre: str) -> str:
             <path d="M22 4.5v5"></path>
         </svg>'''
     
+    elif nombre == 'inicio':
+        return base + '''
+            <path d="M4 11.5 12 5l8 6.5"></path>
+            <path d="M6 10v9h12v-9"></path>
+            <path d="M10 19v-5h4v5"></path>
+        </svg>'''
+    
+    elif nombre == 'algebra_lineal':
+        return base + '''
+            <path d="M7 4H5v16h2"></path>
+            <path d="M17 4h2v16h-2"></path>
+            <circle cx="10" cy="9" r="1" fill="currentColor" stroke="none"></circle>
+            <circle cx="14" cy="9" r="1" fill="currentColor" stroke="none"></circle>
+            <circle cx="10" cy="15" r="1" fill="currentColor" stroke="none"></circle>
+            <circle cx="14" cy="15" r="1" fill="currentColor" stroke="none"></circle>
+        </svg>'''
+    
+    elif nombre == 'utilidades':
+        return base + '''
+            <path d="M5 8h14"></path>
+            <path d="M5 16h14"></path>
+            <path d="M9 4 7 20"></path>
+            <path d="M17 4l-2 16"></path>
+        </svg>'''
+    
+    elif nombre == 'geometria':
+        return base + '''
+            <path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"></path>
+            <path d="M12 12 4 7.5"></path>
+            <path d="M12 12l8-4.5"></path>
+            <path d="M12 12v9"></path>
+        </svg>'''
+    
     elif nombre == 'romanos':
-        return '''<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        return base + '''
             <path d="M4 6h4M6 6v12M4 18h4M13 6l3.5 12 3.5-12"/>
         </svg>'''
     

@@ -3,13 +3,16 @@ from __future__ import annotations
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
-from nicegui import app, ui
+from nicegui import app, ui, Client
 
+from src.frontend import navigation
 from src.frontend.navigation import (
     legacy_redirects,
     redirect_location,
     route_of,
     tool_by_id,
+    HUB_ROUTE,
+    HUB_PAGE_TITLE,
 )
 from src.frontend.theme import setup_theme
 
@@ -37,13 +40,13 @@ def register_routes() -> None:
     register_legacy_redirects(app)
 
     @ui.page(route_of("sistemas"), title=tool_by_id("sistemas").page_title)
-    def linear_systems_page(method: str = "gauss"):
+    def linear_systems_page(method: str = "gauss", handoff: str = ""):
         if method not in ("gauss", "gauss-jordan"):
             method = "gauss"
         from src.frontend.views.linear_systems.view_linear_systems import LinearSystemsUI
         setup_theme()
         app_ui = LinearSystemsUI(initial_method=method)
-        app_ui.build()
+        app_ui.build(handoff_token=handoff)
 
     @ui.page(route_of("vectores"), title=tool_by_id("vectores").page_title)
     def vector_ops_page():
@@ -60,11 +63,11 @@ def register_routes() -> None:
         app_ui.build()
 
     @ui.page(route_of("inversa"), title=tool_by_id("inversa").page_title)
-    def matrix_inverse_page():
+    def matrix_inverse_page(handoff: str = ""):
         from src.frontend.views.inverse_ops.view_inverse_ops import InverseOpsUI
         setup_theme()
         app_ui = InverseOpsUI()
-        app_ui.build()
+        app_ui.build(handoff_token=handoff)
 
     @ui.page(route_of("bases"), title=tool_by_id("bases").page_title)
     def conversor_page():
@@ -79,3 +82,11 @@ def register_routes() -> None:
         setup_theme()
         app_ui = RomanCalculatorUI()
         app_ui.build()
+
+    if navigation.HUB_ENABLED:
+        @ui.page(HUB_ROUTE, title=HUB_PAGE_TITLE)
+        async def hub_page(client: Client, glosa: str = ''):
+            from src.frontend.views.hub.view_hub import HubUI
+            setup_theme()
+            app_ui = HubUI(glosa_open=(glosa == '1'))
+            await app_ui.build(client)

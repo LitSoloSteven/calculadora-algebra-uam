@@ -7,6 +7,7 @@ class MatrixCapturePanel:
     def __init__(self):
         self.matrices = {} # Dict de nombre -> { 'm': 3, 'n': 3, 'entradas': [], 'cache': {}, 'ui_container': None }
         self.container = None
+        self.on_invert = None
         
     def inject_scripts(self):
         ui.add_head_html('<script src="/assets/js/matrix_capture.js"></script>')
@@ -198,7 +199,8 @@ class MatrixCapturePanel:
                                 mat['lbl_n'] = ui.label(str(mat['n'])).classes('font-bold w-4 text-center')
                                 mat['btn_n_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_n=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
 
-                            ui.button(icon='delete', on_click=partial(self.remove_matrix, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2').style('color: var(--error)').props('ripple=false').tooltip('Eliminar Matriz')
+                            mat['btn_inv'] = ui.button(icon='arrow_forward', on_click=partial(self._handle_invert, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2 text-sec').props('ripple=false').tooltip('Ver Inversa')
+                            ui.button(icon='delete', on_click=partial(self.remove_matrix, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-1').style('color: var(--error)').props('ripple=false').tooltip('Eliminar Matriz')
 
                     # Configurar estado inicial deshabilitado si corresponde
                     if mat['m'] <= 1: mat['btn_m_dec'].disable()
@@ -208,6 +210,10 @@ class MatrixCapturePanel:
 
                     mat['ui_container'] = ui.column().classes('overflow-auto w-full max-h-[300px]')
                     self.render_matrix_grid(name)
+
+    def _handle_invert(self, name):
+        if self.on_invert:
+            self.on_invert(name, self.matrices[name])
 
     def build_container(self):
         with ui.row().classes('w-full justify-end mb-4'):

@@ -14,6 +14,9 @@ class Pillar:
     """Representa una categoría superior o pilar conceptual en Scalaris."""
     id: str
     name: str
+    icon: str = ""
+    short_name: str = ""
+    prefix: str = ""
 
 
 @dataclass(frozen=True)
@@ -40,12 +43,14 @@ class LegacyRedirect:
 
 # --- Constantes y Taxonomía Base ---
 
-HUB_ENABLED: bool = False
+HUB_ENABLED: bool = True
+HUB_ROUTE: str = "/"
+HUB_PAGE_TITLE: str = "Inicio | Scalaris"
 
 PILLARS: tuple[Pillar, ...] = (
-    Pillar(id="algebra", name="Álgebra lineal"),
-    Pillar(id="visualizador", name="Visualizador geométrico"),
-    Pillar(id="utilidades", name="Utilidades numéricas"),
+    Pillar(id="algebra", name="Álgebra lineal", icon="algebra_lineal", short_name="Álgebra lineal", prefix="/algebra-lineal"),
+    Pillar(id="visualizador", name="Visualizador geométrico", icon="geometria", short_name="Visualizador", prefix="/visualizador"),
+    Pillar(id="utilidades", name="Utilidades numéricas", icon="utilidades", short_name="Utilidades", prefix="/utilidades"),
 )
 
 _PILLARS_BY_ID: dict[str, Pillar] = {p.id: p for p in PILLARS}
@@ -187,6 +192,27 @@ def visible_tools(pillar_id: str | None = None) -> tuple[Tool, ...]:
     if pillar_id is None:
         return tuple(t for t in TOOLS if t.enabled)
     return tuple(t for t in TOOLS if t.enabled and t.pillar_id == pillar_id)
+
+
+def nav_groups() -> tuple[tuple[Pillar, tuple[Tool, ...]], ...]:
+    """Devuelve en el orden de PILLARS cada pilar con al menos una herramienta."""
+    groups = []
+    for p in PILLARS:
+        tools = visible_tools(p.id)
+        if tools:
+            groups.append((p, tools))
+    return tuple(groups)
+
+
+def pillar_for_route(path: str) -> Pillar | None:
+    """Encuentra el pilar al que pertenece una ruta base."""
+    clean_path = path.split("?")[0].rstrip("/")
+    if not clean_path:
+        clean_path = "/"
+    for p in PILLARS:
+        if clean_path == p.prefix or clean_path.startswith(p.prefix + "/"):
+            return p
+    return None
 
 
 def breadcrumb(route: str) -> tuple[tuple[str, str | None], ...]:

@@ -1,7 +1,7 @@
 """Vista dedicada para la Calculadora de Números Romanos en Scalaris."""
 from collections import Counter
 from nicegui import ui
-from src.frontend.components.navbar import create_navbar
+from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from src.backend.solvers.numeric_systems.roman_calculator import RomanCalculator, RomanNumeralError
@@ -15,7 +15,7 @@ class RomanCalculatorUI:
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route=route_of('romanos'))
+        create_app_shell(self, active_route=route_of('romanos'))
 
         with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
             # --- PANEL DE ENTRADA ---

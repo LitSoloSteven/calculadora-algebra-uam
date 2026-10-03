@@ -39,6 +39,7 @@ _HEAD_HTML = """
     <!-- Scripts de interactividad y tema -->
     <script src="/assets/js/theme.js"></script>
     <script src="/assets/js/app.js"></script>
+    <script src="/assets/js/hub.js"></script>
 """
 
 def setup_theme():

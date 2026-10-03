@@ -1,6 +1,6 @@
 """Vista principal de Sistemas Lineales (Gauss / Gauss-Jordan) en Scalaris."""
 from nicegui import ui
-from src.frontend.components.navbar import create_navbar
+from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.equation_grid import EquationGrid
 from src.frontend.components.calculator import CalculatorPanel
@@ -38,14 +38,15 @@ class LinearSystemsUI(
         self.preview_container = None
         self.historial_container = None
 
-    def build(self):
+    def build(self, handoff_token: str = ''):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route=route_of('sistemas'))
+        create_app_shell(self, active_route=route_of('sistemas'))
         self.grid.inject_scripts()
         self.grid.on_data_change = self._on_grid_change
         self.calculator.inject_scripts()
 
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
+            self.handoff_slot = ui.column().classes('w-full')
             # Header con Título y Selectores
             with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
                 # Selector de Modo (Matriz/Ecuaciones)
@@ -146,3 +147,26 @@ class LinearSystemsUI(
             self.update_sync_buttons()
 
         self.ai_panel.build()
+
+        from src.frontend.components.handoff import consume_matrix, render_handoff_notice, clean_handoff_url
+        res = consume_matrix(handoff_token, max_n=10)
+        if res is not None:
+            with self.handoff_slot:
+                n = len(res.data) if res.data else 0
+                render_handoff_notice(res, f"Cargamos A ({n}×{n}) desde {res.source_name}. El vector b está vacío: complétalo y presiona Resolver.")
+            if res.status == 'ok':
+                if self.mode_tabs.value == 'Ecuaciones':
+                    self.mode_tabs.set_value('Matriz')
+                self.grid.clear()
+                self.grid.m = self.grid.n = n
+                self.grid._cache_A.clear()
+                self.grid._cache_b.clear()
+                for i, row in enumerate(res.data):
+                    for j, val in enumerate(row):
+                        if val != "0":
+                            self.grid._cache_A[(i, j)] = val
+                self.grid.entradas_A.clear()
+                self.grid.entradas_b.clear()
+                self.grid.generar_cuadricula()
+                self._on_grid_change()
+            clean_handoff_url()

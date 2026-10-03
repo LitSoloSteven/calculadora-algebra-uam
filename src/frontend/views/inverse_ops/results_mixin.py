@@ -340,14 +340,21 @@ class InverseOpsResultsMixin:
                     text_to_copy = "\n".join(lines)
                     ui.run_javascript(f"navigator.clipboard.writeText({json.dumps(text_to_copy)});")
                     ui.notify('A⁻¹ copiada al portapapeles', type='positive')
+                    
+                def ir_a_sistemas():
+                    if n > 10:
+                        ui.notify(f"Sistemas de ecuaciones admite hasta 10×10; tu matriz es de {n}×{n}.", type='warning')
+                        return
+                    data = [[format_fraction_str(result['inverse'].get(r, c)) for c in range(n)] for r in range(n)]
+                    from src.frontend.components.handoff import put_matrix, handoff_url
+                    from src.frontend.navigation import route_of
+                    token = put_matrix('inversa', data)
+                    ui.navigate.to(handoff_url(route_of('sistemas'), token))
 
                 with ui.row().classes('w-full justify-between items-center mt-4 flex-wrap gap-2'):
-                    ui.button(
-                        'Copiar A⁻¹',
-                        icon='content_copy',
-                        on_click=copiar_inversa,
-                        color=None,
-                    ).classes('btn-ghost text-xs').props('ripple=false')
+                    with ui.row().classes('gap-2'):
+                        ui.button('Copiar A⁻¹', icon='content_copy', on_click=copiar_inversa, color=None).classes('btn-ghost text-xs').props('ripple=false')
+                        ui.button('Resolver A·x = b con esta A', on_click=ir_a_sistemas, color=None).classes('btn-ghost text-xs').props('ripple=false')
 
                 with ui.expansion('Ver A⁻¹ en decimales (≈4 cifras)', icon='numbers').classes(
                     'w-full mt-3 panel-card'
