@@ -213,3 +213,53 @@ class LinearSystemsUI(
                 ctx.result["message"] = msg
                 
         return ctx
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, InvalidCell
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            if self.mode_tabs.value == 'Matriz':
+                for (r, c), val in self.grid._cache_A.items():
+                    if val.strip() and val.strip() not in ('0', '0.0'):
+                        try:
+                            float(val)
+                        except ValueError:
+                            try:
+                                from fractions import Fraction
+                                Fraction(val)
+                            except ValueError:
+                                invalid = InvalidCell(label=f"A[{r+1},{c+1}]")
+                                break
+                if not invalid:
+                    for r, val in self.grid._cache_b.items():
+                        if val.strip() and val.strip() not in ('0', '0.0'):
+                            try:
+                                float(val)
+                            except ValueError:
+                                try:
+                                    from fractions import Fraction
+                                    Fraction(val)
+                                except ValueError:
+                                    invalid = InvalidCell(label=f"b[{r+1}]")
+                                    break
+                                    
+            if self.grid.m > self.grid.n:
+                flags.add("m_gt_n")
+                
+            res = getattr(self, 'last_result', None)
+            if res and not getattr(self.get_ai_context(), 'stale', True):
+                st = res.get("status")
+                if st == "UNIQUE_SOLUTION": state = "unique"
+                elif st == "INFINITE": state = "infinite"
+                elif st == "NO_SOLUTION": state = "no_solution"
+                
+                steps = res.get("intermediate_steps_latex", [])
+                if any(step.get("descripcion", "").startswith("Intercambio") for step in steps):
+                    flags.add("swap")
+                    
+            return Signals(tool="sistemas", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None

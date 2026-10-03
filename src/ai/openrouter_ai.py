@@ -47,7 +47,7 @@ class OpenRouterIA:
     # Inyección de dependencias para testing
     _time_monotonic = time.monotonic
     _time_sleep = time.sleep
-    _requests_post = requests.post
+    _requests_post = staticmethod(requests.post)
 
     def __init__(self):
         self.api_key = os.getenv("OPENROUTER_API_KEY")

@@ -288,6 +288,9 @@ class InverseOpsResultsMixin:
                     elif result.get('matrix_a'):
                         ui.html(matrix_table_html(result['matrix_a']))
 
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
+
                 if result.get('steps'):
                     self._render_steps_section(result)
                 return
@@ -307,6 +310,9 @@ class InverseOpsResultsMixin:
                 ui.label(f"{result['stats']['total']} pasos").classes('text-sec')
                 ui.label(f"{result['stats']['intercambios']} intercambios").classes('text-sec')
                 ui.label(f"calculado en {result['elapsed_s']:.2f} s").classes('text-sec')
+
+            if getattr(self, 'ai_panel', None):
+                self.ai_panel.render_inline_chips()
 
             # 3.3 Tarjeta Resultado A⁻¹
             with ui.column().classes('panel-card p-6 w-full mb-6'):

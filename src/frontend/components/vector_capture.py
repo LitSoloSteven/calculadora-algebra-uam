@@ -24,6 +24,7 @@ class VectorCapturePanel:
 
     def inject_scripts(self):
         ui.add_head_html('<script src="/assets/js/vector_capture.js"></script>')
+        ui.add_head_html('<script src="/assets/js/square_matrix.js"></script>')
 
     def get_next_available_name(self):
         if self.first_vector_fixed_label and self.first_vector_fixed_label not in self.vectors:
@@ -144,7 +145,7 @@ class VectorCapturePanel:
                     def update_cache(e, idx=i, vec_name=name):
                         self.vectors[vec_name]['cache'][idx] = e.value
                         
-                    ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px; flex-shrink: 0;').props(f'data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
+                    ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px; flex-shrink: 0;').props(f'id="{self.panel_id}_{name}_idx{i}" data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
 
     def _update_all_grids(self):
         for name in self.vectors:
@@ -240,3 +241,11 @@ class VectorCapturePanel:
         for v in self.vectors.values():
             v['cache'].clear()
         self._update_all_grids()
+
+    def flash_cell(self, idx: int, r: int):
+        if idx < 0 or idx >= len(self.vectors):
+            return
+        name = list(self.vectors.keys())[idx]
+        if r < 0 or r >= self.dim:
+            return
+        ui.run_javascript(f"if(window.flashElement) flashElement('{self.panel_id}_{name}_idx{r}');")

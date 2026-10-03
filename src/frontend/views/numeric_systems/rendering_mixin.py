@@ -65,6 +65,12 @@ class NumericSystemsRenderingMixin:
             self._render_bits(res['binario'].replace('-', ''))
             self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
             self._mostrar_procedimiento()
+            
+            if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
+                self.chips_container.clear()
+                with self.chips_container:
+                    self.ai_panel.render_inline_chips()
+                    
             return True
         except asyncio.CancelledError:
             pass
@@ -86,6 +92,8 @@ class NumericSystemsRenderingMixin:
         if self.bits_container:
             self.bits_container.style('opacity: 0;')
         self.pasos_container.classes('hidden')
+        if getattr(self, 'chips_container', None):
+            self.chips_container.clear()
 
     def _render_bits(self, bin_str):
         self.bits_container.clear()

@@ -5,6 +5,8 @@ import threading
 from nicegui import ui, run
 from src.frontend.components.icons import icon_svg
 from src.frontend.components.glosa_render import render_glosa_text
+from src.frontend.components.glosa_chips import render_chip_row, render_followups
+from src.frontend.suggestions import suggest, FOLLOW_UPS, chips_active
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,10 @@ class GlosaDockMixin:
             # Footer
             with ui.column().classes('w-full p-4 border-t border-[var(--border-input)] bg-[var(--bg-elevated)] flex-shrink-0'):
                 self.render_context_pill()
+                
+                self.dock_chips_container = ui.column().classes('w-full mt-2')
+                self._last_chips_ids = ()
+                self._render_dock_chips()
                 
                 with ui.row().classes('w-full items-end gap-2 no-wrap mt-2'):
                     self.input_field = ui.textarea(placeholder='Pregunta algo sobre tu ejercicio...').classes('flex-1 glosa-input').props('borderless autogrow').style('max-height: 120px; min-width: 0;')
@@ -91,6 +97,39 @@ class GlosaDockMixin:
         if hasattr(self, '_ctx_version'):
             self._ctx_version += 1
         self.render_context_pill.refresh()
+        self._render_dock_chips()
+
+    def _render_dock_chips(self):
+        if not hasattr(self, 'dock_chips_container') or not self.dock_chips_container:
+            return
+        if not chips_active():
+            self.dock_chips_container.clear()
+            return
+            
+        signals = None
+        if hasattr(self.active_ui, 'get_ai_signals'):
+            try:
+                signals = self.active_ui.get_ai_signals()
+            except Exception as e:
+                logger.error(f"Error en get_ai_signals: {e}")
+                
+        enabled = self._storage.get('ai_ctx_enabled', True)
+        suggs = suggest(signals, limit=3, include_specific=enabled)
+        ids = tuple(s.id for s in suggs)
+        
+        if ids == self._last_chips_ids and not getattr(self, '_force_chips_render', False):
+            return
+            
+        self._last_chips_ids = ids
+        self._force_chips_render = False
+        
+        self.dock_chips_container.clear()
+        if not suggs:
+            return
+            
+        with self.dock_chips_container:
+            is_sending = getattr(self, '_is_sending', False)
+            render_chip_row(suggs, self.ask_suggestion, variant='dock', disabled=is_sending)
 
     def render_chat_dock(self):
         if not hasattr(self, 'chat_area') or not self.chat_area: return
@@ -105,8 +144,8 @@ class GlosaDockMixin:
                     ui.label('Revisar una operación').classes('fs-small')
                     ui.label('Aclarar un concepto').classes('fs-small')
             else:
-                for msg in self.chat_history:
-                    self._render_message_dock(msg)
+                for i, msg in enumerate(self.chat_history):
+                    self._render_message_dock(msg, is_last=(i == len(self.chat_history) - 1))
                     
         self._scroll_to_bottom()
 
@@ -136,6 +175,11 @@ class GlosaDockMixin:
                     html_content = render_glosa_text(text)
                     ui.html(html_content).classes('w-full')
                     
+            if not error and not sent and chips_active() and kwargs.get('is_last', False):
+                self.followups_container = ui.column().classes('w-full mt-2')
+                with self.followups_container:
+                    render_followups(FOLLOW_UPS, self.ask_followup, disabled=getattr(self, '_is_sending', False))
+                    
     def _retry_last_dock(self):
         last_user = None
         for m in reversed(self.chat_history):
@@ -149,47 +193,95 @@ class GlosaDockMixin:
         self.render_chat_dock()
         
         if last_user:
-            asyncio.create_task(self._do_send_dock(last_user.get('text'), is_retry=True))
+            asyncio.create_task(self._submit(
+                last_user.get('text', ''),
+                cacheable=last_user.get('cacheable', False),
+                simpler=last_user.get('simpler', False),
+                is_retry=True
+            ))
 
     async def send_message_dock(self):
-        if getattr(self, '_is_sending', False): return
-        
+        text = self.input_field.value
+        await self._submit(text)
+
+    def ask_suggestion(self, s, from_keyboard=False):
+        if getattr(self, '_is_sending', False):
+            ui.notify('Glosa está respondiendo. Espera a que termine.', type='warning')
+            return
+            
+        if s.focus and hasattr(self.active_ui, 'focus_cell'):
+            self.active_ui.focus_cell(s.focus)
+            
+        from src.frontend import flags
+        if flags.dock_enabled() and not getattr(self, 'is_open', False):
+            if from_keyboard:
+                ui.run_javascript("if(window.scalarisGlosa) window.scalarisGlosa.open({instant: true, trigger: 'keyboard'});")
+            else:
+                ui.run_javascript("if(window.scalarisGlosa) window.scalarisGlosa.open();")
+                
+        if from_keyboard and self.input_field and not s.focus:
+            ui.run_javascript("setTimeout(() => { const el = document.querySelector('.glosa-input textarea'); if(el) el.focus(); }, 100);")
+            
+        asyncio.create_task(self._submit(s.text, cacheable=True, from_keyboard=from_keyboard))
+
+    def ask_followup(self, f, from_keyboard=False):
+        if getattr(self, '_is_sending', False):
+            ui.notify('Glosa está respondiendo. Espera a que termine.', type='warning')
+            return
+            
+        if from_keyboard and self.input_field:
+            ui.run_javascript("setTimeout(() => { const el = document.querySelector('.glosa-input textarea'); if(el) el.focus(); }, 100);")
+            
+        asyncio.create_task(self._submit(f.question, cacheable=False, simpler=f.simpler, from_keyboard=from_keyboard))
+
+    async def _submit(self, text, *, cacheable=False, simpler=False, from_keyboard=False, is_retry=False):
+        if getattr(self, '_is_sending', False):
+            return
+            
         now = time.monotonic()
         if now - getattr(self, '_last_send_time', 0) < 1.5:
             ui.notify('Espera un momento antes de enviar otra pregunta.', type='warning')
             return
             
-        text = self.input_field.value
         if not text or not text.strip(): return
-        
         full_text = text.strip()
-        self.input_field.value = ''
         
-        msg = {"text": full_text, "sent": True}
-        self.chat_history.append(msg)
-        
-        with self.chat_area:
-            self._render_message_dock(msg)
+        if self.input_field:
+            self.input_field.value = ''
+            self.input_field.disable()
             
-        self._scroll_to_bottom()
-        await self._do_send_dock(full_text, is_retry=False)
-        
-    async def _do_send_dock(self, user_text, is_retry=False):
+        if not is_retry:
+            msg = {"text": full_text, "sent": True, "cacheable": cacheable, "simpler": simpler}
+            self.chat_history.append(msg)
+            
         self._is_sending = True
         self._last_send_time = time.monotonic()
-        self.input_field.disable()
         
-        ctx_block = self._collect_context()
+        self._force_chips_render = True
+        self._render_dock_chips()
         
-        from src.ai.prompts import trim_history
-        history = trim_history(self.chat_history)
+        if hasattr(self, 'followups_container') and self.followups_container:
+            try:
+                self.followups_container.delete()
+                self.followups_container = None
+            except Exception: pass
         
         with self.chat_area:
+            if not is_retry:
+                from src.frontend import flags
+                if flags.dock_enabled():
+                    self._render_message_dock(self.chat_history[-1], is_last=False)
+                else:
+                    self._render_message(self.chat_history[-1], idx=len(self.chat_history)-1)
             typing_row = ui.row().classes('w-full justify-start mb-0')
             with typing_row:
                 with ui.column().classes('p-3').style('background: var(--bg-panel); color: var(--text-sec); border-radius: 16px 16px 16px 4px; box-shadow: none; max-width: 85%;'):
                     ui.html('<div class="glosa-typing-indicator" role="status" aria-label="Glosa está escribiendo"><span>.</span><span>.</span><span>.</span></div>')
         self._scroll_to_bottom()
+        
+        ctx_block = self._collect_context()
+        from src.ai.prompts import trim_history
+        history = trim_history(self.chat_history)
         
         self._request_counter = getattr(self, '_request_counter', 0) + 1
         current_req = self._request_counter
@@ -217,13 +309,15 @@ class GlosaDockMixin:
             from src.ai.openrouter_ai import AIResult, AIErrorKind
             result = await run.io_bound(
                 self.motor_ia.ask, 
-                user_text, 
+                full_text, 
                 history=history, 
                 context_block=ctx_block, 
-                cancel=cancel_event
+                cancel=cancel_event,
+                cacheable=cacheable,
+                simpler=simpler
             )
         except Exception as e:
-            logger.exception("Error en _do_send_dock")
+            logger.exception("Error en _submit")
             result = AIResult(False, str(e), kind=AIErrorKind.SERVICE)
             
         if self._request_counter == current_req:
@@ -240,7 +334,11 @@ class GlosaDockMixin:
                 
             self.chat_history.append(msg)
             with self.chat_area:
-                self._render_message_dock(msg)
+                from src.frontend import flags
+                if flags.dock_enabled():
+                    self._render_message_dock(msg, is_last=True)
+                else:
+                    self._render_message(msg, idx=len(self.chat_history)-1)
             self._scroll_to_bottom()
             
     def _finish_send(self, typing_row, cancel_btn_row):
@@ -251,4 +349,7 @@ class GlosaDockMixin:
             if cancel_btn_row: cancel_btn_row.delete()
         except: pass
         self._is_sending = False
-        self.input_field.enable()
+        if getattr(self, 'input_field', None):
+            self.input_field.enable()
+        self._force_chips_render = True
+        self._render_dock_chips()

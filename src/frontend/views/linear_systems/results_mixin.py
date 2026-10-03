@@ -266,6 +266,9 @@ class LinearSystemsResultsMixin:
                             else:
                                 ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main">$$ {latex_var} = {val} $$</div>')
 
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
+
                 if respuesta.get("intermediate_steps_latex"):
                     ui.label('Procedimiento paso a paso').classes('font-bold mt-6 text-xl text-main')
                     with ui.expansion('Ver pasos matriciales', icon='visibility').classes('w-full panel-card mt-2 timeline-expansion').props('header-class="font-bold text-main"'):

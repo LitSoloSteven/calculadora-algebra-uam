@@ -173,88 +173,30 @@ class AIPanel(GlosaDockMixin):
 
     async def send_message(self):
         text = self.input_field.value
-        if not text or not text.strip(): return
+        await self._submit(text)
         
-        now = time.monotonic()
-        if now - self._last_send_time < 1.5:
-            ui.notify('Espera un momento antes de enviar otra pregunta.', type='warning')
+    def render_inline_chips(self, limit=2):
+        from src.frontend.suggestions import chips_active, suggest
+        if not chips_active() or not hasattr(self.active_ui, 'get_ai_signals'):
             return
-        
-        if getattr(self, '_is_sending', False): return
-        
-        full_text = text.strip()
-        
-        ctx_block = self.attached_context
-        if not ctx_block:
-            ctx_block = self._collect_context()
-        self.clear_context()
-            
-        self.input_field.value = ''
-        
-        self.chat_history.append({"text": full_text, "sent": True})
-        self.render_chat()
-        
-        await self._do_send_legacy(full_text, ctx_block)
-        
-    async def _do_send_legacy(self, full_text, ctx_block):
-        self._is_sending = True
-        self._last_send_time = time.monotonic()
-        
-        with self.chat_area:
-            typing_row = ui.row().classes('w-full justify-start mb-4')
-            with typing_row:
-                with ui.column().classes('p-3').style('background: var(--bg-panel); color: var(--text-sec); border-radius: 16px 16px 16px 4px; box-shadow: var(--elev-1); max-width: 85%;'):
-                    self._render_typing_indicator()
-                
-        ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
-        
-        cancel_event = threading.Event()
-        self._request_counter = getattr(self, '_request_counter', 0) + 1
-        current_req = self._request_counter
-        cancel_btn_row = None
-        
-        async def show_cancel():
-            await asyncio.sleep(5)
-            if self._request_counter == current_req and getattr(self, '_is_sending', False):
-                with self.chat_area:
-                    nonlocal cancel_btn_row
-                    cancel_btn_row = ui.row().classes('w-full justify-center mt-2')
-                    with cancel_btn_row:
-                        ui.button('Cancelar', on_click=lambda: cancel_req(current_req)).classes('btn-ghost text-xs text-sec')
-                ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
-                        
-        def cancel_req(req_id):
-            if self._request_counter == req_id:
-                cancel_event.set()
-                
-        ui.timer(0, show_cancel, once=True)
             
         try:
-            from src.ai.openrouter_ai import AIErrorKind
-            result = await run.io_bound(self.motor_ia.ask, full_text, history=trim_history(self.chat_history), context_block=ctx_block, cancel=cancel_event)
+            signals = self.active_ui.get_ai_signals()
         except Exception as e:
-            from src.ai.openrouter_ai import AIResult
-            result = AIResult(False, f"Error al procesar tu mensaje: {e}")
+            logger.error(f"Error en get_ai_signals inline: {e}")
+            signals = None
             
-        if self._request_counter == current_req:
-            try:
-                typing_row.delete()
-            except Exception: pass
-            try:
-                if cancel_btn_row: cancel_btn_row.delete()
-            except Exception: pass
+        if not signals:
+            return
             
-            self._is_sending = False
+        enabled = self._storage.get('ai_ctx_enabled', True)
+        suggs = suggest(signals, limit=limit, include_specific=enabled)
+        if not suggs:
+            return
             
-            if result.kind == "CANCELLED":
-                return
-                
-            msg = {"text": result.text, "sent": False, "error": not result.ok, "animate": True}
-            if not result.ok:
-                msg["retry"] = result.kind not in ("NO_KEY", "AUTH")
-                
-            self.chat_history.append(msg)
-            self.render_chat()
+        from src.frontend.components.glosa_chips import render_chip_row
+        is_sending = getattr(self, '_is_sending', False)
+        render_chip_row(suggs, self.ask_suggestion, variant='inline', disabled=is_sending)
 
     def build(self):
         if flags.dock_enabled():

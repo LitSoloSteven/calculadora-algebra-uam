@@ -223,3 +223,48 @@ class VectorOpsUI(VectorOpsResultsMixin):
                 ctx.result["is_linear_combination"] = res["is_linear_combination"]
                 
         return ctx
+
+    def focus_cell(self, focus):
+        if hasattr(self.vector_panel, 'flash_cell'):
+            self.vector_panel.flash_cell(focus[0], focus[1])
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, InvalidCell
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            orients = set()
+            for idx, (name, vec) in enumerate(self.vector_panel.vectors.items()):
+                orients.add(vec['orientation'])
+                for r in range(self.vector_panel.dim):
+                    val = vec['cache'].get(r, '')
+                    if val.strip() and val.strip() not in ('0', '0.0'):
+                        try:
+                            float(val)
+                        except ValueError:
+                            try:
+                                from fractions import Fraction
+                                Fraction(val)
+                            except ValueError:
+                                invalid = InvalidCell(label=f"{name}[{r+1}]", focus=(idx, r))
+                                break
+                if invalid: break
+                
+            if 'row' in orients and 'column' in orients:
+                flags.add("orient_mix")
+                
+            if self.active_op == 'scalar' and self.scalar_value.strip().startswith('-'):
+                flags.add("neg_scalar")
+                
+            res = getattr(self, 'current_result', None)
+            if res and not getattr(self.get_ai_context(), 'stale', True):
+                st = res.get("status")
+                if st == "UNIQUE": state = "unique"
+                elif st == "INFINITE": state = "infinite"
+                elif st == "NO_SOLUTION": state = "no_solution"
+                
+            return Signals(tool="vectores", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None

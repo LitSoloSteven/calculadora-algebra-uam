@@ -90,6 +90,8 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
                     'Convertir', on_click=self._convertir_btn, color=None
                 ).classes('btn-primary w-full py-3 text-lg mt-2 font-bold')
 
+                self.chips_container = ui.column().classes('w-full mt-2')
+
             # --- RESULTADOS (Tarjetas 2x2) ---
             with ui.element('div').classes('layout-grid-2 mt-6'):
                 self._crear_tarjeta_resultado('decimal', 'Decimal', '10')
@@ -141,3 +143,40 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
             }
             
         return ctx
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, InvalidCell
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            val = self.input_valor.value.strip() if self.input_valor.value else ""
+            base_from = self.tabs_origen.value
+            
+            if val and base_from:
+                from src.backend.utils.validators import validate_number_for_base
+                # validate_number_for_base expects (val, base)
+                base_map = {'binario': 2, 'octal': 8, 'decimal': 10, 'hexadecimal': 16}
+                num_base = base_map.get(base_from, 10)
+                success, _, _ = validate_number_for_base(val, num_base)
+                if not success:
+                    invalid = InvalidCell(label="el número")
+                    
+            if getattr(self, 'tiene_resultado', False) and not getattr(self.get_ai_context(), 'stale', True):
+                state = "result"
+                
+                res = getattr(self, 'resultados_completos', {})
+                pasos = res.get("pasos", [])
+                
+                has_div = any(p.get("tipo") == "division_sucesiva" for p in pasos)
+                if has_div:
+                    flags.add("division")
+                    
+                logs_str = str(pasos).lower()
+                if "hexadecimal" in logs_str or "hex" in logs_str or "16" in logs_str or "bloques de 4" in logs_str:
+                    flags.add("hex")
+                    
+            return Signals(tool="bases", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None

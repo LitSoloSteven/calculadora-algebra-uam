@@ -27,6 +27,8 @@ class VectorOpsResultsMixin:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-6 w-fit'):
                     ui.icon('close', size='sm')
                     ui.label(msg).classes('font-bold')
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
                 return
 
             if self.active_op == 'lin_comb':
@@ -42,6 +44,9 @@ class VectorOpsResultsMixin:
             with ui.row().classes(f'items-center gap-2 px-4 py-2 {badge_class} mb-6 w-fit'):
                 ui.icon(icon, size='sm')
                 ui.label(msg).classes('font-bold')
+
+            if getattr(self, 'ai_panel', None):
+                self.ai_panel.render_inline_chips()
 
             if self.active_op in ['add_sub', 'scalar']:
                 self.render_steps_and_result(res)

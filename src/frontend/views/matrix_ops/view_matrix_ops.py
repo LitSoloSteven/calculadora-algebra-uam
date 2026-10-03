@@ -71,10 +71,16 @@ class MatrixOpsUI:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                     ui.icon('close', size='sm')
                     ui.label(respuesta.get("message", "Error desconocido")).classes('font-bold')
+                
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
             else:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-success mb-6 w-fit'):
                     ui.icon('check', size='sm')
                     ui.label(respuesta.get("message", "Éxito")).classes('font-bold')
+
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
 
                 if respuesta.get("segment_steps"):
                     ui.label('Evaluación paso a paso:').classes('font-bold text-xl text-main mb-4')
@@ -197,3 +203,47 @@ class MatrixOpsUI:
                 ctx.result["final_variable"] = res["final_variable"]
                 
         return ctx
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, InvalidCell
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            expr = self.input_expresion.value.strip() if self.input_expresion else ""
+            if self.capture_panel.matrices and not any(v.strip() and v.strip() not in ('0', '0.0') for v in self.capture_panel.matrices[0].cache.values()):
+                state = "empty"
+                
+            for mat in self.capture_panel.matrices:
+                for (r, c), val in mat.cache.items():
+                    if val.strip() and val.strip() not in ('0', '0.0'):
+                        try:
+                            float(val)
+                        except ValueError:
+                            try:
+                                from fractions import Fraction
+                                Fraction(val)
+                            except ValueError:
+                                invalid = InvalidCell(label=f"{mat.name}[{r+1},{c+1}]")
+                                break
+                if invalid: break
+                    
+            res = getattr(self, 'last_result', None)
+            if res and not getattr(self.get_ai_context(), 'stale', True):
+                st = res.get("status")
+                if st == "OK":
+                    state = "ok"
+                    import re
+                    if re.search(r'[A-F]\s*\*?\s*[A-F]', expr):
+                        flags.add("has_product")
+                elif st == "ERROR":
+                    msg = res.get("message", "").lower()
+                    if "dimensi" in msg or "tamaño" in msg:
+                        state = "dim_error"
+                    else:
+                        state = "error"
+                        
+            return Signals(tool="matrices", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None

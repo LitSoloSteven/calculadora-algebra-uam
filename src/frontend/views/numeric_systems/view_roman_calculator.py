@@ -77,6 +77,8 @@ class RomanCalculatorUI:
                         'color: var(--error); margin-left: 8px; min-height: 20px;'
                     )
 
+                self.chips_container = ui.column().classes('w-full mt-2')
+
                 # Botón de cálculo
                 ui.button(
                     'CALCULAR', on_click=lambda: operar_romanos(), color=None
@@ -152,6 +154,11 @@ class RomanCalculatorUI:
                     res_rom = res.resultado_romano
                     res_dec = res.resultado_decimal
                     self.last_result = res
+                    
+                    if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
+                        self.chips_container.clear()
+                        with self.chips_container:
+                            self.ai_panel.render_inline_chips()
 
                     with resultado_container:
                         # ----------------------------------------------------
@@ -317,6 +324,10 @@ class RomanCalculatorUI:
 
                 except RomanNumeralError as err:
                     lbl_error.text = str(err)
+                    if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
+                        self.chips_container.clear()
+                        with self.chips_container:
+                            self.ai_panel.render_inline_chips()
                 except Exception as err:
                     lbl_error.text = str(err)
 
@@ -351,5 +362,32 @@ class RomanCalculatorUI:
             return ctx
             
         self.get_ai_context = get_ai_context
+        
+        def get_ai_signals():
+            from src.frontend.suggestions import Signals, InvalidCell
+            try:
+                state = "none"
+                flags = set()
+                invalid = None
+                
+                import re
+                regex = r'^(M{0,3})(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$'
+                
+                v_a = (input_a.value or "").strip().upper()
+                v_b = (input_b.value or "").strip().upper()
+                
+                if v_a and not re.match(regex, v_a):
+                    invalid = InvalidCell(label="Operando A")
+                elif v_b and not re.match(regex, v_b):
+                    invalid = InvalidCell(label="Operando B")
+                    
+                if getattr(self, 'last_result', None) and not getattr(self.get_ai_context(), 'stale', True):
+                    state = "result"
+                    
+                return Signals(tool="romanos", state=state, flags=frozenset(flags), invalid=invalid)
+            except Exception:
+                return None
+                
+        self.get_ai_signals = get_ai_signals
 
         self.ai_panel.build()
