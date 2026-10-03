@@ -151,6 +151,7 @@ class RomanCalculatorUI:
                     dec_b = getattr(res, 'operando_b_decimal', None)
                     res_rom = res.resultado_romano
                     res_dec = res.resultado_decimal
+                    self.last_result = res
 
                     with resultado_container:
                         # ----------------------------------------------------
@@ -318,5 +319,37 @@ class RomanCalculatorUI:
                     lbl_error.text = str(err)
                 except Exception as err:
                     lbl_error.text = str(err)
+
+        def get_ai_context():
+            from src.ai.context import AIContext, sanitize_user_string
+            val_a = input_a.value
+            val_b = input_b.value
+            if not val_a and not val_b:
+                return AIContext("romanos", "Números Romanos", "Calculadora Romana", {}, empty=True)
+            
+            ctx = AIContext(
+                "romanos",
+                "Números Romanos",
+                f"Operación: {tabs_op.value}",
+                {
+                    "operando_a": sanitize_user_string(val_a, 32) if val_a else "",
+                    "operando_b": sanitize_user_string(val_b, 32) if val_b else "",
+                    "operacion": tabs_op.value
+                }
+            )
+            if getattr(self, 'last_result', None):
+                ctx.result = {
+                    "status": "SUCCESS",
+                    "resultado_romano": self.last_result.resultado_romano,
+                    "resultado_decimal": self.last_result.resultado_decimal
+                }
+            elif lbl_error.text:
+                ctx.result = {
+                    "status": "ERROR",
+                    "message": lbl_error.text
+                }
+            return ctx
+            
+        self.get_ai_context = get_ai_context
 
         self.ai_panel.build()

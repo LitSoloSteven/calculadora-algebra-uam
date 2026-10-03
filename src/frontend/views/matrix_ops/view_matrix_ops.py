@@ -60,7 +60,7 @@ class MatrixOpsUI:
 
         respuesta_json_str = MatrixOpsController.process_expression(expresion, matrices_json)
         respuesta = json.loads(respuesta_json_str)
-
+        self.last_result = respuesta
         
         self.contenedor_resultados.clear()
 
@@ -162,3 +162,38 @@ class MatrixOpsUI:
                     self.reset_resultados()
                     
         self.ai_panel.build()
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string
+        
+        try:
+            mats = self.capture_panel.get_matrices_dict()
+        except Exception:
+            mats = {}
+            
+        empty = not bool(mats) and not bool(self.input_expresion.value)
+        if empty:
+            return AIContext("matrix_ops", "Operaciones con Matrices", "Operaciones", {}, empty=True)
+            
+        input_data = {}
+        for k, v in mats.items():
+            if "data" in v:
+                # v['data'] is list of strings? get_matrices_dict returns numeric strings.
+                sanitized_data = [[sanitize_user_string(c, 32) for c in r] for r in v["data"]]
+                input_data[k] = describe_matrix(sanitized_data)
+                
+        if self.input_expresion.value:
+            input_data["expresion"] = sanitize_user_string(self.input_expresion.value, 200)
+            
+        ctx = AIContext("matrix_ops", "Operaciones con Matrices", "Matrices y Expresión", input_data)
+        
+        if getattr(self, 'last_result', None):
+            res = self.last_result
+            ctx.result = {
+                "status": res.get("status", "ERROR"),
+                "message": res.get("message", "")
+            }
+            if res.get("final_variable"):
+                ctx.result["final_variable"] = res["final_variable"]
+                
+        return ctx

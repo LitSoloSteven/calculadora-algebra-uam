@@ -165,8 +165,51 @@ class LinearSystemsUI(
                     for j, val in enumerate(row):
                         if val != "0":
                             self.grid._cache_A[(i, j)] = val
-                self.grid.entradas_A.clear()
-                self.grid.entradas_b.clear()
                 self.grid.generar_cuadricula()
                 self._on_grid_change()
             clean_handoff_url()
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string
+        empty = True
+        label = "Sistema Lineal"
+        input_data = {}
+        
+        if self.mode_tabs.value == 'Ecuaciones':
+            lineas = [sanitize_user_string(inp.value, 120) for inp in self.ecuaciones_inputs if inp.value]
+            if lineas:
+                empty = False
+                label = f"Sistema de {len(lineas)} ecuaciones"
+                input_data = {"ecuaciones": lineas}
+        else:
+            matrix_A_vals, vector_b_vals = self.grid.get_matrix_data()
+            if matrix_A_vals and any(any(c for c in r if str(c).strip() not in ('0', '', '0.0')) for r in matrix_A_vals):
+                empty = False
+                n_eq = len(matrix_A_vals)
+                n_vars = len(matrix_A_vals[0])
+                label = f"Sistema {n_eq}×{n_vars} (matriz)"
+                
+                # Format to strings
+                data_a = [[sanitize_user_string(c, 32) for c in r] for r in matrix_A_vals]
+                data_b = [[sanitize_user_string(v, 32)] for v in vector_b_vals]
+                
+                input_data = {
+                    "A": describe_matrix(data_a),
+                    "b": describe_matrix(data_b)
+                }
+                
+        if empty:
+            return AIContext("sistemas", "Sistemas Lineales", label, {}, empty=True)
+            
+        ctx = AIContext("sistemas", "Sistemas Lineales", label, input_data)
+        
+        if getattr(self, 'last_result', None):
+            res = self.last_result
+            ctx.result = {
+                "status": res.get("status", "ERROR")
+            }
+            msg = res.get("classification") or res.get("message")
+            if msg:
+                ctx.result["message"] = msg
+                
+        return ctx

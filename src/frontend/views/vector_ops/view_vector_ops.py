@@ -190,3 +190,36 @@ class VectorOpsUI(VectorOpsResultsMixin):
         finally:
             self.btn_calculate.enable()
             self.btn_calculate.props(remove='loading')
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string
+        try:
+            vecs = self.vector_panel.get_vectors_dict()
+        except Exception:
+            vecs = {}
+            
+        empty = not bool(vecs)
+        if empty:
+            return AIContext("vector_ops", "Vectores", "Operaciones Vectoriales", {}, empty=True)
+            
+        input_data = {}
+        for k, v in vecs.items():
+            if "data" in v:
+                sanitized_data = [[sanitize_user_string(str(x), 32)] for x in v["data"]]
+                input_data[k] = describe_matrix(sanitized_data)
+                input_data[k]["orientation"] = v.get("orientation", "column")
+                
+        ctx = AIContext("vector_ops", "Vectores", f"Operación: {self.active_op}", input_data)
+        
+        if getattr(self, 'current_result', None):
+            res = self.current_result
+            ctx.result = {
+                "status": res.get("status", "ERROR"),
+                "message": res.get("message", "")
+            }
+            if res.get("result_vector"):
+                ctx.result["result_vector"] = res["result_vector"]
+            if res.get("is_linear_combination") is not None:
+                ctx.result["is_linear_combination"] = res["is_linear_combination"]
+                
+        return ctx

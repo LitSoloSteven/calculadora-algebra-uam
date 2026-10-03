@@ -1,5 +1,7 @@
 import logging
 import asyncio
+import time
+import threading
 from nicegui import ui, run
 from src.frontend.components.icons import icon_svg
 from src.frontend.components.glosa_render import render_glosa_text
@@ -22,7 +24,6 @@ class GlosaDockMixin:
                         ui.label('Notas al margen de cada paso').classes('text-sec fs-small truncate w-full').tooltip('Notas al margen de cada paso')
                         
                 with ui.row().classes('gap-2 flex-shrink-0 ml-2'):
-                    ui.button(icon='attach_file', on_click=self.attach_context, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Adjuntar sistema actual"').tooltip('Adjuntar sistema actual')
                     ui.button(icon='delete_sweep', on_click=self.clear_chat, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Limpiar conversación"').tooltip('Limpiar conversación')
                     ui.button(icon='close', color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false data-glosa-close aria-label="Cerrar Glosa"').tooltip('Cerrar')
 
@@ -32,22 +33,64 @@ class GlosaDockMixin:
 
             # Footer
             with ui.column().classes('w-full p-4 border-t border-[var(--border-input)] bg-[var(--bg-elevated)] flex-shrink-0'):
-                self.context_chip = ui.chip('Sistema adjunto', icon='data_object', color=None).props('removable').on('remove', self.clear_context).classes('mb-2 badge-success')
-                self.context_chip.set_visibility(bool(getattr(self, 'attached_context', '')))
+                self.render_context_pill()
                 
-                with ui.row().classes('w-full items-end gap-2 no-wrap'):
+                with ui.row().classes('w-full items-end gap-2 no-wrap mt-2'):
                     self.input_field = ui.textarea(placeholder='Pregunta algo sobre tu ejercicio...').classes('flex-1 glosa-input').props('borderless autogrow').style('max-height: 120px; min-width: 0;')
                     self.input_field.on('keydown.enter.prevent.exact', self.send_message_dock)
                     
                     ui.button(icon='send', on_click=self.send_message_dock, color=None).classes('btn-primary w-10 h-10 p-0 mb-1 flex-shrink-0').props('ripple=false').style('border-radius: 12px;').tooltip('Enviar')
                     
         # FAB
-        ui.button(on_click=self.open, color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-label="Abrir Glosa"').tooltip('Abrir Glosa').style('padding:0;')._props['icon'] = '' # we use html inside
-        with list(ui.context.client.elements.values())[-1]: # it's the fab
+        ui.button(on_click=self.open, color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-label="Abrir Glosa"').tooltip('Abrir Glosa').style('padding:0;')._props['icon'] = ''
+        with list(ui.context.client.elements.values())[-1]:
             ui.html(icon_svg('glosa')).classes('text-accent')
 
         # Scrim
         ui.element('div').classes('glosa-scrim').props('data-glosa-close')
+
+    def _toggle_ctx(self, e):
+        self._storage['ai_ctx_enabled'] = e.value
+        self.render_context_pill.refresh()
+
+    @ui.refreshable
+    def render_context_pill(self):
+        enabled = self._storage.get('ai_ctx_enabled', True)
+        ctx_obj = None
+        if enabled and hasattr(self.active_ui, 'get_ai_context'):
+            try:
+                ctx_obj = self.active_ui.get_ai_context()
+            except Exception:
+                pass
+                
+        if ctx_obj is None or getattr(ctx_obj, 'empty', False):
+            with ui.row().classes('w-full items-center justify-between px-2 py-1').style('background: var(--bg-body); border-radius: 8px;'):
+                ui.label('Sin contexto del ejercicio').classes('text-xs text-sec')
+                ui.switch('Auto-adjuntar', value=enabled, on_change=self._toggle_ctx).classes('text-xs').props('dense size=sm')
+            return
+
+        lbl = f"Viendo: {ctx_obj.label}"
+        if ctx_obj.window_note:
+            lbl += f" ({ctx_obj.window_note})"
+            
+        classes = 'glosa-ctx row items-center gap-2 w-full justify-between px-3 py-2'
+        if ctx_obj.stale:
+            classes += ' desactualizado'
+            
+        with ui.row().classes(classes).style('background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-input);'):
+            with ui.row().classes('items-center gap-2 min-w-0 flex-1'):
+                ui.icon('visibility', size='xs').classes('text-accent')
+                ui.label(lbl).classes('glosa-ctx-label truncate text-xs font-semibold').tooltip(lbl)
+                
+            with ui.row().classes('items-center gap-3 flex-shrink-0'):
+                if ctx_obj.stale:
+                    ui.button('Actualizar', on_click=self.notify_context_changed, color=None).classes('glosa-ctx-btn text-xs px-2 py-0 min-h-0').props('flat ripple=false')
+                ui.switch(value=enabled, on_change=self._toggle_ctx).props('dense size=sm').tooltip('Activar/desactivar contexto')
+
+    def notify_context_changed(self):
+        if hasattr(self, '_ctx_version'):
+            self._ctx_version += 1
+        self.render_context_pill.refresh()
 
     def render_chat_dock(self):
         if not hasattr(self, 'chat_area') or not self.chat_area: return
@@ -55,7 +98,6 @@ class GlosaDockMixin:
         
         with self.chat_area:
             if not self.chat_history:
-                # Estado vacío
                 with ui.column().classes('w-full items-center justify-center h-full gap-4 text-center mt-8 text-sec'):
                     ui.html(icon_svg('glosa')).style('width: 48px; height: 48px; opacity: 0.5;')
                     ui.label('¡Hola! Soy Glosa.').classes('font-bold text-lg text-main')
@@ -75,6 +117,7 @@ class GlosaDockMixin:
         sent = msg.get('sent', False)
         error = msg.get('error', False)
         text = msg.get('text', '')
+        retry = msg.get('retry', False)
         
         align = 'justify-end' if sent else 'justify-start'
         bg = 'var(--btn-primary-bg)' if sent else 'var(--bg-panel)'
@@ -84,8 +127,9 @@ class GlosaDockMixin:
         with ui.row().classes(f'w-full {align} mb-0'):
             if error:
                 with ui.column().classes('p-3 gap-2').style(f'background: var(--badge-err-bg); color: var(--badge-err-text); border-radius: {radius}; box-shadow: none; max-width: 85%;'):
-                    ui.label(text).classes('whitespace-pre-wrap')
-                    ui.button('Reintentar', icon='refresh', on_click=self._retry_last_dock).classes('btn-primary text-xs').props('flat')
+                    ui.label(text).classes('whitespace-pre-wrap text-sm')
+                    if retry:
+                        ui.button('Reintentar', icon='refresh', on_click=self._retry_last_dock).classes('btn-primary text-xs').props('flat')
             else:
                 container = ui.column().classes('p-3').style(f'background: {bg}; color: {color}; border-radius: {radius}; box-shadow: none; max-width: 85%; min-width: 0;')
                 with container:
@@ -105,41 +149,40 @@ class GlosaDockMixin:
         self.render_chat_dock()
         
         if last_user:
-            asyncio.create_task(self._do_send_dock(last_user.get('api_text', last_user.get('text')), is_retry=True))
+            asyncio.create_task(self._do_send_dock(last_user.get('text'), is_retry=True))
 
     async def send_message_dock(self):
         if getattr(self, '_is_sending', False): return
         
+        now = time.monotonic()
+        if now - getattr(self, '_last_send_time', 0) < 1.5:
+            ui.notify('Espera un momento antes de enviar otra pregunta.', type='warning')
+            return
+            
         text = self.input_field.value
         if not text or not text.strip(): return
         
         full_text = text.strip()
-        api_text = full_text
-        if getattr(self, 'attached_context', ""):
-            api_text = f"[Contexto adjunto]\\n{self.attached_context}\\n\\nPregunta: {full_text}"
-            self.clear_context()
-            
         self.input_field.value = ''
         
-        msg = {"text": full_text, "sent": True, "api_text": api_text}
+        msg = {"text": full_text, "sent": True}
         self.chat_history.append(msg)
         
         with self.chat_area:
             self._render_message_dock(msg)
             
         self._scroll_to_bottom()
-        await self._do_send_dock(api_text, is_retry=False)
+        await self._do_send_dock(full_text, is_retry=False)
         
-    async def _do_send_dock(self, api_text, is_retry=False):
+    async def _do_send_dock(self, user_text, is_retry=False):
         self._is_sending = True
+        self._last_send_time = time.monotonic()
         self.input_field.disable()
         
-        MAX_HISTORY = 10
-        history = [
-            {"role": "user" if m.get("sent") else "assistant", "content": m.get("api_text", m.get("text"))}
-            for m in self.chat_history
-            if not m.get("error")
-        ][-MAX_HISTORY:]
+        ctx_block = self._collect_context()
+        
+        from src.ai.prompts import trim_history
+        history = trim_history(self.chat_history)
         
         with self.chat_area:
             typing_row = ui.row().classes('w-full justify-start mb-0')
@@ -151,6 +194,7 @@ class GlosaDockMixin:
         self._request_counter = getattr(self, '_request_counter', 0) + 1
         current_req = self._request_counter
         
+        cancel_event = threading.Event()
         cancel_btn_row = None
         
         async def show_cancel():
@@ -165,24 +209,34 @@ class GlosaDockMixin:
                         
         def cancel_req(req_id):
             if self._request_counter == req_id:
-                self._request_counter += 1
-                self._finish_send(typing_row, cancel_btn_row)
+                cancel_event.set()
                 
         ui.timer(0, show_cancel, once=True)
             
         try:
-            ok, respuesta = await run.io_bound(self.motor_ia.analizar_sistema, api_text, history)
+            from src.ai.openrouter_ai import AIResult, AIErrorKind
+            result = await run.io_bound(
+                self.motor_ia.ask, 
+                user_text, 
+                history=history, 
+                context_block=ctx_block, 
+                cancel=cancel_event
+            )
         except Exception as e:
             logger.exception("Error en _do_send_dock")
-            ok, respuesta = False, str(e)
+            result = AIResult(False, str(e), kind=AIErrorKind.SERVICE)
             
         if self._request_counter == current_req:
             self._finish_send(typing_row, cancel_btn_row)
-            if not ok:
-                msg = {"text": "Glosa no pudo responder ahora. Revisa tu conexión y vuelve a intentarlo.", "sent": False, "error": True}
-                logger.error(f"Error AI: {respuesta}")
+            
+            if result.kind == AIErrorKind.CANCELLED:
+                return
+                
+            if not result.ok:
+                msg = {"text": result.text, "sent": False, "error": True, "retry": result.kind not in (AIErrorKind.NO_KEY, AIErrorKind.AUTH)}
+                logger.error(f"Error AI: {result.text}")
             else:
-                msg = {"text": respuesta, "sent": False, "error": False}
+                msg = {"text": result.text, "sent": False, "error": False}
                 
             self.chat_history.append(msg)
             with self.chat_area:

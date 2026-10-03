@@ -127,40 +127,35 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                 self.square_panel.set_data(res.data)
             clean_handoff_url()
 
-    def get_ai_context(self) -> str:
-        """Genera el texto de contexto de la matriz para el chat del Tutor IA."""
+    def get_ai_context(self):
+        from src.ai.context import AIContext, sanitize_user_string
         n = self.square_panel.n
-        if n > AI_CONTEXT_MAX_N:
-            raise ValueError(
-                f"La matriz es demasiado grande para adjuntarla al chat (máx. {AI_CONTEXT_MAX_N}×{AI_CONTEXT_MAX_N})."
-            )
-
         if self.square_panel.is_empty():
-            return ""
-
+            return AIContext(tool="inverse", view="Matriz Inversa", label="Matriz A", input={}, empty=True)
+            
         data = self.square_panel.get_matrix_data()
-        # Validar celdas
         for i in range(n):
             for j in range(n):
-                cell_val = data[i][j]
-                if cell_val:
-                    ok, _, err_msg = MatrixValidator.parse_number_exact(cell_val)
-                    if not ok:
-                        raise ValueError(f"Error en A[{i + 1},{j + 1}]: {err_msg}")
-
-        ctx_lines = [f"Matriz A ({n}×{n}) cuya inversa se quiere calcular:"]
-        for row in data:
-            ctx_lines.append(f"[{' '.join(row)}]")
-
-        if self.last_result and self.last_result.get("status") == "SUCCESS" and n <= 6:
-            det_str = self.last_result.get("determinant_str")
-            if det_str:
-                ctx_lines.append(f"det(A) = {det_str}")
-            inv = self.last_result.get("inverse")
-            if inv:
-                ctx_lines.append("Matriz inversa A⁻¹:")
-                for i in range(n):
-                    row_vals = [format_fraction_str(inv.get(i, j)) for j in range(n)]
-                    ctx_lines.append(f"[{' '.join(row_vals)}]")
-
-        return "\n".join(ctx_lines)
+                if data[i][j]:
+                    data[i][j] = sanitize_user_string(data[i][j], 32)
+                    
+        ctx = AIContext(
+            tool="inverse",
+            view="Matriz Inversa",
+            label=f"A ({n}×{n})",
+            input={"data": data}
+        )
+        if getattr(self, 'last_result', None):
+            if self.last_result.get("status") == "SUCCESS":
+                ctx.result = {
+                    "status": "SUCCESS",
+                    "determinante": self.last_result.get("determinant_str"),
+                    "pasos_totales": self.last_result.get("stats", {}).get("total", 0),
+                    "inverse": self.last_result.get("inverse")
+                }
+            elif self.last_result.get("status") == "SINGULAR":
+                ctx.result = {"status": "SINGULAR", "message": "Matriz singular (det = 0)."}
+            else:
+                ctx.result = {"status": "ERROR"}
+                
+        return ctx

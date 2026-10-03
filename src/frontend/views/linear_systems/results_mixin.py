@@ -220,6 +220,7 @@ class LinearSystemsResultsMixin:
             respuesta_json_str = GaussJordanController.process_system(json.dumps(payload_dict))
 
         respuesta = json.loads(respuesta_json_str)
+        self.last_result = respuesta
 
         with self.contenedor_resultados:
             self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')

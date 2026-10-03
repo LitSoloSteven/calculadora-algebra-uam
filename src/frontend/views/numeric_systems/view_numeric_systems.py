@@ -108,3 +108,36 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
 
         self.ai_panel.build()
         self._actualizar_ejemplos()
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, sanitize_user_string
+        val = self.input_valor.value
+        if not val:
+            return AIContext("conversor", "Conversor de Bases", "Conversión", {}, empty=True)
+            
+        base_orig = self.tabs_origen.value
+        base_dest = self.tabs_destino.value
+        
+        ctx = AIContext(
+            "conversor", 
+            "Conversor de Bases", 
+            f"{base_orig} a {base_dest}", 
+            {
+                "valor_entrada": sanitize_user_string(val, 64),
+                "base_origen": base_orig,
+                "base_destino": base_dest
+            }
+        )
+        
+        if self.tiene_resultado:
+            ctx.result = {
+                "status": "SUCCESS",
+                "resultados": self.resultados.copy()
+            }
+        elif self.lbl_error.text:
+            ctx.result = {
+                "status": "ERROR",
+                "message": self.lbl_error.text
+            }
+            
+        return ctx

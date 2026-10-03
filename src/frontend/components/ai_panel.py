@@ -5,6 +5,10 @@ from nicegui import ui, app, run
 from src.ai.openrouter_ai import OpenRouterIA
 from src.frontend import flags
 from src.frontend.components.glosa_dock import GlosaDockMixin
+from src.ai.context import serialize_context, AIContext
+from src.ai.prompts import trim_history
+import time
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -54,13 +58,22 @@ class AIPanel(GlosaDockMixin):
         if 'ai_chat_history' not in storage:
             storage['ai_chat_history'] = []
         else:
-            # Migrar historial antiguo: si el primero es el saludo, lo eliminamos
+            # Migrar historial antiguo: eliminar api_text y saludos viejos
             hist = storage['ai_chat_history']
             if hist and hist[0].get('text', '').startswith('¡Hola! Estoy aquí'):
-                storage['ai_chat_history'] = hist[1:]
+                hist = hist[1:]
+            for msg in hist:
+                msg.pop('api_text', None)
+            storage['ai_chat_history'] = hist
                 
         if 'ai_panel_open' not in storage:
             storage['ai_panel_open'] = False
+            
+        if 'ai_ctx_enabled' not in storage:
+            storage['ai_ctx_enabled'] = True
+            
+        self._last_send_time = 0.0
+        self._ctx_version = 0
 
     def toggle(self):
         if flags.dock_enabled():
@@ -85,61 +98,29 @@ class AIPanel(GlosaDockMixin):
             self.panel_container.style('transform: translateX(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none;')
             self.overlay.style('opacity: 0; pointer-events: none;')
             
-    def attach_context(self):
-        ctx_text = ""
-        if hasattr(self.active_ui, 'grid') and hasattr(self.active_ui, 'mode_tabs'):
-            # LinearSystemsUI
-            if self.active_ui.mode_tabs.value == 'Ecuaciones':
-                lineas = [inp.value for inp in self.active_ui.ecuaciones_inputs if inp.value]
-                if lineas:
-                    ctx_text = "Sistema de ecuaciones:\n" + "\n".join(lineas)
-            else:
-                eqs = self.active_ui.grid.export_to_equations()
-                if eqs:
-                    ctx_text = "Sistema (desde matriz):\n" + "\n".join(eqs)
-        elif hasattr(self.active_ui, 'capture_panel'):
-            # MatrixOpsUI
-            try:
-                mats = self.active_ui.capture_panel.get_matrices_dict()
-                if mats:
-                    ctx_text = "Matrices disponibles:\n"
-                    for k, v in mats.items():
-                        ctx_text += f"Matriz {k} ({v['rows']}x{v['cols']}): {v['data']}\n"
-            except ValueError as e:
-                ui.notify(str(e), type='warning')
-                return
-            except Exception as e:
-                logger.exception("Error inesperado en attach_context")
-                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
-                return
-        elif hasattr(self.active_ui, 'vector_panel'):
-            # VectorOpsUI
-            try:
-                vecs = self.active_ui.vector_panel.get_vectors_dict()
-                if vecs:
-                    ctx_text = "Vectores disponibles:\n"
-                    for k, v in vecs.items():
-                        ctx_text += f"Vector {k} ({v['orientation']}): {v['data']}\n"
-            except ValueError as e:
-                ui.notify(str(e), type='warning')
-                return
-            except Exception as e:
-                logger.exception("Error inesperado en attach_context (vector_ops)")
-                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
-                return
-        elif hasattr(self.active_ui, 'get_ai_context'):
-            # Vista de Matriz Inversa: la propia vista construye el contexto.
-            try:
-                ctx_text = self.active_ui.get_ai_context()
-            except ValueError as e:
-                ui.notify(str(e), type='warning')
-                return
-            except Exception:
-                logger.exception("Error inesperado en attach_context (matriz inversa)")
-                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
-                return
+    def notify_context_changed(self):
+        if not flags.dock_enabled():
+            return
+        self._ctx_version += 1
 
-                
+    def _collect_context(self) -> str:
+        if not self._storage.get('ai_ctx_enabled', True):
+            return ""
+        if not hasattr(self.active_ui, 'get_ai_context'):
+            return ""
+        try:
+            ctx_obj = self.active_ui.get_ai_context()
+            if ctx_obj is None or getattr(ctx_obj, 'empty', False):
+                return ""
+            return serialize_context(ctx_obj)
+        except Exception as e:
+            logger.exception("Error al recopilar el contexto para la IA")
+            ui.notify('No pudimos leer tu ejercicio; enviamos solo tu pregunta.', type='warning')
+            return ""
+
+    def attach_context(self):
+        # Legacy
+        ctx_text = self._collect_context()
         if ctx_text:
             self.attached_context = ctx_text
             self.context_chip.set_visibility(True)
@@ -194,23 +175,30 @@ class AIPanel(GlosaDockMixin):
         text = self.input_field.value
         if not text or not text.strip(): return
         
+        now = time.monotonic()
+        if now - self._last_send_time < 1.5:
+            ui.notify('Espera un momento antes de enviar otra pregunta.', type='warning')
+            return
+        
+        if getattr(self, '_is_sending', False): return
+        
         full_text = text.strip()
-        api_text = full_text
-        if self.attached_context:
-            api_text = f"[Contexto adjunto]\n{self.attached_context}\n\nPregunta: {full_text}"
-            self.clear_context()
+        
+        ctx_block = self.attached_context
+        if not ctx_block:
+            ctx_block = self._collect_context()
+        self.clear_context()
             
         self.input_field.value = ''
         
-        MAX_HISTORY = 10
-        history = [
-            {"role": "user" if m.get("sent") else "assistant", "content": m.get("api_text", m.get("text"))}
-            for m in self.chat_history
-            if not m.get("error")
-        ][-MAX_HISTORY:]
-        
-        self.chat_history.append({"text": full_text, "sent": True, "api_text": api_text})
+        self.chat_history.append({"text": full_text, "sent": True})
         self.render_chat()
+        
+        await self._do_send_legacy(full_text, ctx_block)
+        
+    async def _do_send_legacy(self, full_text, ctx_block):
+        self._is_sending = True
+        self._last_send_time = time.monotonic()
         
         with self.chat_area:
             typing_row = ui.row().classes('w-full justify-start mb-4')
@@ -219,18 +207,54 @@ class AIPanel(GlosaDockMixin):
                     self._render_typing_indicator()
                 
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+        
+        cancel_event = threading.Event()
+        self._request_counter = getattr(self, '_request_counter', 0) + 1
+        current_req = self._request_counter
+        cancel_btn_row = None
+        
+        async def show_cancel():
+            await asyncio.sleep(5)
+            if self._request_counter == current_req and getattr(self, '_is_sending', False):
+                with self.chat_area:
+                    nonlocal cancel_btn_row
+                    cancel_btn_row = ui.row().classes('w-full justify-center mt-2')
+                    with cancel_btn_row:
+                        ui.button('Cancelar', on_click=lambda: cancel_req(current_req)).classes('btn-ghost text-xs text-sec')
+                ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+                        
+        def cancel_req(req_id):
+            if self._request_counter == req_id:
+                cancel_event.set()
+                
+        ui.timer(0, show_cancel, once=True)
             
         try:
-            ok, respuesta = await run.io_bound(self.motor_ia.analizar_sistema, api_text, history)
+            from src.ai.openrouter_ai import AIErrorKind
+            result = await run.io_bound(self.motor_ia.ask, full_text, history=trim_history(self.chat_history), context_block=ctx_block, cancel=cancel_event)
         except Exception as e:
-            ok, respuesta = False, f"Error al procesar tu mensaje: {e}"
+            from src.ai.openrouter_ai import AIResult
+            result = AIResult(False, f"Error al procesar tu mensaje: {e}")
             
-        try:
-            typing_row.delete()
-        except Exception:
-            pass
-        self.chat_history.append({"text": respuesta, "sent": False, "error": not ok, "animate": True})
-        self.render_chat()
+        if self._request_counter == current_req:
+            try:
+                typing_row.delete()
+            except Exception: pass
+            try:
+                if cancel_btn_row: cancel_btn_row.delete()
+            except Exception: pass
+            
+            self._is_sending = False
+            
+            if result.kind == "CANCELLED":
+                return
+                
+            msg = {"text": result.text, "sent": False, "error": not result.ok, "animate": True}
+            if not result.ok:
+                msg["retry"] = result.kind not in ("NO_KEY", "AUTH")
+                
+            self.chat_history.append(msg)
+            self.render_chat()
 
     def build(self):
         if flags.dock_enabled():
