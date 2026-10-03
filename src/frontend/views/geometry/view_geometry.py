@@ -1,0 +1,482 @@
+"""Vista principal del Visualizador Geométrico (F8a).
+
+Escenas interactivas en R² y R³: rectas-planos, vectores, combinación lineal.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from nicegui import ui, run
+
+from src.frontend.components.app_shell import create_app_shell
+from src.frontend.components.ai_panel import AIPanel
+from src.frontend.navigation import route_of
+from src.frontend.controllers.geometry.controller_geometry import GeometryController
+from src.frontend.controllers.geometry._solution_set import has_solution_param
+from .scenes_mixin import GeometryScenesMixin
+from .controls_mixin import GeometryControlsMixin
+
+logger = logging.getLogger(__name__)
+
+VALID_SCENES = ('rectas-planos', 'vectores', 'combinacion')
+
+
+class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
+    """Controlador de vista del Visualizador Geométrico."""
+
+    def __init__(self):
+        self.ai_panel = None
+        self.scene = 'rectas-planos'
+        self.last_result = None
+        self.last_payload_hash = None
+        self._preview_task = None
+        self._first_draw = True
+        self._plotly_element = None
+
+        # Containers
+        self.controls_container = None
+        self.figure_container = None
+        self.summary_container = None
+        self.slider_container = None
+        self.status_container = None
+
+        # Scene-specific panels
+        self.grid = None
+        self.vec_panel = None
+        self.comb_panel = None
+
+    def build(self, escena: str = 'rectas-planos', handoff_token: str = ''):
+        if escena not in VALID_SCENES:
+            escena = 'rectas-planos'
+        self.scene = escena
+
+        self.ai_panel = AIPanel(self)
+        create_app_shell(self, active_route=route_of('visualizador'))
+
+        ui.add_head_html('<script src="/assets/js/geometry.js"></script>')
+
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
+            # Scene tabs
+            with ui.tabs().classes('neo-tabs method-tabs w-full').props('dense no-caps mobile-arrows') as self.scene_tabs:
+                ui.tab('rectas-planos', label='Rectas y planos')
+                ui.tab('vectores', label='Vectores')
+                ui.tab('combinacion', label='Combinación lineal')
+            self.scene_tabs.value = self.scene
+            self.scene_tabs.on_value_change(self._on_scene_change)
+
+            with ui.element('div').classes('layout-split mt-4'):
+                # Left pane: controls
+                with ui.column().classes('layout-pane p-6 bg-[var(--bg-page)]').style('min-width: 0;') as left:
+                    self.controls_container = ui.column().classes('w-full')
+
+                # Right pane: figure + summary
+                with ui.column().classes('layout-pane p-6 bg-[var(--bg-page)]').style('min-width: 0;') as right:
+                    self.status_container = ui.column().classes('w-full')
+                    self.figure_container = ui.column().classes('w-full')
+                    self.slider_container = ui.column().classes('w-full')
+                    self.summary_container = ui.column().classes('w-full')
+
+        self.ai_panel.build()
+
+        # Process handoff
+        self._process_handoff(handoff_token)
+
+        # Build initial controls
+        self._build_controls(self.scene)
+        self._render_empty_state()
+
+    def _process_handoff(self, token: str):
+        """Process handoff token on page load."""
+        if not token:
+            return
+
+        from src.frontend.components.handoff import (
+            consume_system,
+            consume_vectors,
+            render_handoff_notice,
+            clean_handoff_url,
+        )
+
+        if self.scene == 'rectas-planos':
+            result = consume_system(token, max_m=10, allowed_n={2, 3})
+            if result is None:
+                return
+            clean_handoff_url()
+            if result.status == 'ok' and result.data:
+                # Pre-fill grid with handoff data
+                data = result.data
+                A = data.get("matrix_A", [])
+                b = data.get("vector_b", [])
+                if A and self.grid:
+                    m = len(A)
+                    n = len(A[0]) if A else 2
+                    self.grid.m = m
+                    self.grid.n = n
+                    for i, row in enumerate(A):
+                        for j, val in enumerate(row):
+                            self.grid._cache_A[(i, j)] = str(val)
+                    for i, val in enumerate(b):
+                        self.grid._cache_b[i] = str(val)
+                    self.grid._render_grid()
+                    self._trigger_live_preview()
+                with self.status_container:
+                    render_handoff_notice(result, f"Sistema cargado desde {result.source_name}")
+            else:
+                with self.status_container:
+                    render_handoff_notice(result, "")
+        else:
+            result = consume_vectors(token, allowed_n={2, 3})
+            if result is None:
+                return
+            clean_handoff_url()
+            if result.status == 'ok' and result.data:
+                scene_from_data = result.data.get("scene", self.scene)
+                if scene_from_data in VALID_SCENES:
+                    self.scene = scene_from_data
+                    self.scene_tabs.value = self.scene
+                    self._build_controls(self.scene)
+
+                vectors_data = result.data.get("data", [])
+                panel = self.vec_panel if self.scene == 'vectores' else self.comb_panel
+                if panel and vectors_data:
+                    for vi, vec in enumerate(vectors_data):
+                        name = list(panel.vectors.keys())[vi] if vi < len(panel.vectors) else None
+                        if name:
+                            for ci, val in enumerate(vec):
+                                panel.vectors[name]['cache'][ci] = str(val)
+                    panel._update_all_grids()
+                    self._trigger_live_preview()
+                with self.status_container:
+                    render_handoff_notice(result, f"Vectores cargados desde {result.source_name}")
+            else:
+                with self.status_container:
+                    render_handoff_notice(result, "")
+
+    def _on_scene_change(self, e):
+        """Handle scene tab change."""
+        new_scene = e.value
+        if new_scene not in VALID_SCENES:
+            new_scene = 'rectas-planos'
+        self.scene = new_scene
+        self.last_result = None
+        self.last_payload_hash = None
+        self._first_draw = True
+
+        # Update URL without reload
+        ui.run_javascript(f"""
+            const u = new URL(location.href);
+            u.searchParams.set('escena', '{new_scene}');
+            history.replaceState(null, '', u.pathname + u.search + u.hash);
+        """)
+
+        # Rebuild controls and reset
+        self._build_controls(new_scene)
+        self._render_empty_state()
+
+    def _render_empty_state(self):
+        """Show empty orientational state."""
+        if self.figure_container:
+            self.figure_container.clear()
+        if self.slider_container:
+            self.slider_container.clear()
+        if self.summary_container:
+            self.summary_container.clear()
+        if self.status_container:
+            self.status_container.clear()
+
+        if self.figure_container:
+            with self.figure_container:
+                with ui.column().classes('w-full geo-empty justify-center items-center text-center py-12'):
+                    ui.icon('insights', size='4rem').classes('text-placeholder mb-4')
+                    if self.scene == 'rectas-planos':
+                        ui.label('Escribe al menos una ecuación o carga un sistema desde Sistemas de ecuaciones').classes('text-sm text-sec')
+                    elif self.scene == 'vectores':
+                        ui.label('Ingresa dos vectores para visualizar la suma y el escalamiento').classes('text-sm text-sec')
+                    elif self.scene == 'combinacion':
+                        ui.label('Ingresa b y los vectores columna para ver la combinación lineal').classes('text-sm text-sec')
+
+    def _on_data_change(self):
+        """Called when input data changes (from grid or vector panels)."""
+        self._trigger_live_preview()
+
+    def _trigger_live_preview(self):
+        """Debounced preview: cancels previous task, waits 350ms."""
+        if self._preview_task and not self._preview_task.done():
+            self._preview_task.cancel()
+        self._preview_task = asyncio.create_task(self._debounced_update())
+
+    async def _debounced_update(self):
+        """Wait then update if payload changed."""
+        await asyncio.sleep(0.35)
+        await self._update_figure()
+
+    async def _update_figure(self):
+        """Process data and update the figure."""
+        try:
+            payload = self._build_payload()
+            if payload is None:
+                return
+
+            # Check if payload changed
+            payload_hash = hash(json.dumps(payload, sort_keys=True))
+            if payload_hash == self.last_payload_hash:
+                return
+            self.last_payload_hash = payload_hash
+
+            # Show loading state
+            if self._first_draw:
+                if self.figure_container:
+                    self.figure_container.clear()
+                    with self.figure_container:
+                        ui.skeleton().classes('w-full geo-figure')
+            else:
+                # Dim the existing figure
+                if self.figure_container:
+                    ui.run_javascript(f"""
+                        var c = document.querySelector('.geo-figure');
+                        if (c) c.style.opacity = '0.4';
+                    """)
+
+            # Process
+            payload_json = json.dumps(payload)
+            if self.scene == 'rectas-planos':
+                result = await run.io_bound(GeometryController.process_lines_planes, payload_json)
+            elif self.scene == 'vectores':
+                result = await run.io_bound(GeometryController.process_vectors, payload_json)
+            elif self.scene == 'combinacion':
+                result = await run.io_bound(GeometryController.process_combination, payload_json)
+            else:
+                return
+
+            self.last_result = result
+
+            # Handle errors
+            if result.get("status") == "ERROR":
+                self._render_error(result)
+                return
+
+            # Clear markInvalid
+            ui.run_javascript('scalarisGeo.markInvalid(null);')
+
+            # Build figure
+            await self._build_figure(result, self.scene)
+            self._build_slider(result, self.scene)
+            self._render_summary(result, self.scene)
+
+            # Handle pending_param (INFINITE without solution_param)
+            if result.get("pending_param"):
+                logger.debug("INFINITE solution without solution_param — pending F8b")
+                with self.summary_container:
+                    with ui.element('div').classes('geo-notice mt-2'):
+                        ui.label("Este sistema tiene infinitas soluciones. Por ahora solo dibujamos las ecuaciones.").classes('text-sm text-sec')
+
+            self._first_draw = False
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.exception("Error al actualizar figura geométrica")
+
+    def _build_payload(self) -> dict | None:
+        """Extract payload from current inputs."""
+        try:
+            if self.scene == 'rectas-planos':
+                if not self.grid:
+                    return None
+                matrix_A, vector_b = self.grid.get_matrix_data()
+                if not matrix_A or not matrix_A[0]:
+                    return None
+                # Check if all empty
+                all_empty = all(
+                    not str(v).strip()
+                    for row in matrix_A for v in row
+                ) and all(not str(v).strip() for v in vector_b)
+                if all_empty:
+                    return None
+                return {"matrix_A": matrix_A, "vector_b": vector_b}
+
+            elif self.scene == 'vectores':
+                if not self.vec_panel:
+                    return None
+                try:
+                    vecs = self.vec_panel.get_vectors_dict()
+                except ValueError:
+                    return None
+                if not vecs:
+                    return None
+                vec_list = []
+                for name in self.vec_panel.vectors:
+                    if name in vecs:
+                        vec_list.append(vecs[name])
+                if len(vec_list) != 2:
+                    return None
+                # Check if any data
+                has_data = any(
+                    any(str(v).strip() and str(v).strip() != '0' for v in vec.get("data", []))
+                    for vec in vec_list
+                )
+                if not has_data:
+                    return None
+                return {"vectors": vec_list}
+
+            elif self.scene == 'combinacion':
+                if not self.comb_panel:
+                    return None
+                try:
+                    vecs = self.comb_panel.get_vectors_dict()
+                except ValueError:
+                    return None
+                if not vecs:
+                    return None
+                b_key = self.comb_panel.first_vector_fixed_label
+                b_vec = vecs.pop(b_key, None)
+                if not b_vec:
+                    return None
+                other_vecs = list(vecs.values())
+                if not other_vecs:
+                    return None
+                has_data = any(
+                    str(v).strip() and str(v).strip() != '0'
+                    for v in b_vec.get("data", [])
+                )
+                if not has_data:
+                    return None
+                return {"b": b_vec, "vectors": other_vecs}
+
+        except Exception:
+            return None
+
+    def _render_error(self, result: dict):
+        """Render error state with cell marking."""
+        if self.figure_container:
+            self.figure_container.clear()
+        if self.slider_container:
+            self.slider_container.clear()
+        if self.summary_container:
+            self.summary_container.clear()
+
+        error_cell = result.get("error_cell")
+        code = result.get("code", "")
+        message = result.get("message", "Error desconocido.")
+
+        if self.figure_container:
+            with self.figure_container:
+                with ui.column().classes('w-full py-8 items-center'):
+                    if code == "bad_dimension":
+                        with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning w-fit'):
+                            ui.icon('info', size='sm')
+                            ui.label(message).classes('font-bold')
+                    else:
+                        with ui.row().classes('items-center gap-2 px-4 py-2 badge-error w-fit'):
+                            ui.icon('close', size='sm')
+                            ui.label(message).classes('font-bold')
+
+                        if error_cell:
+                            # Mark the cell
+                            selector = self._cell_selector(error_cell)
+                            if selector:
+                                ui.run_javascript(f'scalarisGeo.markInvalid("{selector}");')
+                                # "Go to cell" button
+                                ui.button('Ir a la celda', icon='gps_fixed', color=None,
+                                          on_click=lambda s=selector: ui.run_javascript(
+                                              f'var el = document.querySelector("{s}"); if(el) {{ el.focus(); el.scrollIntoView({{block: "center"}}); }}'
+                                          )).classes('btn-ghost mt-2').props('ripple=false')
+
+    def _cell_selector(self, error_cell: dict) -> str | None:
+        """Build a CSS selector for an error cell."""
+        if not error_cell:
+            return None
+        kind = error_cell.get("kind")
+        if kind == "A":
+            row = error_cell.get("row", 0)
+            col = error_cell.get("col", 0)
+            return f'[data-row="{row}"][data-col="{col}"]'
+        elif kind == "b":
+            row = error_cell.get("row", 0)
+            return f'[data-b-row="{row}"]'
+        elif kind == "vec":
+            name = error_cell.get("name", "")
+            index = error_cell.get("index", 0)
+            panel_id = "geo_vec" if self.scene == 'vectores' else "geo_comb"
+            return f'#{panel_id}_{name}_idx{index}'
+        return None
+
+    # --- AI Context ---
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, sanitize_user_string
+
+        if self.last_result is None:
+            return AIContext("visualizador", "Visualizador geométrico", f"Escena: {self.scene}", {}, empty=True)
+
+        result = self.last_result
+        input_data = {"scene": self.scene}
+
+        # Sanitize inputs
+        if self.scene == 'rectas-planos' and self.grid:
+            try:
+                A, b = self.grid.get_matrix_data()
+                input_data["matrix_A"] = [[sanitize_user_string(str(v), 32) for v in row] for row in (A or [])]
+                input_data["vector_b"] = [sanitize_user_string(str(v), 32) for v in (b or [])]
+            except Exception:
+                pass
+
+        result_data = {}
+        if result.get("status") == "OK":
+            if self.scene == 'rectas-planos':
+                sol_set = result.get("set")
+                result_data["solution_status"] = result.get("solution_status", "")
+                if sol_set:
+                    result_data["set_kind"] = sol_set.get("kind", "")
+                if result.get("pending_param"):
+                    result_data["pending"] = True
+            elif self.scene in ('vectores', 'combinacion'):
+                result_data["solution_status"] = result.get("solution_status", "")
+        else:
+            result_data["status"] = "ERROR"
+            result_data["message"] = result.get("message", "")
+
+        ctx = AIContext("visualizador", "Visualizador geométrico", f"Escena: {self.scene}", input_data)
+        ctx.result = result_data
+        return ctx
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals
+        try:
+            state = "none"
+            flags_set = set()
+
+            if self.last_result and self.last_result.get("status") == "OK":
+                if self.scene == 'rectas-planos':
+                    sol_status = self.last_result.get("solution_status", "")
+                    if sol_status == "UNIQUE_SOLUTION":
+                        state = "unique"
+                    elif sol_status == "NO_SOLUTION":
+                        state = "no_solution"
+                    elif sol_status == "INFINITE_SOLUTIONS":
+                        state = "infinite"
+                    flags_set.update(self.last_result.get("flags", []))
+                elif self.scene == 'vectores':
+                    state = "result"
+                elif self.scene == 'combinacion':
+                    sol_status = self.last_result.get("solution_status", "")
+                    if sol_status == "UNIQUE":
+                        state = "unique"
+                    elif sol_status == "INFINITE":
+                        state = "infinite"
+                    elif sol_status == "NO_SOLUTION":
+                        state = "no_solution"
+
+            return Signals(tool="visualizador", state=state, flags=frozenset(flags_set))
+        except Exception:
+            return None
+
+    def focus_cell(self, focus):
+        """Focus a specific cell (for AI suggestions)."""
+        pass
+
+    def render_inline_chips(self):
+        """Render inline suggestion chips after badge."""
+        if getattr(self, 'ai_panel', None):
+            self.ai_panel.render_inline_chips()

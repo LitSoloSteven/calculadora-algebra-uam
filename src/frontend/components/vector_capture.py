@@ -17,6 +17,7 @@ class VectorCapturePanel:
         self.dim = 3 # Shared dimension 'n' for all vectors
         self.container = None
         self.header_container = None
+        self.on_data_change = None
         
         self.default_orientation = default_orientation
         if not allow_orientation_toggle:
@@ -58,6 +59,8 @@ class VectorCapturePanel:
             'btn_toggle': None
         }
         self.render_all_vectors()
+        if self.on_data_change:
+            self.on_data_change()
 
     def remove_vector(self, name):
         if len(self.vectors) <= self.min_vectors:
@@ -69,6 +72,8 @@ class VectorCapturePanel:
         if name in self.vectors:
             del self.vectors[name]
             self.render_all_vectors()
+            if self.on_data_change:
+                self.on_data_change()
 
     async def adjust_dimension(self, delta=0):
         new_dim = self.dim + delta
@@ -105,6 +110,9 @@ class VectorCapturePanel:
             import asyncio
             await asyncio.sleep(0.05)
             await ui.run_javascript(f'return window.animateVectorDimensionAddition({idx_add});')
+
+        if self.on_data_change:
+            self.on_data_change()
 
     def toggle_orientation(self, name):
         if name not in self.vectors or not self.allow_orientation_toggle:
@@ -144,6 +152,8 @@ class VectorCapturePanel:
                     
                     def update_cache(e, idx=i, vec_name=name):
                         self.vectors[vec_name]['cache'][idx] = e.value
+                        if self.on_data_change:
+                            self.on_data_change()
                         
                     ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px; flex-shrink: 0;').props(f'id="{self.panel_id}_{name}_idx{i}" data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
 
@@ -241,6 +251,8 @@ class VectorCapturePanel:
         for v in self.vectors.values():
             v['cache'].clear()
         self._update_all_grids()
+        if self.on_data_change:
+            self.on_data_change()
 
     def flash_cell(self, idx: int, r: int):
         if idx < 0 or idx >= len(self.vectors):

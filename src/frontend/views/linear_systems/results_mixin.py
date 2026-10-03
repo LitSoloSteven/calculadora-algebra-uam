@@ -306,13 +306,22 @@ class LinearSystemsResultsMixin:
 
         if not is_error:
             self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
-            if len(matrix_A_vals) == len(matrix_A_vals[0]):
-                from src.frontend.components.handoff import put_matrix, handoff_url
-                from src.frontend.navigation import route_of
-                with self.contenedor_resultados:
-                    ui.button('Ver A⁻¹ en Matriz inversa', icon='arrow_forward', color=None,
-                              on_click=lambda: ui.navigate.to(handoff_url(route_of('inversa'), put_matrix('sistemas', matrix_A_vals)))
-                             ).classes('btn-ghost mt-4').props('ripple=false').tooltip('Misma eliminación de filas, ahora sobre [A | I]')
+            n_vars = len(matrix_A_vals[0]) if matrix_A_vals else 0
+            with self.contenedor_resultados:
+                with ui.row().classes('gap-2 mt-4 flex-wrap'):
+                    if len(matrix_A_vals) == len(matrix_A_vals[0]):
+                        from src.frontend.components.handoff import put_matrix, handoff_url
+                        from src.frontend.navigation import route_of
+                        ui.button('Ver A⁻¹ en Matriz inversa', icon='arrow_forward', color=None,
+                                  on_click=lambda: ui.navigate.to(handoff_url(route_of('inversa'), put_matrix('sistemas', matrix_A_vals)))
+                                 ).classes('btn-ghost').props('ripple=false').tooltip('Misma eliminación de filas, ahora sobre [A | I]')
+
+                    if n_vars in (2, 3):
+                        from src.frontend.components.handoff import put_system, handoff_url
+                        from src.frontend.navigation import route_of
+                        ui.button('Ver en el Visualizador', icon='insights', color=None,
+                                  on_click=lambda: ui.navigate.to(handoff_url(route_of('visualizador'), put_system('sistemas', matrix_A_vals, vector_b_vals)))
+                                 ).classes('btn-ghost').props('ripple=false').tooltip('Visualiza el sistema en R² o R³')
 
         ui.run_javascript('typesetMathWhenReady();')
 

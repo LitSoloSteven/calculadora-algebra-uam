@@ -93,12 +93,12 @@ def test_tool_by_route_normalization():
     assert tool_by_route("/algebra-lineal/inexistente") is None
 
 
-def test_visualizador_excluded_from_visible_tools():
-    """Valida que el visualizador geométrico esté deshabilitado y fuera de visible_tools."""
+def test_visualizador_is_visible():
+    """Valida que el visualizador geométrico esté habilitado y dentro de visible_tools."""
     vis = tool_by_id("visualizador")
-    assert not vis.enabled, "Visualizador debe estar registrado con enabled=False"
+    assert vis.enabled, "Visualizador debe estar registrado con enabled=True"
     visible_ids = {t.id for t in visible_tools()}
-    assert "visualizador" not in visible_ids, "Visualizador no debe figurar en visible_tools()"
+    assert "visualizador" in visible_ids, "Visualizador debe figurar en visible_tools()"
 
 
 def test_nav_flat_order_matches_visible_tools():

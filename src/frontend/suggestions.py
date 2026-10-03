@@ -74,6 +74,9 @@ _CATALOG = [
     ("romanos", "flag_err_sub_neg", "romanos.err.neg", "¿Por qué no hay números negativos en romano?", "state"),
     ("romanos", "flag_err_syntax", "romanos.err.sintaxis", "¿Por qué IIII no es válido?", "state"),
     ("romanos", "flag_op_mult", "romanos.mult", "¿Por qué solo multiplico de un dígito?", "state"),
+    # Visualizador
+    ("visualizador", "flag_parallel", "visualizador.parallel", "¿Qué significa que las rectas sean paralelas?", "flag"),
+    ("visualizador", "result", "visualizador.span", "¿Qué es el span de estos vectores?", "state"),
 ]
 
 def chips_active() -> bool:

@@ -102,14 +102,14 @@ TOOLS: tuple[Tool, ...] = (
     ),
     Tool(
         id="visualizador",
-        name="Visualizador geométrico",
-        descriptor="Rectas, planos y vectores en R² y R³",
+        name="Rectas, planos y vectores",
+        descriptor="Escenas interactivas en R² y R³",
         route="/visualizador",
         pillar_id="visualizador",
         icon="geometria",
         page_title="Visualizador geométrico | Scalaris",
-        example_latex="",
-        enabled=False,
+        example_latex=r"\mathbf{x} = \mathbf{p} + t\,\mathbf{d}",
+        enabled=True,
     ),
     Tool(
         id="bases",
@@ -143,6 +143,7 @@ NAV_FLAT_ORDER: tuple[str, ...] = (
     "matrices",
     "inversa",
     "vectores",
+    "visualizador",
     "bases",
     "romanos",
 )

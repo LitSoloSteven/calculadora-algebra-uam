@@ -69,6 +69,13 @@ def register_routes() -> None:
         app_ui = InverseOpsUI()
         app_ui.build(handoff_token=handoff)
 
+    @ui.page(route_of("visualizador"), title=tool_by_id("visualizador").page_title)
+    def geometry_page(escena: str = "rectas-planos", handoff: str = ""):
+        from src.frontend.views.geometry.view_geometry import GeometryUI
+        setup_theme()
+        app_ui = GeometryUI()
+        app_ui.build(escena=escena, handoff_token=handoff)
+
     @ui.page(route_of("bases"), title=tool_by_id("bases").page_title)
     def conversor_page():
         from src.frontend.views.numeric_systems.view_numeric_systems import NumericSystemsUI

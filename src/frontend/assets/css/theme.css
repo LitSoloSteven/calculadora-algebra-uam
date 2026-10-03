@@ -1989,3 +1989,61 @@ html[data-glosa-instant] .q-header {
     color: var(--warning) !important;
     font-weight: bold !important;
 }
+
+/* === F8: Visualizador === */
+
+.geo-figure {
+    height: clamp(320px, 60dvh, 560px);
+    width: 100%;
+    border-radius: var(--radius-card);
+    overflow: hidden;
+}
+
+.geo-summary {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-badge);
+    background: var(--bg-elevated);
+}
+
+.geo-notice {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-badge);
+    background: var(--bg-panel);
+    border-left: 3px solid var(--warning);
+}
+
+.geo-empty {
+    min-height: clamp(200px, 40dvh, 400px);
+}
+
+.geo-slider-row {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-badge);
+    background: var(--bg-elevated);
+}
+
+.geo-slider-value {
+    font-variant-numeric: tabular-nums;
+    min-width: 3ch;
+    text-align: center;
+}
+
+.geo-cell-error {
+    border-color: var(--error) !important;
+    box-shadow: 0 0 0 2px var(--error) !important;
+}
+
+/* Hover on interactive elements */
+@media (hover: hover) and (pointer: fine) {
+    .geo-slider-row:hover {
+        background: var(--bg-panel);
+    }
+}
+
+/* Reduced motion: no transforms */
+@media (prefers-reduced-motion: reduce) {
+    .geo-figure,
+    .geo-slider-row {
+        transition: none !important;
+    }
+}
