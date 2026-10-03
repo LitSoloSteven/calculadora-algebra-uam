@@ -155,7 +155,7 @@ class VectorCapturePanel:
                         if self.on_data_change:
                             self.on_data_change()
                         
-                    ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px; flex-shrink: 0;').props(f'id="{self.panel_id}_{name}_idx{i}" data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
+                    ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input grid-cell flex-shrink-0').props(f'id="{self.panel_id}_{name}_idx{i}" data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
 
     def _update_all_grids(self):
         for name in self.vectors:
@@ -173,12 +173,12 @@ class VectorCapturePanel:
                     
                     from functools import partial
                     with ui.row().classes('gap-2 items-center'):
-                        self.btn_dim_dec = ui.button(icon='remove', on_click=partial(self.adjust_dimension, delta=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                        self.btn_dim_dec = ui.button(icon='remove', on_click=partial(self.adjust_dimension, delta=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
                         if self.dim <= 1: self.btn_dim_dec.disable()
                         
                         self.lbl_dim = ui.label(str(self.dim)).classes('font-bold w-4 text-center')
                         
-                        self.btn_dim_inc = ui.button(icon='add', on_click=partial(self.adjust_dimension, delta=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                        self.btn_dim_inc = ui.button(icon='add', on_click=partial(self.adjust_dimension, delta=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
                         if self.dim >= 10: self.btn_dim_inc.disable()
                         
                     if len(self.vectors) < self.max_vectors:

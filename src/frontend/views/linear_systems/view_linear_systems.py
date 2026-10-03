@@ -170,7 +170,7 @@ class LinearSystemsUI(
             clean_handoff_url()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
         empty = True
         label = "Sistema Lineal"
         input_data = {}
@@ -203,48 +203,44 @@ class LinearSystemsUI(
             
         ctx = AIContext("sistemas", "Sistemas Lineales", label, input_data)
         
+        method_val = getattr(getattr(self, 'method_select', None), 'value', getattr(self.method_tabs, 'value', 'gauss'))
+        entrada_actual = {"mode": self.mode_tabs.value, "method": method_val}
+        if self.mode_tabs.value == 'Ecuaciones':
+            entrada_actual["ecuaciones"] = [inp.value for inp in self.ecuaciones_inputs]
+        else:
+            matrix_A_vals, vector_b_vals = self.grid.get_matrix_data()
+            entrada_actual["A"] = matrix_A_vals
+            entrada_actual["b"] = vector_b_vals
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        
         if getattr(self, 'last_result', None):
-            res = self.last_result
-            ctx.result = {
-                "status": res.get("status", "ERROR")
-            }
-            msg = res.get("classification") or res.get("message")
-            if msg:
-                ctx.result["message"] = msg
+            if ctx.stale:
+                ctx.result = None
+            else:
+                res = self.last_result
+                ctx.result = {
+                    "status": res.get("status", "ERROR")
+                }
+                msg = res.get("classification") or res.get("message")
+                if msg:
+                    ctx.result["message"] = msg
                 
         return ctx
 
     def get_ai_signals(self):
-        from src.frontend.suggestions import Signals, InvalidCell
+        from src.frontend.suggestions import Signals, first_invalid_cell
         try:
             state = "none"
             flags = set()
             invalid = None
             
             if self.mode_tabs.value == 'Matriz':
+                items = []
                 for (r, c), val in self.grid._cache_A.items():
-                    if val.strip() and val.strip() not in ('0', '0.0'):
-                        try:
-                            float(val)
-                        except ValueError:
-                            try:
-                                from fractions import Fraction
-                                Fraction(val)
-                            except ValueError:
-                                invalid = InvalidCell(label=f"A[{r+1},{c+1}]")
-                                break
-                if not invalid:
-                    for r, val in self.grid._cache_b.items():
-                        if val.strip() and val.strip() not in ('0', '0.0'):
-                            try:
-                                float(val)
-                            except ValueError:
-                                try:
-                                    from fractions import Fraction
-                                    Fraction(val)
-                                except ValueError:
-                                    invalid = InvalidCell(label=f"b[{r+1}]")
-                                    break
+                    items.append((f"A[{r+1},{c+1}]", val))
+                for r, val in self.grid._cache_b.items():
+                    items.append((f"b[{r+1}]", val))
+                invalid = first_invalid_cell(items)
                                     
             if self.grid.m > self.grid.n:
                 flags.add("m_gt_n")
@@ -253,7 +249,7 @@ class LinearSystemsUI(
             if res and not getattr(self.get_ai_context(), 'stale', True):
                 st = res.get("status")
                 if st == "UNIQUE_SOLUTION": state = "unique"
-                elif st == "INFINITE": state = "infinite"
+                elif st == "INFINITE_SOLUTIONS": state = "infinite"
                 elif st == "NO_SOLUTION": state = "no_solution"
                 
                 steps = res.get("intermediate_steps_latex", [])

@@ -1,4 +1,5 @@
 """Mixin de renderizado de resultados y pasos para Operaciones con Vectores."""
+import html
 import re
 from nicegui import ui
 from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
@@ -129,7 +130,8 @@ class VectorOpsResultsMixin:
 
         if status == 'UNIQUE':
             coef_str = ", ".join(res.get('coeficientes_str', []))
-            ui.markdown(f"**Coeficientes:** `{coef_str}`").classes('mb-4')
+            safe_coef = html.escape(coef_str)
+            ui.html(f'<div class="math-scroll-container mb-4"><strong>Coeficientes:</strong> <code class="font-mono text-sm">{safe_coef}</code></div>')
 
             v_step = res.get('verification_step')
             if v_step:
@@ -141,8 +143,11 @@ class VectorOpsResultsMixin:
 
         elif status == 'INFINITE':
             sol_str = ", ".join(res.get('solucion_parametrica', []))
-            ui.markdown(f"**Solución paramétrica:** `{sol_str}`").classes('mb-4')
-            ui.markdown(f"**Variables libres:** `{', '.join(res.get('parametros_libres', []))}`").classes('mb-4')
+            safe_sol = html.escape(sol_str)
+            params_str = ", ".join(res.get('parametros_libres', []))
+            safe_params = html.escape(params_str)
+            ui.html(f'<div class="math-scroll-container mb-4"><strong>Solución paramétrica:</strong> <code class="font-mono text-sm">{safe_sol}</code></div>')
+            ui.html(f'<div class="math-scroll-container mb-4"><strong>Variables libres:</strong> <code class="font-mono text-sm">{safe_params}</code></div>')
 
         # 1. ACORDEÓN DE PLANTEAMIENTO ALGEBRAICO
         setup_steps = res.get('setup_steps', [])

@@ -1,14 +1,14 @@
 import json
 import html
 import logging
+import asyncio
+import time
+import threading
 from nicegui import ui, app, run
 from src.ai.openrouter_ai import OpenRouterIA
 from src.frontend import flags
 from src.frontend.components.glosa_dock import GlosaDockMixin
 from src.ai.context import serialize_context, AIContext
-from src.ai.prompts import trim_history
-import time
-import threading
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +98,31 @@ class AIPanel(GlosaDockMixin):
             self.panel_container.style('transform: translateX(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none;')
             self.overlay.style('opacity: 0; pointer-events: none;')
             
-    def notify_context_changed(self):
+    def schedule_context_refresh(self):
         if not flags.dock_enabled():
             return
-        self._ctx_version += 1
+            
+        task = getattr(self, '_refresh_task', None)
+        if task and not task.done():
+            task.cancel()
+            
+        async def _debounced():
+            try:
+                await asyncio.sleep(0.25)
+                if hasattr(self, 'chat_area') and getattr(self.chat_area, 'is_deleted', False):
+                    return
+                if hasattr(self, 'panel_container') and getattr(self.panel_container, 'is_deleted', False):
+                    return
+                self.notify_context_changed()
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.debug(f"Context refresh cancelado o abortado: {e}")
+                
+        try:
+            self._refresh_task = asyncio.create_task(_debounced())
+        except RuntimeError:
+            pass
 
     def _collect_context(self) -> str:
         if not self._storage.get('ai_ctx_enabled', True):
@@ -256,7 +277,7 @@ class AIPanel(GlosaDockMixin):
                     self.context_chip.set_visibility(True)
                 
                 with ui.row().classes('w-full items-end gap-2 ai-input-wrapper'):
-                    self.input_field = ui.textarea(placeholder='Preguntá algo...').classes('flex-1 matrix-input text-sm').props('borderless autogrow').style('max-height: 120px; overflow-y: auto;')
+                    self.input_field = ui.textarea(placeholder='Pregunta algo...').classes('flex-1 matrix-input text-sm').props('borderless autogrow').style('max-height: 120px; overflow-y: auto;')
                     self.input_field.on('keydown.enter.prevent.exact', self.send_message)
                     
                     ui.button(icon='send', on_click=self.send_message, color=None).classes('btn-primary w-10 h-10 p-0 mb-1').props('ripple=false').style('border-radius: 12px;')

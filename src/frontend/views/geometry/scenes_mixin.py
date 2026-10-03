@@ -29,8 +29,7 @@ class GeometryScenesMixin:
             elif scene == 'vectores':
                 from ._scenes import build_vectors_figure
                 theme = await self._tema_actual()
-                frame_idx = getattr(self, '_current_frame_index', None)
-                return build_vectors_figure(result, theme=theme, frame_index=frame_idx)
+                return build_vectors_figure(result, theme=theme)
             elif scene == 'combinacion':
                 from ._scenes import build_combination_figure
                 theme = await self._tema_actual()
@@ -76,7 +75,6 @@ class GeometryScenesMixin:
             return
 
         self.summary_container.clear()
-
         with self.summary_container:
             if scene == 'rectas-planos':
                 self._render_lines_summary(result)
@@ -84,6 +82,15 @@ class GeometryScenesMixin:
                 self._render_vectors_summary(result)
             elif scene == 'combinacion':
                 self._render_combination_summary(result)
+
+            if result.get("out_of_range"):
+                with ui.element('div').classes('geo-notice mt-2'):
+                    ui.label("Algunos elementos quedan fuera del rango visible").classes('text-sm text-sec')
+
+            sol_set = result.get("set")
+            if sol_set and sol_set.get("segment_visible") is False:
+                with ui.element('div').classes('geo-notice mt-2'):
+                    ui.label("La recta solución queda fuera del rango visible").classes('text-sm text-sec')
 
     def _render_lines_summary(self, result: dict):
         """Render summary for lines/planes scene."""

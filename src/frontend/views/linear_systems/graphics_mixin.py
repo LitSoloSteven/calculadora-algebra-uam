@@ -39,7 +39,7 @@ class LinearSystemsGraphicsMixin:
                 import plotly.graph_objects as go
             except ImportError as e:
                 logger.warning("No se pudo cargar el módulo de gráficos (plotly)", exc_info=e)
-                ui.label('No se pudo cargar el módulo de gráficos (plotly). Contactá al administrador o instalá la dependencia con "pip install plotly".').classes('text-warning')
+                ui.label('No se pudo cargar el módulo de gráficos (plotly). Contacta al administrador o instala la dependencia con "pip install plotly".').classes('text-warning')
                 return
 
             def _linspace(start, stop, num):

@@ -8,6 +8,7 @@ class MatrixCapturePanel:
         self.matrices = {} # Dict de nombre -> { 'm': 3, 'n': 3, 'entradas': [], 'cache': {}, 'ui_container': None }
         self.container = None
         self.on_invert = None
+        self.on_data_change = None
         
     def inject_scripts(self):
         ui.add_head_html('<script src="/assets/js/matrix_capture.js"></script>')
@@ -34,11 +35,15 @@ class MatrixCapturePanel:
             'btn_m_dec': None, 'btn_m_inc': None, 'btn_n_dec': None, 'btn_n_inc': None
         }
         self.render_all_matrices()
+        if self.on_data_change:
+            self.on_data_change()
 
     def remove_matrix(self, name):
         if name in self.matrices:
             del self.matrices[name]
             self.render_all_matrices()
+            if self.on_data_change:
+                self.on_data_change()
 
     async def adjust_size(self, name, delta_m=0, delta_n=0):
         if name not in self.matrices: return
@@ -74,24 +79,17 @@ class MatrixCapturePanel:
                         let control = input.closest('.q-field__control');
                         if(control) {{
                             anims.push(control.animate(
-                                [{{opacity: 1, transform: 'scale(1)', filter: 'blur(0)'}},
-                                 {{opacity: 0, transform: 'scale(0.85) translateY(-8px)', filter: 'blur(2px)'}}],
+                                [{{opacity: 1, transform: 'scale(1)'}},
+                                 {{opacity: 0, transform: 'scale(0.85) translateY(-8px)'}}],
                                 {{duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards'}}
                             ).finished);
                         }}
                     }});
-                    if ({is_m}) {{
-                        let rowContainer = document.querySelector(`[data-grid-row="{name}_{idx_row}"]`);
-                        if (rowContainer) {{
-                            rowContainer.style.overflow = 'hidden';
-                            anims.push(rowContainer.animate(
-                                [{{height: rowContainer.offsetHeight + 'px', opacity: 1, marginTop: '0px', marginBottom: '8px'}},
-                                 {{height: '0px', opacity: 0, marginTop: '0px', marginBottom: '0px'}}],
-                                {{duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards'}}
-                            ).finished);
-                        }}
+                    if (anims.length > 0) {{
+                        Promise.all(anims).then(resolve);
+                    }} else {{
+                        resolve();
                     }}
-                    Promise.all(anims).then(resolve);
                 }});
             '''
             await ui.run_javascript(js_salida)
@@ -121,8 +119,8 @@ class MatrixCapturePanel:
                         let control = input.closest('.q-field__control');
                         if(control) {{
                             anims.push(control.animate(
-                                [{{opacity: 0, transform: 'scale(0.85) translateY(8px)', filter: 'blur(2px)'}},
-                                 {{opacity: 1, transform: 'scale(1)', filter: 'blur(0)'}}],
+                                [{{opacity: 0, transform: 'scale(0.85) translateY(8px)'}},
+                                 {{opacity: 1, transform: 'scale(1)'}}],
                                 {{duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards'}}
                             ).finished);
                         }}
@@ -135,6 +133,9 @@ class MatrixCapturePanel:
                 }});
             '''
             await ui.run_javascript(js_entrada)
+
+        if self.on_data_change:
+            self.on_data_change()
 
     def render_matrix_grid(self, name):
         mat = self.matrices[name]
@@ -153,8 +154,10 @@ class MatrixCapturePanel:
                             
                             def update_cache(e, r=i, c=j, matrix_name=name):
                                 self.matrices[matrix_name]['cache'][(r, c)] = e.value
+                                if self.on_data_change:
+                                    self.on_data_change()
                                 
-                            celda = ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-matrix-id="{name}" data-matrix-row="{i}" data-matrix-col="{j}" borderless autocomplete="new-password" name="{name}_r{i}c{j}"')
+                            celda = ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input grid-cell').props(f'data-matrix-id="{name}" data-matrix-row="{i}" data-matrix-col="{j}" borderless autocomplete="new-password" name="{name}_r{i}c{j}"')
                             fila_UI.append(celda)
                         mat['entradas'].append(fila_UI)
                         
@@ -189,15 +192,15 @@ class MatrixCapturePanel:
                         with ui.row().classes('gap-4 items-center flex-wrap'):
                             with ui.row().classes('gap-1 items-center'):
                                 ui.label('Filas:').classes('text-sm text-sec mr-1')
-                                mat['btn_m_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_m=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                                mat['btn_m_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_m=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
                                 mat['lbl_m'] = ui.label(str(mat['m'])).classes('font-bold w-4 text-center')
-                                mat['btn_m_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_m=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                                mat['btn_m_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_m=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
                             
                             with ui.row().classes('gap-1 items-center'):
                                 ui.label('Cols:').classes('text-sm text-sec mr-1')
-                                mat['btn_n_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_n=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                                mat['btn_n_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_n=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
                                 mat['lbl_n'] = ui.label(str(mat['n'])).classes('font-bold w-4 text-center')
-                                mat['btn_n_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_n=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                                mat['btn_n_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_n=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
 
                             mat['btn_inv'] = ui.button(icon='arrow_forward', on_click=partial(self._handle_invert, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2 text-sec').props('ripple=false').tooltip('Ver Inversa')
                             ui.button(icon='delete', on_click=partial(self.remove_matrix, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-1').style('color: var(--error)').props('ripple=false').tooltip('Eliminar Matriz')

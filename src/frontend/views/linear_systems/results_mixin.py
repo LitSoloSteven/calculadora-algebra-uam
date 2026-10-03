@@ -145,6 +145,10 @@ class LinearSystemsResultsMixin:
         for inp in self.ecuaciones_inputs:
             inp.value = ''
         self.reset_resultados()
+        self._result_fp = None
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def reset_resultados(self):
         self.contenedor_resultados.clear()
@@ -152,7 +156,7 @@ class LinearSystemsResultsMixin:
         with self.contenedor_resultados:
             ui.icon('calculate', size='4rem').classes('text-placeholder mb-4')
             ui.label('Listo para resolver').classes('text-xl font-bold text-main')
-            ui.label('Ingresá las ecuaciones o la matriz y presioná Resolver').classes('text-sm text-sec mt-2 text-center')
+            ui.label('Ingresa las ecuaciones o la matriz y presiona Resolver').classes('text-sm text-sec mt-2 text-center')
 
     async def resolver_sistema(self, sender):
         if self.is_strictly_empty():
@@ -161,7 +165,7 @@ class LinearSystemsResultsMixin:
                 self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning mb-4 w-fit'):
                     ui.icon('warning_amber', size='sm')
-                    ui.label('Ingresá al menos un valor antes de resolver').classes('font-bold')
+                    ui.label('Ingresa al menos un valor antes de resolver').classes('font-bold')
             ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.fast);")
             return
 
@@ -262,9 +266,9 @@ class LinearSystemsResultsMixin:
                                 latex_var = f"\\text{{{var_name}}}" if len(var_name) > 1 else var_name
 
                             if is_unique:
-                                ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main')
+                                ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main min-w-0 max-w-full').style('overflow-wrap: anywhere;')
                             else:
-                                ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main">$$ {latex_var} = {val} $$</div>')
+                                ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main min-w-0 max-w-full" style="overflow-wrap: anywhere;">$$ {latex_var} = {val} $$</div>')
 
                 if getattr(self, 'ai_panel', None):
                     self.ai_panel.render_inline_chips()
@@ -331,6 +335,18 @@ class LinearSystemsResultsMixin:
 
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
+
+        from src.ai.context import fingerprint
+        entrada = {"mode": self.mode_tabs.value, "method": self.method_tabs.value}
+        if self.mode_tabs.value == 'Ecuaciones':
+            entrada["ecuaciones"] = [inp.value for inp in self.ecuaciones_inputs]
+        else:
+            entrada["A"] = matrix_A_vals
+            entrada["b"] = vector_b_vals
+        self._result_fp = fingerprint(entrada)
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def trigger_flip_animation(self):
         ui.run_javascript('''

@@ -25,17 +25,22 @@ document.addEventListener('click', e => {
   window.lastMouseClick = { x: e.clientX, y: e.clientY };
 }, { capture: true });
 
-// Micro-feedback al escribir en inputs de matriz/ecuación
-document.addEventListener('input', e => {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+// Delegated tooltip para celdas con contenido truncado
+document.addEventListener('mouseover', e => {
   const target = e.target;
-  if (target.matches('.matrix-input input')) {
-    const wrapper = target.closest('.matrix-input');
-    if (wrapper) {
-      wrapper.classList.remove('key-pulse');
-      void wrapper.offsetWidth; // force reflow
-      wrapper.classList.add('key-pulse');
-      wrapper.addEventListener('animationend', () => wrapper.classList.remove('key-pulse'), { once: true });
+  if (target && target.matches && target.matches('.matrix-input input')) {
+    if (target.scrollWidth > target.clientWidth) {
+      target.title = target.value || '';
+    } else if (target.hasAttribute('title')) {
+      target.removeAttribute('title');
+    }
+  }
+});
+document.addEventListener('focusin', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches('.matrix-input input')) {
+    if (target.scrollWidth > target.clientWidth) {
+      target.title = target.value || '';
     }
   }
 });
@@ -190,7 +195,7 @@ function animateGarbageCollection() {
     clone.style.fontSize = inputStyle.fontSize;
     clone.style.color = inputStyle.color;
 
-    clone.style.transition = `all ${MOTION.slow}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+    clone.style.transition = 'transform 240ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms cubic-bezier(0.32, 0.72, 0, 1)';
     clone.style.pointerEvents = 'none';
 
     // Ocultar texto original
@@ -207,7 +212,7 @@ function animateGarbageCollection() {
       clone.style.opacity = '0';
     }, delay);
 
-    setTimeout(() => clone.remove(), delay + MOTION.slow);
+    setTimeout(() => clone.remove(), delay + 240);
 
     delay += 30; // Stagger effect
   });

@@ -13,7 +13,6 @@ from src.frontend.components.app_shell import create_app_shell
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.navigation import route_of
 from src.frontend.controllers.geometry.controller_geometry import GeometryController
-from src.frontend.controllers.geometry._solution_set import has_solution_param
 from .scenes_mixin import GeometryScenesMixin
 from .controls_mixin import GeometryControlsMixin
 
@@ -231,6 +230,9 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
     def _on_data_change(self):
         """Called when input data changes (from grid or vector panels)."""
         self._trigger_live_preview()
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def _trigger_live_preview(self):
         """Debounced preview: cancels previous task, waits 350ms."""
@@ -260,7 +262,6 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             payload_hash = hash(json.dumps(payload, sort_keys=True))
             if payload_hash == self.last_payload_hash:
                 return
-            self.last_payload_hash = payload_hash
 
             # Show loading state
             if self._first_draw:
@@ -290,7 +291,18 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             if result.get("status") == "ERROR":
                 self._fig_key = None
                 self._plotly_element = None
+                self.last_result = None
+                self.last_payload_hash = None
+                ui.run_javascript("""
+                    var c = document.querySelector('.geo-figure');
+                    if (c) c.style.opacity = '1';
+                """)
                 self._render_error(result)
+                from src.ai.context import fingerprint
+                self._result_fp = fingerprint({"scene": self.scene, "payload": payload})
+                p = getattr(self, 'ai_panel', None)
+                if p and hasattr(p, 'schedule_context_refresh'):
+                    p.schedule_context_refresh()
                 return
 
             # Clear markInvalid
@@ -318,14 +330,37 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
             self._fig_key = new_fig_key
             self.last_result = result
+            self.last_payload_hash = payload_hash
 
             self._build_slider(result, self.scene)
             self._render_summary(result, self.scene)
+            if self.summary_container:
+                with self.summary_container:
+                    p = getattr(self, 'ai_panel', None)
+                    if p and hasattr(p, 'render_inline_chips'):
+                        p.render_inline_chips()
             self._first_draw = False
 
+            from src.ai.context import fingerprint
+            self._result_fp = fingerprint({"scene": self.scene, "payload": payload})
+            p = getattr(self, 'ai_panel', None)
+            if p and hasattr(p, 'schedule_context_refresh'):
+                p.schedule_context_refresh()
+
         except asyncio.CancelledError:
-            pass
+            self.last_payload_hash = None
+            ui.run_javascript("""
+                var c = document.querySelector('.geo-figure');
+                if (c) c.style.opacity = '1';
+            """)
+            raise
         except Exception:
+            self.last_payload_hash = None
+            self.last_result = None
+            ui.run_javascript("""
+                var c = document.querySelector('.geo-figure');
+                if (c) c.style.opacity = '1';
+            """)
             logger.exception("Error al actualizar figura geométrica")
 
     def _build_payload(self) -> dict | None:
@@ -450,7 +485,13 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             result_data["message"] = result.get("message", "")
 
         ctx = AIContext("visualizador", "Visualizador geométrico", f"Escena: {self.scene}", input_data)
-        ctx.result = result_data
+        from src.ai.context import is_stale
+        entrada_actual = {"scene": self.scene, "payload": self._build_payload()}
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        if ctx.stale:
+            ctx.result = None
+        else:
+            ctx.result = result_data
         return ctx
 
     def get_ai_signals(self):
@@ -484,9 +525,6 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         except Exception:
             return None
 
-    def focus_cell(self, focus):
-        """Focus a specific cell (for AI suggestions)."""
-        pass
 
     def render_inline_chips(self):
         """Render inline suggestion chips after badge."""

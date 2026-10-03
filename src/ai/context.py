@@ -122,6 +122,25 @@ def excerpt_rows(rows, row_indices, center_col, max_cols=12) -> Tuple[Dict[str, 
             
     return result, cols_range
 
+from fractions import Fraction
+import hashlib
+
+def _json_default(o):
+    if isinstance(o, Fraction):
+        return str(o)
+    if hasattr(o, "rows") and hasattr(o, "cols") and hasattr(o, "data"):
+        return {"rows": o.rows, "cols": o.cols}
+    return clip_text(str(o), 40)
+
+def fingerprint(obj: Any) -> str:
+    serialized = json.dumps(obj, sort_keys=True, default=str)
+    return hashlib.sha1(serialized.encode("utf-8")).hexdigest()
+
+def is_stale(current_input: Any, result_fp: str | None) -> bool:
+    if result_fp is None:
+        return False
+    return fingerprint(current_input) != result_fp
+
 def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
     import copy
     working_ctx = copy.deepcopy(ctx)
@@ -163,7 +182,7 @@ def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
         
     def get_str(c: AIContext, is_truncated: bool = False) -> str:
         d = build_dict(c, is_truncated)
-        res = json.dumps(d, ensure_ascii=False, separators=(',', ':'))
+        res = json.dumps(d, ensure_ascii=False, separators=(',', ':'), default=_json_default)
         return f"[CONTEXTO]\n{res}\n[/CONTEXTO]"
         
     res_str = get_str(working_ctx)

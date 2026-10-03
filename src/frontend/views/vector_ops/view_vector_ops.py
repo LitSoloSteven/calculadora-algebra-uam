@@ -40,11 +40,19 @@ class VectorOpsUI(VectorOpsResultsMixin):
             'scalar': self.panel_scalar,
             'lin_comb': self.panel_lin_comb
         }
+        self.panel_add_sub.on_data_change = self._on_vectors_change
+        self.panel_scalar.on_data_change = self._on_vectors_change
+        self.panel_lin_comb.on_data_change = self._on_vectors_change
 
         # Estado de pestañas específicas
         self.add_sub_operation = 'add'
         self.add_sub_strict = False
         self.scalar_value = "2"
+
+    def _on_vectors_change(self):
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     @property
     def vector_panel(self):
@@ -79,12 +87,12 @@ class VectorOpsUI(VectorOpsResultsMixin):
                                     self.op_select = ui.select(
                                         {'add': 'Suma', 'subtract': 'Resta'},
                                         value=self.add_sub_operation,
-                                        on_change=lambda e: setattr(self, 'add_sub_operation', e.value)
+                                        on_change=lambda e: (setattr(self, 'add_sub_operation', e.value), self._on_vectors_change())
                                     ).classes('neo-select w-44').props('popup-content-class="neo-select-menu"')
                                 self.strict_check = ui.checkbox(
                                     'Estricto (No auto-transponer)',
                                     value=self.add_sub_strict,
-                                    on_change=lambda e: setattr(self, 'add_sub_strict', e.value)
+                                    on_change=lambda e: (setattr(self, 'add_sub_strict', e.value), self._on_vectors_change())
                                 ).classes('neo-checkbox')
 
                             self.panel_add_sub.build_container()
@@ -95,7 +103,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
                                 ui.label('Escalar (k):').classes('font-bold')
                                 self.scalar_input = ui.input(
                                     value=self.scalar_value,
-                                    on_change=lambda e: setattr(self, 'scalar_value', e.value)
+                                    on_change=lambda e: (setattr(self, 'scalar_value', e.value), self._on_vectors_change())
                                 ).classes('w-32 matrix-input').props('borderless')
 
                             self.panel_scalar.build_container()
@@ -121,6 +129,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
             return
         self.active_op = e.value
         self.render_empty_state()
+        self._on_vectors_change()
 
     async def clear_all(self):
         is_empty = all(not any(str(val).strip() for val in v['cache'].values()) for v in self.vector_panel.vectors.values())
@@ -183,6 +192,17 @@ class VectorOpsUI(VectorOpsResultsMixin):
             self.current_result = res
             self.render_result(res)
 
+            from src.ai.context import fingerprint
+            entrada = {
+                "op": self.active_op,
+                "vectors": {k: dict(v.get('cache', {})) for k, v in self.vector_panel.vectors.items()},
+                "scalar": self.scalar_value,
+                "add_sub_op": self.add_sub_operation,
+                "strict": self.add_sub_strict
+            }
+            self._result_fp = fingerprint(entrada)
+            self._on_vectors_change()
+
             ui.run_javascript("setTimeout(() => { if(window.typesetMathWhenReady) window.typesetMathWhenReady(); }, 100);")
 
         except Exception as e:
@@ -192,7 +212,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
             self.btn_calculate.props(remove='loading')
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
         try:
             vecs = self.vector_panel.get_vectors_dict()
         except Exception:
@@ -211,17 +231,29 @@ class VectorOpsUI(VectorOpsResultsMixin):
                 
         ctx = AIContext("vector_ops", "Vectores", f"Operación: {self.active_op}", input_data)
         
+        entrada_actual = {
+            "op": self.active_op,
+            "vectors": {k: dict(v.get('cache', {})) for k, v in self.vector_panel.vectors.items()},
+            "scalar": self.scalar_value,
+            "add_sub_op": self.add_sub_operation,
+            "strict": self.add_sub_strict
+        }
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        
         if getattr(self, 'current_result', None):
-            res = self.current_result
-            ctx.result = {
-                "status": res.get("status", "ERROR"),
-                "message": res.get("message", "")
-            }
-            if res.get("result_vector"):
-                ctx.result["result_vector"] = res["result_vector"]
-            if res.get("is_linear_combination") is not None:
-                ctx.result["is_linear_combination"] = res["is_linear_combination"]
-                
+            if ctx.stale:
+                ctx.result = None
+            else:
+                res = self.current_result
+                ctx.result = {
+                    "status": res.get("status", "ERROR"),
+                    "message": res.get("message", "")
+                }
+                if res.get("result_vector"):
+                    ctx.result["result_vector"] = res["result_vector"]
+                if res.get("is_linear_combination") is not None:
+                    ctx.result["is_linear_combination"] = res["is_linear_combination"]
+                    
         return ctx
 
     def focus_cell(self, focus):
@@ -229,28 +261,20 @@ class VectorOpsUI(VectorOpsResultsMixin):
             self.vector_panel.flash_cell(focus[0], focus[1])
 
     def get_ai_signals(self):
-        from src.frontend.suggestions import Signals, InvalidCell
+        from src.frontend.suggestions import Signals, first_invalid_cell
         try:
             state = "none"
             flags = set()
             invalid = None
             
             orients = set()
+            items = []
             for idx, (name, vec) in enumerate(self.vector_panel.vectors.items()):
                 orients.add(vec['orientation'])
                 for r in range(self.vector_panel.dim):
                     val = vec['cache'].get(r, '')
-                    if val.strip() and val.strip() not in ('0', '0.0'):
-                        try:
-                            float(val)
-                        except ValueError:
-                            try:
-                                from fractions import Fraction
-                                Fraction(val)
-                            except ValueError:
-                                invalid = InvalidCell(label=f"{name}[{r+1}]", focus=(idx, r))
-                                break
-                if invalid: break
+                    items.append((f"{name}[{r+1}]", val, (idx, r)))
+            invalid = first_invalid_cell(items)
                 
             if 'row' in orients and 'column' in orients:
                 flags.add("orient_mix")

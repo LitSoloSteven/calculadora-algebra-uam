@@ -241,15 +241,17 @@ class InverseOpsStepsMixin:
             self.step_explain_btn_container.clear()
             with self.step_explain_btn_container:
                 from src.frontend.components.glosa_chips import render_explain_button
+                from src.frontend.controllers.inverse_ops.controller_inverse_ops import InverseOpsController
                 render_explain_button(
                     self.current_step + 1,
                     n_steps,
                     step.get("description", ""),
-                    lambda idx, st=step: self.ai_panel.trigger_explain_step({
-                        'index': idx, 'total': n_steps, 'kind': st.get('kind', 'otro'), 'op': st.get('description', ''),
-                        'cols': st.get('focus', {}).get('cols'),
-                        'rows_before': st.get('focus', {}).get('rows_before', {}),
-                        'rows_after': st.get('focus', {}).get('rows_after', {})
+                    lambda idx, st=step, s_idx=self.current_step: self.ai_panel.trigger_explain_step({
+                        'index': idx,
+                        'total': n_steps,
+                        'kind': st.get('kind', 'otro'),
+                        'op': st.get('description', ''),
+                        **InverseOpsController.build_focus_for_step(steps, s_idx)
                     }),
                     is_loading=getattr(self.ai_panel, '_is_sending', False)
                 )

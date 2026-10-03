@@ -22,7 +22,7 @@ class MatrixOpsUI:
         with self.contenedor_resultados:
             ui.icon('data_object', size='4rem').classes('text-placeholder mb-4')
             ui.label('Sin resultados').classes('text-xl font-bold text-main')
-            ui.label('Añadí matrices y escribí una expresión matemática para empezar').classes('text-sm text-sec mt-2 text-center')
+            ui.label('Añade matrices y escribe una expresión matemática para empezar').classes('text-sm text-sec mt-2 text-center')
 
     async def evaluar_expresion(self, btn):
         expresion = self.input_expresion.value
@@ -130,11 +130,27 @@ class MatrixOpsUI:
         ui.run_javascript("replayResultAnimation('resultados-ops');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-ops'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
+        from src.ai.context import fingerprint
+        entrada = {
+            "matrices": {name: dict(m.get('cache', {})) for name, m in self.capture_panel.matrices.items()},
+            "expresion": (expresion or "").strip()
+        }
+        self._result_fp = fingerprint(entrada)
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
+
+
+    def _on_matrix_change(self):
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def build(self):
         self.ai_panel = AIPanel(self)
         create_app_shell(self, active_route=route_of('matrices'))
         self.capture_panel.inject_scripts()
+        self.capture_panel.on_data_change = self._on_matrix_change
         
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
             with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
@@ -172,6 +188,7 @@ class MatrixOpsUI:
                     with ui.column().classes('w-full panel-card p-6 mt-4'):
                         ui.label('Expresión Matemática').classes('text-lg font-bold text-main mb-2')
                         self.input_expresion = ui.input(placeholder='Ej. A + B * C').classes('matrix-input w-full text-xl py-2').props('borderless autocomplete="new-password"')
+                        self.input_expresion.on_value_change(lambda _: self._on_matrix_change())
                         
                         ui.button('Evaluar', icon='calculate', on_click=lambda e: self.evaluar_expresion(e.sender), color=None).classes('btn-primary w-full py-3 mt-4').props('ripple=false')
 
@@ -183,72 +200,80 @@ class MatrixOpsUI:
         self.ai_panel.build()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
         
         try:
             mats = self.capture_panel.get_matrices_dict()
         except Exception:
             mats = {}
             
-        empty = not bool(mats) and not bool(self.input_expresion.value)
+        expr_val = self.input_expresion.value if hasattr(self, 'input_expresion') and self.input_expresion else ""
+        empty = not bool(mats) and not bool(expr_val)
         if empty:
             return AIContext("matrix_ops", "Operaciones con Matrices", "Operaciones", {}, empty=True)
             
         input_data = {}
         for k, v in mats.items():
             if "data" in v:
-                # v['data'] is list of strings? get_matrices_dict returns numeric strings.
                 sanitized_data = [[sanitize_user_string(c, 32) for c in r] for r in v["data"]]
                 input_data[k] = describe_matrix(sanitized_data)
                 
-        if self.input_expresion.value:
-            input_data["expresion"] = sanitize_user_string(self.input_expresion.value, 200)
+        if expr_val:
+            input_data["expresion"] = sanitize_user_string(expr_val, 200)
             
         ctx = AIContext("matrix_ops", "Operaciones con Matrices", "Matrices y Expresión", input_data)
         
+        entrada_actual = {
+            "matrices": {name: dict(m.get('cache', {})) for name, m in self.capture_panel.matrices.items()},
+            "expresion": (expr_val or "").strip()
+        }
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        
         if getattr(self, 'last_result', None):
-            res = self.last_result
-            ctx.result = {
-                "status": res.get("status", "ERROR"),
-                "message": res.get("message", "")
-            }
-            if res.get("final_variable"):
-                ctx.result["final_variable"] = res["final_variable"]
-                
+            if ctx.stale:
+                ctx.result = None
+            else:
+                res = self.last_result
+                ctx.result = {
+                    "status": res.get("status", "ERROR"),
+                    "message": res.get("message", "")
+                }
+                if res.get("final_variable"):
+                    ctx.result["final_variable"] = res["final_variable"]
+                    
         return ctx
 
     def get_ai_signals(self):
-        from src.frontend.suggestions import Signals, InvalidCell
+        from src.frontend.suggestions import Signals, first_invalid_cell
+        import re
         try:
             state = "none"
             flags = set()
             invalid = None
             
-            expr = self.input_expresion.value.strip() if self.input_expresion else ""
-            if self.capture_panel.matrices and not any(v.strip() and v.strip() not in ('0', '0.0') for v in self.capture_panel.matrices[0].cache.values()):
+            expr = self.input_expresion.value.strip() if hasattr(self, 'input_expresion') and self.input_expresion and self.input_expresion.value else ""
+            
+            has_nonzero = False
+            items = []
+            for name, m in self.capture_panel.matrices.items():
+                cache = m.get('cache', {})
+                for (r, c), val in cache.items():
+                    val_str = str(val).strip()
+                    if val_str and val_str not in ('0', '0.0'):
+                        has_nonzero = True
+                    items.append((f"{name}[{r+1},{c+1}]", val))
+            
+            if not has_nonzero and not expr:
                 state = "empty"
                 
-            for mat in self.capture_panel.matrices:
-                for (r, c), val in mat.cache.items():
-                    if val.strip() and val.strip() not in ('0', '0.0'):
-                        try:
-                            float(val)
-                        except ValueError:
-                            try:
-                                from fractions import Fraction
-                                Fraction(val)
-                            except ValueError:
-                                invalid = InvalidCell(label=f"{mat.name}[{r+1},{c+1}]")
-                                break
-                if invalid: break
-                    
+            invalid = first_invalid_cell(items)
+            
             res = getattr(self, 'last_result', None)
             if res and not getattr(self.get_ai_context(), 'stale', True):
                 st = res.get("status")
-                if st == "OK":
+                if st == "SUCCESS":
                     state = "ok"
-                    import re
-                    if re.search(r'[A-F]\s*\*?\s*[A-F]', expr):
+                    if re.search(r'[A-Z)]\s*\*?\s*[A-Z(]', expr):
                         flags.add("has_product")
                 elif st == "ERROR":
                     msg = res.get("message", "").lower()

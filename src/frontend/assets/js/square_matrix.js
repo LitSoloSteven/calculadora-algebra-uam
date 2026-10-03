@@ -4,8 +4,8 @@ window.animateSquareResize = function (matrixId, idx, mode) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { resolve(); return; }
     const sel = `input[data-matrix-id="${matrixId}"][data-matrix-row="${idx}"], input[data-matrix-id="${matrixId}"][data-matrix-col="${idx}"]`;
     const frames = mode === 'remove'
-      ? [{ opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }, { opacity: 0, transform: 'scale(0.85) translateY(-8px)', filter: 'blur(2px)' }]
-      : [{ opacity: 0, transform: 'scale(0.85) translateY(8px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }];
+      ? [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.85) translateY(-8px)' }]
+      : [{ opacity: 0, transform: 'scale(0.85) translateY(8px)' }, { opacity: 1, transform: 'scale(1)' }];
     const inputs = document.querySelectorAll(sel);
     const step = Math.min(25, 300 / Math.max(inputs.length, 1)); // tope: el stagger total nunca supera ~300 ms
     const anims = [];
@@ -36,4 +36,12 @@ window.shakeMatrixCell = function (matrixId, r, c) {
     wrap.addEventListener('animationend', () => wrap.classList.remove('animate-shake'), { once: true });
   }
   if (ctrl) { ctrl.style.outline = '2px solid var(--error)'; setTimeout(() => { ctrl.style.outline = ''; }, 1800); }
+};
+
+window.flashElement = function (id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const input = el.tagName === 'INPUT' ? el : (el.querySelector('input') || el);
+  input.scrollIntoView({ block: 'center' });
+  input.focus();
 };

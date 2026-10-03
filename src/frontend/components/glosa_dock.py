@@ -52,9 +52,9 @@ class GlosaDockMixin:
                     ui.button(icon='send', on_click=self.send_message_dock, color=None).classes('btn-primary w-10 h-10 p-0 mb-1 flex-shrink-0').props('ripple=false').style('border-radius: 12px;').tooltip('Enviar')
                     
         # FAB
-        ui.button(on_click=self.open, color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-label="Abrir Glosa"').tooltip('Abrir Glosa').style('padding:0;')._props['icon'] = ''
-        with list(ui.context.client.elements.values())[-1]:
+        with ui.button(color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-label="Abrir Glosa"') as fab:
             ui.html(icon_svg('glosa')).classes('text-accent')
+        fab.tooltip('Abrir Glosa')
 
         # Scrim
         ui.element('div').classes('glosa-scrim').props('data-glosa-close')
@@ -74,27 +74,27 @@ class GlosaDockMixin:
                 pass
                 
         if ctx_obj is None or getattr(ctx_obj, 'empty', False):
-            with ui.row().classes('w-full items-center justify-between px-2 py-1').style('background: var(--bg-body); border-radius: 8px;'):
+            with ui.row().classes('w-full items-center justify-between px-2 py-1').style('background: var(--bg-panel); border-radius: 8px;'):
                 ui.label('Sin contexto del ejercicio').classes('text-xs text-sec')
                 ui.switch('Auto-adjuntar', value=enabled, on_change=self._toggle_ctx).classes('text-xs').props('dense size=sm')
             return
 
         lbl = f"Viendo: {ctx_obj.label}"
-        if ctx_obj.window_note:
+        if ctx_obj.stale:
+            lbl = "Los datos cambiaron desde el último cálculo"
+        elif ctx_obj.window_note:
             lbl += f" ({ctx_obj.window_note})"
             
         classes = 'glosa-ctx row items-center gap-2 w-full justify-between px-3 py-2'
         if ctx_obj.stale:
             classes += ' desactualizado'
             
-        with ui.row().classes(classes).style('background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-input);'):
+        with ui.row().classes(classes).style('background: var(--bg-panel); border-radius: 8px; border: 1px solid var(--border-input);'):
             with ui.row().classes('items-center gap-2 min-w-0 flex-1'):
                 ui.icon('visibility', size='xs').classes('text-accent')
                 ui.label(lbl).classes('glosa-ctx-label truncate text-xs font-semibold').tooltip(lbl)
                 
             with ui.row().classes('items-center gap-3 flex-shrink-0'):
-                if ctx_obj.stale:
-                    ui.button('Actualizar', on_click=self.notify_context_changed, color=None).classes('glosa-ctx-btn text-xs px-2 py-0 min-h-0').props('flat ripple=false')
                 ui.switch(value=enabled, on_change=self._toggle_ctx).props('dense size=sm').tooltip('Activar/desactivar contexto')
 
     def notify_context_changed(self):
@@ -172,30 +172,30 @@ class GlosaDockMixin:
     def _scroll_to_bottom(self):
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('glosa-log'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
 
-    def _render_message_dock(self, msg):
+    def _render_message_dock(self, msg, is_last=False):
         sent = msg.get('sent', False)
         error = msg.get('error', False)
         text = msg.get('text', '')
         retry = msg.get('retry', False)
         
-        align = 'justify-end' if sent else 'justify-start'
-        bg = 'var(--btn-primary-bg)' if sent else 'var(--bg-panel)'
-        color = 'var(--btn-primary-text)' if sent else 'var(--text-main)'
         radius = '16px 16px 4px 16px' if sent else '16px 16px 16px 4px'
+        col_align = 'items-end' if sent else 'items-start'
         
-        with ui.row().classes(f'w-full {align} mb-0'):
+        with ui.column().classes(f'w-full {col_align} mb-0'):
             if error:
                 with ui.column().classes('p-3 gap-2').style(f'background: var(--badge-err-bg); color: var(--badge-err-text); border-radius: {radius}; box-shadow: none; max-width: 85%;'):
                     ui.label(text).classes('whitespace-pre-wrap text-sm')
                     if retry:
                         ui.button('Reintentar', icon='refresh', on_click=self._retry_last_dock).classes('btn-primary text-xs').props('flat')
             else:
+                bg = 'var(--btn-primary-bg)' if sent else 'var(--bg-panel)'
+                color = 'var(--btn-primary-text)' if sent else 'var(--text-main)'
                 container = ui.column().classes('p-3').style(f'background: {bg}; color: {color}; border-radius: {radius}; box-shadow: none; max-width: 85%; min-width: 0;')
                 with container:
                     html_content = render_glosa_text(text)
                     ui.html(html_content).classes('w-full')
                     
-            if not error and not sent and chips_active() and kwargs.get('is_last', False):
+            if is_last and not sent and not error and chips_active():
                 self.followups_container = ui.column().classes('w-full mt-2')
                 with self.followups_container:
                     render_followups(FOLLOW_UPS, self.ask_followup, disabled=getattr(self, '_is_sending', False))
@@ -321,8 +321,7 @@ class GlosaDockMixin:
         self._scroll_to_bottom()
         
         ctx_block = self._collect_context()
-        from src.ai.prompts import trim_history
-        history = trim_history(self.chat_history)
+        history = self.chat_history[:-1]
         
         self._request_counter = getattr(self, '_request_counter', 0) + 1
         current_req = self._request_counter

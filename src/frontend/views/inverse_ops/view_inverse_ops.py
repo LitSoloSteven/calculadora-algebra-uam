@@ -128,34 +128,80 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
             clean_handoff_url()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, sanitize_user_string
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
         n = self.square_panel.n
         if self.square_panel.is_empty():
-            return AIContext(tool="inverse", view="Matriz Inversa", label="Matriz A", input={}, empty=True)
+            return AIContext(tool="inversa", view="Matriz Inversa", label="Matriz A", input={}, empty=True)
             
         data = self.square_panel.get_matrix_data()
+        data_sanitized = []
         for i in range(n):
+            row = []
             for j in range(n):
-                if data[i][j]:
-                    data[i][j] = sanitize_user_string(data[i][j], 32)
+                val = data[i][j] if data[i][j] else ""
+                row.append(sanitize_user_string(val, 32))
+            data_sanitized.append(row)
                     
         ctx = AIContext(
-            tool="inverse",
+            tool="inversa",
             view="Matriz Inversa",
             label=f"A ({n}×{n})",
-            input={"data": data}
+            input={"A": describe_matrix(data_sanitized)}
         )
+        ctx.stale = is_stale({"data": data_sanitized}, getattr(self, '_result_fp', None))
+
         if getattr(self, 'last_result', None):
-            if self.last_result.get("status") == "SUCCESS":
-                ctx.result = {
+            if ctx.stale:
+                ctx.result = None
+            elif self.last_result.get("status") == "SUCCESS":
+                inv_obj = self.last_result.get("inverse")
+                res_dict = {
                     "status": "SUCCESS",
                     "determinante": self.last_result.get("determinant_str"),
                     "pasos_totales": self.last_result.get("stats", {}).get("total", 0),
-                    "inverse": self.last_result.get("inverse")
                 }
+                if n <= AI_CONTEXT_MAX_N and inv_obj:
+                    inv_rows = inv_obj.data if hasattr(inv_obj, 'data') else inv_obj
+                    formatted_rows = [[format_fraction_str(c) for c in row] for row in inv_rows]
+                    res_dict["inverse"] = describe_matrix(formatted_rows)
+                else:
+                    res_dict["inverse_omitted"] = True
+                ctx.result = res_dict
             elif self.last_result.get("status") == "SINGULAR":
                 ctx.result = {"status": "SINGULAR", "message": "Matriz singular (det = 0)."}
             else:
                 ctx.result = {"status": "ERROR"}
                 
         return ctx
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, first_invalid_cell
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            n = self.square_panel.n
+            data = self.square_panel.get_matrix_data()
+            items = []
+            for i in range(n):
+                for j in range(n):
+                    items.append((f"A[{i+1},{j+1}]", data[i][j], (i, j)))
+            invalid = first_invalid_cell(items)
+            
+            res = getattr(self, 'last_result', None)
+            if res and not getattr(self.get_ai_context(), 'stale', True):
+                st = res.get("status")
+                if st == "SUCCESS":
+                    state = "success"
+                elif st == "SINGULAR":
+                    state = "singular"
+                else:
+                    state = "none"
+            return Signals(tool="inversa", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None
+
+    def focus_cell(self, focus: tuple[int, int]):
+        if focus and hasattr(self, 'square_panel'):
+            self.square_panel.flash_cell(*focus)

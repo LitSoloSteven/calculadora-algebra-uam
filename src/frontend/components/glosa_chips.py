@@ -1,6 +1,19 @@
 import html
 from nicegui import ui
 
+def _is_keyboard_event(e) -> bool:
+    args = getattr(e, 'args', e)
+    if isinstance(args, dict):
+        return args.get('detail') == 0
+    if isinstance(args, (int, float)):
+        return args == 0
+    if isinstance(args, (list, tuple)) and len(args) > 0:
+        first = args[0]
+        if isinstance(first, dict):
+            return first.get('detail') == 0
+        return first == 0
+    return False
+
 def render_chip_row(suggestions, on_pick, *, variant='dock', disabled=False):
     cls_container = 'glosa-chips'
     if variant == 'inline':
@@ -29,7 +42,7 @@ def render_chip_row(suggestions, on_pick, *, variant='dock', disabled=False):
                 
             def make_handler(item):
                 def handler(e):
-                    from_keyboard = (e.args == 0)
+                    from_keyboard = _is_keyboard_event(e)
                     on_pick(item, from_keyboard)
                 return handler
                 
@@ -57,7 +70,7 @@ def render_followups(followups, on_pick, *, disabled=False):
                 
             def make_handler(item):
                 def handler(e):
-                    from_keyboard = (e.args == 0)
+                    from_keyboard = _is_keyboard_event(e)
                     on_pick(item, from_keyboard)
                 return handler
                 
@@ -66,32 +79,34 @@ def render_followups(followups, on_pick, *, disabled=False):
             
     return container, buttons
 
-def render_explain_button(step_index: int, total_steps: int, op: str, on_click, *, is_loading=False) -> ui.button:
+def render_explain_button(step_index: int, total_steps: int, op: str, on_click, *, is_loading=False) -> ui.button | None:
     """Renderiza el botón 'Explicar paso' para un paso específico."""
-    from src.frontend.suggestions import chips_active
     from src.frontend import flags
+    from src.frontend.suggestions import glosa_configured
+    from src.frontend.components.icons import icon_svg
     
-    # Si el dock está desactivado por flag, no renderizamos el botón porque la experiencia
-    # depende de abrir el dock (F7).
     if not flags.dock_enabled():
         return None
         
-    btn = ui.button(icon='explicar_paso', color=None).classes('glosa-explain-btn').props(
+    with ui.button(color=None).classes('glosa-explain-btn').props(
         f'aria-label="Explicar paso {step_index}" round flat ripple=false'
-    ).tooltip("Explicar este paso")
+    ) as btn:
+        ui.html(icon_svg('explicar_paso'))
+        
+    btn.tooltip("Explicar este paso")
     
     if is_loading:
         btn.props('disabled')
         btn.classes('is-loading')
         return btn
         
-    if not chips_active():
+    if not glosa_configured():
         btn.props('disabled')
         btn.tooltip("Glosa no está configurada")
         return btn
         
     def handler(e):
-        from_keyboard = getattr(e, 'args', 1) == 0
+        from_keyboard = _is_keyboard_event(e)
         if from_keyboard:
             ui.run_javascript("document.documentElement.setAttribute('data-glosa-instant', 'true'); setTimeout(() => document.documentElement.removeAttribute('data-glosa-instant'), 100);")
         on_click(step_index)

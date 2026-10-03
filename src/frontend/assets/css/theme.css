@@ -51,6 +51,7 @@
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
     --fab-reserve: 88px;
+    --cell-w: calc(10ch + 2 * var(--space-2));
     --scrim: color-mix(in srgb, var(--text-main) 28%, transparent);
 }
 
@@ -122,6 +123,7 @@
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
     --fab-reserve: 88px;
+    --cell-w: calc(10ch + 2 * var(--space-2));
     --scrim: color-mix(in srgb, var(--text-main) 28%, transparent);
 }
 
@@ -173,6 +175,7 @@
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
     --fab-reserve: 88px;
+    --cell-w: calc(10ch + 2 * var(--space-2));
     --scrim: color-mix(in srgb, var(--text-main) 28%, transparent);
 }
 
@@ -224,6 +227,7 @@
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
     --fab-reserve: 88px;
+    --cell-w: calc(10ch + 2 * var(--space-2));
     --scrim: color-mix(in srgb, var(--input-bg) 60%, transparent);
 }
 
@@ -339,8 +343,24 @@ body {
     border: none !important;
     border-radius: var(--radius-input) !important;
     box-shadow: var(--elev-inset) !important;
-    transition: box-shadow var(--dur-fast) var(--ease-std),
-        background var(--dur-fast) var(--ease-std);
+    padding: var(--space-2) !important;
+    min-width: 0;
+}
+
+.grid-cell {
+    width: var(--cell-w);
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.grid-cell-compact {
+    width: calc(8ch + 2 * var(--space-2));
+    font-size: 0.8125rem;
+}
+
+.cross-hl {
+    background: color-mix(in srgb, var(--accent) 12%, var(--input-bg)) !important;
+    transition: none !important;
 }
 
 .matrix-input .q-field__control:before,
@@ -423,17 +443,20 @@ body {
         transform var(--dur-fast) var(--ease-std);
 }
 
-.btn-primary:hover,
-.btn-ghost:hover,
-.btn-neo-icon:hover,
-.btn-neo-calc:hover {
-    box-shadow: var(--elev-3) !important;
-    transform: scale(1.02);
+@media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover,
+    .btn-ghost:hover,
+    .btn-neo-icon:hover,
+    .btn-neo-calc:hover {
+        box-shadow: var(--elev-3) !important;
+        transform: scale(1.02);
+    }
 }
 
 .btn-primary:active {
     box-shadow: var(--elev-inset) !important;
     transform: scale(0.97);
+    transition-duration: 0ms !important;
 }
 
 /* === BOTONES FANTASMA === */
@@ -451,6 +474,7 @@ body {
 .btn-ghost:active {
     box-shadow: var(--elev-inset) !important;
     transform: scale(0.97);
+    transition-duration: 0ms !important;
 }
 
 /* === BADGES DE ESTADO (Embossed) === */
@@ -522,7 +546,7 @@ body {
     z-index: -1 !important;
     border-radius: var(--radius-pill) !important;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
-    transition: all var(--dur-slow) var(--ease-elastic) !important;
+    transition: transform var(--dur-med) var(--ease-std), opacity var(--dur-med) var(--ease-std) !important;
 }
 
 .q-tab-panels {
@@ -566,13 +590,14 @@ body {
     height: 44px !important;
     padding: 0 !important;
     box-shadow: var(--elev-2) !important;
-    transition: box-shadow var(--dur-med) var(--ease-elastic),
-        transform var(--dur-med) var(--ease-elastic) !important;
+    transition: box-shadow var(--dur-med) var(--ease-std),
+        transform var(--dur-med) var(--ease-std) !important;
 }
 
 .btn-neo-icon:active {
     box-shadow: var(--elev-inset) !important;
     transform: scale(0.95);
+    transition-duration: 0ms !important;
 }
 
 /* === BRAND LOGO (SCALARIS) === */
@@ -581,7 +606,7 @@ body {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    transition: transform var(--dur-med) var(--ease-elastic);
+    transition: transform var(--dur-med) var(--ease-std);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -592,6 +617,7 @@ body {
 
 .brand-logo-link:active {
     transform: scale(0.94);
+    transition-duration: 0ms !important;
 }
 
 .brand-corner-link {
@@ -631,13 +657,14 @@ html[data-theme="medianoche"] .brand-logo-dark {
     border-radius: var(--radius-btn) !important;
     padding: 0 !important;
     box-shadow: var(--elev-2) !important;
-    transition: box-shadow var(--dur-fast) var(--ease-elastic),
-        transform var(--dur-fast) var(--ease-elastic) !important;
+    transition: box-shadow var(--dur-fast) var(--ease-std),
+        transform var(--dur-fast) var(--ease-std) !important;
 }
 
 .btn-neo-calc:active {
     box-shadow: var(--elev-inset) !important;
     transform: scale(0.95);
+    transition-duration: 0ms !important;
 }
 
 /* === MENÚ DESPLEGABLE Y QUASAR THEMING === */
@@ -735,7 +762,7 @@ html[data-theme="medianoche"] .brand-logo-dark {
 @keyframes slideUpFadeIn {
     0% {
         opacity: 0;
-        transform: translateY(30px);
+        transform: translateY(8px);
     }
 
     100% {
@@ -745,13 +772,13 @@ html[data-theme="medianoche"] .brand-logo-dark {
 }
 
 .animate-slide-up {
-    animation: slideUpFadeIn var(--dur-slow) var(--ease-elastic) forwards !important;
+    animation: slideUpFadeIn var(--dur-med) var(--ease-std) forwards !important;
 }
 
 @keyframes slideBounceVertical {
     0% {
         opacity: 0;
-        transform: translateY(-30px);
+        transform: translateY(-8px);
     }
 
     100% {
@@ -761,7 +788,7 @@ html[data-theme="medianoche"] .brand-logo-dark {
 }
 
 .animate-slide-bounce {
-    animation: slideBounceVertical var(--dur-slow) var(--ease-elastic) forwards !important;
+    animation: slideBounceVertical var(--dur-med) var(--ease-std) forwards !important;
 }
 
 @keyframes shake {
@@ -782,42 +809,6 @@ html[data-theme="medianoche"] .brand-logo-dark {
 
 .animate-shake {
     animation: shake 120ms ease-in-out 2;
-}
-
-/* === MICRO-FEEDBACK TIPADO === */
-@keyframes keyPulse {
-    0% {
-        transform: scale(1);
-        background: var(--input-bg);
-    }
-
-    40% {
-        transform: scale(1.04);
-        background: color-mix(in srgb, var(--accent) 14%, var(--input-bg));
-    }
-
-    100% {
-        transform: scale(1);
-        background: var(--input-bg);
-    }
-}
-
-@keyframes keyPulseColor {
-    0% {
-        opacity: 0;
-    }
-
-    100% {
-        opacity: 1;
-    }
-}
-
-.key-pulse .q-field__control {
-    animation: keyPulse 180ms var(--ease-std);
-}
-
-.key-pulse input {
-    animation: keyPulseColor 90ms ease-out forwards;
 }
 
 /* === TYPEWRITER CURSOR === */
@@ -945,7 +936,7 @@ html[data-theme="medianoche"] .brand-logo-dark {
 }
 
 .squash-bounce {
-    animation: squashBounce var(--dur-slow) var(--ease-elastic) forwards !important;
+    animation: squashBounce var(--dur-med) var(--ease-std) forwards !important;
 }
 
 /* === ACCESIBILIDAD: Focus visible === */
@@ -965,9 +956,24 @@ html[data-theme="medianoche"] .brand-logo-dark {
     *,
     *::before,
     *::after {
-        animation-duration: 120ms !important;
-        animation-timing-function: ease !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 120ms !important;
+    }
+
+    .tw-cursor,
+    .glosa-typing-indicator span {
+        animation: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .animate-shake,
+    .squash-bounce,
+    .animate-slide-up,
+    .animate-slide-bounce {
+        animation: none !important;
+        transform: none !important;
     }
 }
 
@@ -999,9 +1005,6 @@ html[data-theme="medianoche"] .brand-logo-dark {
     white-space: nowrap;
     background: var(--bg-elevated);
     border-bottom: 1px solid var(--border-input);
-    max-width: 16ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
     transition: background var(--dur-med) var(--ease-std);
 }
 
@@ -1883,6 +1886,99 @@ html[data-glosa-instant] .q-header {
 
 /* === /F4 === */
 
+/* === GLOSA CHIPS Y SUGERENCIAS (C5) === */
+.glosa-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.glosa-chips-inline {
+    margin-top: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.glosa-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-elevated);
+    color: var(--text-main);
+    border: 1px solid var(--border-input);
+    box-shadow: var(--elev-1);
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-std),
+        box-shadow var(--dur-fast) var(--ease-std),
+        border-color var(--dur-fast) var(--ease-std),
+        color var(--dur-fast) var(--ease-std);
+    white-space: normal;
+    text-align: left;
+    line-height: 1.3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .glosa-chip:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--elev-2);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+}
+
+.glosa-chip:active {
+    transform: translateY(0);
+    box-shadow: var(--elev-inset);
+    transition-duration: 0ms !important;
+}
+
+.glosa-chip-inline {
+    background: var(--bg-panel);
+}
+
+.glosa-followups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+}
+
+.glosa-followup {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: var(--radius-btn);
+    background: transparent;
+    color: var(--accent);
+    border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-std),
+        border-color var(--dur-fast) var(--ease-std);
+    text-align: left;
+    width: fit-content;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .glosa-followup:hover {
+        background: color-mix(in srgb, var(--accent) 8%, transparent);
+        border-color: var(--accent);
+    }
+}
+
+.glosa-followup:active {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    transition-duration: 0ms !important;
+}
+
 /* === GLOSA EXPLAIN STEP (F7) === */
 .glosa-explain-btn {
     width: 32px !important;
@@ -1973,22 +2069,17 @@ html[data-glosa-instant] .q-header {
 
 /* --- BLOQUE F5: Context Pill --- */
 .glosa-ctx {
-    transition: all 0.2s ease;
 }
 
 .glosa-ctx.desactualizado {
     border-color: var(--warning) !important;
-    background: rgba(234, 179, 8, 0.1) !important;
+    background: var(--badge-warn-bg) !important;
+    color: var(--badge-warn-text) !important;
 }
 
 .glosa-ctx-label {
     font-size: 0.8rem;
     color: var(--text-main);
-}
-
-.glosa-ctx-btn {
-    color: var(--warning) !important;
-    font-weight: bold !important;
 }
 
 /* === F8: Visualizador === */

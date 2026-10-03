@@ -112,16 +112,16 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
         self._actualizar_ejemplos()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, sanitize_user_string
-        val = self.input_valor.value
+        from src.ai.context import AIContext, sanitize_user_string, is_stale
+        val = getattr(getattr(self, 'input_valor', None), 'value', None)
         if not val:
-            return AIContext("conversor", "Conversor de Bases", "Conversión", {}, empty=True)
+            return AIContext("bases", "Conversor de Bases", "Conversión", {}, empty=True)
             
-        base_orig = self.tabs_origen.value
-        base_dest = self.tabs_destino.value
+        base_orig = getattr(getattr(self, 'tabs_origen', None), 'value', self.base_activa)
+        base_dest = getattr(getattr(self, 'tabs_destino', None), 'value', self.base_destino)
         
         ctx = AIContext(
-            "conversor", 
+            "bases", 
             "Conversor de Bases", 
             f"{base_orig} a {base_dest}", 
             {
@@ -131,12 +131,18 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
             }
         )
         
-        if self.tiene_resultado:
-            ctx.result = {
-                "status": "SUCCESS",
-                "resultados": self.resultados.copy()
-            }
-        elif self.lbl_error.text:
+        entrada_actual = {"valor": val, "base_origen": self.base_activa, "base_destino": self.base_destino}
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        
+        if getattr(self, 'tiene_resultado', False):
+            if ctx.stale:
+                ctx.result = None
+            else:
+                ctx.result = {
+                    "status": "SUCCESS",
+                    "resultados": self.resultados.copy()
+                }
+        elif getattr(getattr(self, 'lbl_error', None), 'text', None):
             ctx.result = {
                 "status": "ERROR",
                 "message": self.lbl_error.text
@@ -146,21 +152,15 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
 
     def get_ai_signals(self):
         from src.frontend.suggestions import Signals, InvalidCell
+        import re
         try:
             state = "none"
             flags = set()
             invalid = None
             
-            val = self.input_valor.value.strip() if self.input_valor.value else ""
-            base_from = self.tabs_origen.value
-            
-            if val and base_from:
-                from src.backend.utils.validators import validate_number_for_base
-                # validate_number_for_base expects (val, base)
-                base_map = {'binario': 2, 'octal': 8, 'decimal': 10, 'hexadecimal': 16}
-                num_base = base_map.get(base_from, 10)
-                success, _, _ = validate_number_for_base(val, num_base)
-                if not success:
+            val = self.input_valor.value.strip() if getattr(self, 'input_valor', None) and self.input_valor.value else ""
+            if val and self.base_activa in self.regex_bases:
+                if not re.match(self.regex_bases[self.base_activa], val.replace(" ", "")):
                     invalid = InvalidCell(label="el número")
                     
             if getattr(self, 'tiene_resultado', False) and not getattr(self.get_ai_context(), 'stale', True):
@@ -169,12 +169,10 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
                 res = getattr(self, 'resultados_completos', {})
                 pasos = res.get("pasos", [])
                 
-                has_div = any(p.get("tipo") == "division_sucesiva" for p in pasos)
-                if has_div:
+                if any(p.get("tipo") == "division_sucesiva" for p in pasos):
                     flags.add("division")
                     
-                logs_str = str(pasos).lower()
-                if "hexadecimal" in logs_str or "hex" in logs_str or "16" in logs_str or "bloques de 4" in logs_str:
+                if any(p.get("base_destino") == 16 or p.get("base_origen") == 16 for p in pasos):
                     flags.add("hex")
                     
             return Signals(tool="bases", state=state, flags=frozenset(flags), invalid=invalid)

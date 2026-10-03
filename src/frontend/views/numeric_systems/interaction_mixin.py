@@ -12,6 +12,9 @@ class NumericSystemsInteractionMixin:
             return
         self.base_activa = e.value
         self._actualizar_ejemplos()
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
         if hasattr(self, 'input_valor'):
             try:
                 asyncio.create_task(self._on_input_change(None))
@@ -22,6 +25,9 @@ class NumericSystemsInteractionMixin:
         if not e.value:
             return
         self.base_destino = e.value
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
         if hasattr(self, 'input_valor'):
             if self.tiene_resultado:
                 self._aplicar_opacidad_tarjetas(revelar=False)
@@ -100,20 +106,15 @@ class NumericSystemsInteractionMixin:
         val = self.input_valor.value or ''
 
         if val and not re.match(self.regex_bases[self.base_activa], val.replace(" ", "")):
-            await ui.run_javascript('''
-                const inp = document.querySelector(".conversor-input");
-                if(inp) {
-                    inp.classList.remove("animate-shake");
-                    void inp.offsetWidth;
-                    inp.classList.add("animate-shake");
-                }
-            ''')
             self.lbl_error.text = f'Base {self.base_activa}: solo se admiten caracteres válidos.'
             return
 
         self.lbl_error.text = ''
         if self.tiene_resultado:
             self._marcar_resultado_desincronizado()
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def _marcar_resultado_desincronizado(self):
         """Atenúa los resultados visibles al cambiar el input hasta volver a convertir."""
@@ -141,7 +142,7 @@ class NumericSystemsInteractionMixin:
         btn = self.btn_convertir
         val = self.input_valor.value or ''
         if not val.strip():
-            ui.notify('Ingresá un valor para convertir.', type='warning')
+            ui.notify('Ingresa un valor para convertir.', type='warning')
             return
 
         val_clean = val.replace(" ", "")

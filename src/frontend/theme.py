@@ -7,6 +7,7 @@ CHART_MARKER_BORDER = '#23262E'
 CHART_GRID_COLOR = 'rgba(128,128,128,0.2)'
 CHART_ZERO_COLOR = 'rgba(128,128,128,0.5)'
 CHART_FONT_COLOR = {'papel': '#23262E', 'marea': '#0B1F33', 'medianoche': '#EAF6FF'}
+CHART_SOLUTION_COLOR = '#E11D48'
 
 _HEAD_HTML = """
     <!-- Prevenir FOUC (Flash of Unstyled Content) de tema claro -->

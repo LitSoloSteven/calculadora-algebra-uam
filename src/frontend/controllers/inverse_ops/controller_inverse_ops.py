@@ -496,3 +496,96 @@ class InverseOpsController:
         }
 
         return steps, groups, stats
+
+    @classmethod
+    def build_focus_for_step(cls, steps: list[dict], idx: int) -> dict:
+        """Construye rows_before, rows_after y cols para un paso dado usando excerpt_rows."""
+        from src.ai.context import excerpt_rows
+        from src.frontend.controllers._step_classifier import classify_step
+
+        if not steps:
+            return {"rows_before": {}, "rows_after": {}, "cols": None}
+
+        if 0 <= idx < len(steps):
+            i = idx
+        elif 1 <= idx <= len(steps):
+            i = idx - 1
+        else:
+            i = max(0, min(idx, len(steps) - 1))
+
+        step = steps[i]
+        mat = step.get("matrix")
+        if mat is None:
+            return {"rows_before": {}, "rows_after": {}, "cols": None}
+
+        rows = [[mat.get(r, c) for c in range(mat.cols)] for r in range(mat.rows)]
+
+        prev_step = steps[i - 1] if i > 0 else step
+        prev_mat = prev_step.get("matrix", mat)
+        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if prev_mat else rows
+
+        desc = step.get("description", "")
+        parsed = classify_step(desc)
+        kind = parsed.get("kind", step.get("kind", "otro"))
+
+        center_col = 0
+        if step.get("pivot"):
+            center_col = step["pivot"][1]
+        elif parsed.get("col") is not None:
+            center_col = parsed["col"]
+        else:
+            for k in range(i, -1, -1):
+                if steps[k].get("pivot"):
+                    center_col = steps[k]["pivot"][1]
+                    break
+
+        rows_before = {}
+        rows_after = {}
+        cols_range = None
+
+        if kind == "intercambio":
+            r1 = parsed.get("row1")
+            r2 = parsed.get("row2")
+            if r1 is None or r2 is None:
+                swap = step.get("swap_rows")
+                if swap:
+                    r1, r2 = swap
+            if r1 is not None and r2 is not None:
+                rows_before, cols_range = excerpt_rows(prev_rows, [r1, r2], center_col)
+                rows_after, _ = excerpt_rows(rows, [r1, r2], center_col)
+        elif kind == "eliminacion":
+            t = parsed.get("row1")
+            p = parsed.get("row2")
+            target_rows = []
+            if t is not None:
+                target_rows.append(t)
+            elif step.get("rows_changed"):
+                target_rows.extend(step["rows_changed"])
+            if p is not None and p not in target_rows:
+                target_rows.append(p)
+            
+            rows_before, cols_range = excerpt_rows(prev_rows, target_rows if target_rows else [0], center_col)
+            rows_after, _ = excerpt_rows(rows, [t] if t is not None else target_rows, center_col)
+        elif kind in ("normalizacion", "pivote"):
+            r = parsed.get("row1")
+            if r is None and step.get("rows_changed"):
+                r = step["rows_changed"][0]
+            if r is None and step.get("pivot"):
+                r = step["pivot"][0]
+            r_idx = r if r is not None else 0
+            rows_before, cols_range = excerpt_rows(prev_rows, [r_idx], center_col)
+            rows_after, _ = excerpt_rows(rows, [r_idx], center_col)
+        else:
+            target_rows = list(step.get("rows_changed", []))
+            if not target_rows and step.get("pivot"):
+                target_rows = [step["pivot"][0]]
+            if not target_rows:
+                target_rows = [0]
+            rows_before, cols_range = excerpt_rows(prev_rows, target_rows, center_col)
+            rows_after, _ = excerpt_rows(rows, target_rows, center_col)
+
+        return {
+            "rows_before": rows_before,
+            "rows_after": rows_after,
+            "cols": cols_range,
+        }

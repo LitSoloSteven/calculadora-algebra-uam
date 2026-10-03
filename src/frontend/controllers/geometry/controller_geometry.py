@@ -403,7 +403,9 @@ class GeometryController:
                                     [p_f[i] + t0 * d_f[i] for i in range(n)],
                                     [p_f[i] + t1 * d_f[i] for i in range(n)]
                                 ]
+                                set_data["segment_visible"] = True
                             else:
+                                set_data["segment_visible"] = False
                                 logger.warning("Recta solución fuera de la caja visual.")
                     elif sol_set.dimension == 2 and n == 3:
                         d1 = sp["directions"][0]
@@ -438,6 +440,8 @@ class GeometryController:
                 if "parallel" in flags_list:
                     break
 
+        out_of_range = non_finite or any(abs(v) > h for v in range_values)
+
         return {
             "status": "OK",
             "n": n,
@@ -448,6 +452,7 @@ class GeometryController:
             "pending_param": pending_param,
             "flags": flags_list,
             "range": axis_range,
+            "out_of_range": out_of_range,
             "error_cell": None,
             "message": "",
         }
@@ -558,6 +563,7 @@ class GeometryController:
         default_frame = 16
 
         axis_range = auto_range(all_range_values)
+        out_of_range = any(abs(v) > axis_range[1] for v in all_range_values if v is not None)
 
         return {
             "status": "OK",
@@ -568,6 +574,7 @@ class GeometryController:
             "frames": frames,
             "default_frame": default_frame,
             "range": axis_range,
+            "out_of_range": out_of_range,
             "error_cell": None,
             "message": "",
         }
@@ -715,6 +722,7 @@ class GeometryController:
             b_outside_span = True
 
         axis_range = auto_range(range_values)
+        out_of_range = any(abs(v) > axis_range[1] for v in range_values if v is not None)
 
         return {
             "status": "OK",
@@ -726,6 +734,7 @@ class GeometryController:
             "b_outside_span": b_outside_span,
             "solution_status": sol_status,
             "range": axis_range,
+            "out_of_range": out_of_range,
             "error_cell": None,
             "message": result.get("message", ""),
         }

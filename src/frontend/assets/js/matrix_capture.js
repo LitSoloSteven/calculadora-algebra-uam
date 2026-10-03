@@ -56,8 +56,9 @@
     document.querySelectorAll(`input[data-matrix-id="${mId}"]`).forEach(inp => {
       let isSame = (inp.dataset.matrixRow === r || inp.dataset.matrixCol === c);
       let control = inp.closest('.q-field__control');
-      if (control && isSame) {
-        control.style.background = 'color-mix(in srgb, var(--accent) 15%, var(--input-bg))';
+      if (control) {
+        if (isSame) control.classList.add('cross-hl');
+        else control.classList.remove('cross-hl');
       }
     });
   });
@@ -69,7 +70,7 @@
 
     document.querySelectorAll(`input[data-matrix-id="${mId}"]`).forEach(inp => {
       let control = inp.closest('.q-field__control');
-      if (control) control.style.background = '';
+      if (control) control.classList.remove('cross-hl');
     });
   });
 })();

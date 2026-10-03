@@ -114,7 +114,7 @@ class InverseOpsResultsMixin:
             ui.icon('flip', size='4rem').classes('text-placeholder mb-4')
             ui.label('Listo para invertir').classes('text-xl font-bold text-main')
             ui.label(
-                'Ingresá una matriz cuadrada y presioná Calcular inversa'
+                'Ingresa una matriz cuadrada y presiona Calcular inversa'
             ).classes('text-sm text-sec mt-2 text-center')
 
     def _on_matrix_change(self):
@@ -122,6 +122,9 @@ class InverseOpsResultsMixin:
         self._trigger_live_preview()
         if self.last_result is not None and self.contenedor_resultados:
             self.contenedor_resultados.style('opacity: 0.45;')
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     async def confirmar_limpieza(self):
         """Muestra el diálogo neumórfico para confirmar el vaciado de datos."""
@@ -165,7 +168,7 @@ class InverseOpsResultsMixin:
             with self.contenedor_resultados:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning mb-4 w-fit'):
                     ui.icon('warning', size='sm')
-                    ui.label('Ingresá al menos un valor antes de calcular.').classes('font-bold')
+                    ui.label('Ingresa al menos un valor antes de calcular.').classes('font-bold')
             return
 
         n = self.square_panel.n
@@ -221,6 +224,12 @@ class InverseOpsResultsMixin:
             ui.run_javascript(
                 "document.getElementById('resultados-inv')?.scrollIntoView({behavior: 'smooth', block: 'start'});"
             )
+
+            from src.ai.context import fingerprint
+            self._result_fp = fingerprint({"data": self.square_panel.get_matrix_data()})
+            p = getattr(self, 'ai_panel', None)
+            if p and hasattr(p, 'schedule_context_refresh'):
+                p.schedule_context_refresh()
 
         except Exception as e:
             self._mostrar_error_inesperado(e)

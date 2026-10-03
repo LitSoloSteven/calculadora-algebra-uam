@@ -19,23 +19,23 @@ def _now() -> float:
     return time.monotonic()
 
 
-def put_matrix(source_id: str, data: list[list[str]]) -> str:
+def _store_put(kind: str, source: str, data, **extra) -> str:
     token = secrets.token_urlsafe(16)
-    payload = {"v": 1, "kind": "matrix_A", "source": source_id, "data": data}
-    
+    payload = {"v": 1, "kind": kind, "source": source, "data": data, **extra}
     with _LOCK:
         now = _now()
         expired = [k for k, (ts, _) in _STORE.items() if now - ts > TTL_SECONDS]
         for k in expired:
             del _STORE[k]
-        
         if len(_STORE) >= _MAX_ENTRIES:
             oldest = min(_STORE.keys(), key=lambda k: _STORE[k][0])
             del _STORE[oldest]
-            
         _STORE[token] = (now, payload)
-        
     return token
+
+
+def put_matrix(source_id: str, data: list[list[str]]) -> str:
+    return _store_put("matrix_A", source_id, data)
 
 
 def handoff_url(route: str, token: str) -> str:
@@ -141,33 +141,11 @@ def clean_handoff_url() -> None:
 
 
 def put_system(source_id: str, A: list[list[str]], b: list[str]) -> str:
-    token = secrets.token_urlsafe(16)
-    payload = {"v": 1, "kind": "system", "source": source_id, "data": {"matrix_A": A, "vector_b": b}}
-    with _LOCK:
-        now = _now()
-        expired = [k for k, (ts, _) in _STORE.items() if now - ts > TTL_SECONDS]
-        for k in expired:
-            del _STORE[k]
-        if len(_STORE) >= _MAX_ENTRIES:
-            oldest = min(_STORE.keys(), key=lambda k: _STORE[k][0])
-            del _STORE[oldest]
-        _STORE[token] = (now, payload)
-    return token
+    return _store_put("system", source_id, {"matrix_A": A, "vector_b": b})
 
 
 def put_vectors(source_id: str, scene: str, data: list[list[str]]) -> str:
-    token = secrets.token_urlsafe(16)
-    payload = {"v": 1, "kind": "vectors", "scene": scene, "source": source_id, "data": data}
-    with _LOCK:
-        now = _now()
-        expired = [k for k, (ts, _) in _STORE.items() if now - ts > TTL_SECONDS]
-        for k in expired:
-            del _STORE[k]
-        if len(_STORE) >= _MAX_ENTRIES:
-            oldest = min(_STORE.keys(), key=lambda k: _STORE[k][0])
-            del _STORE[oldest]
-        _STORE[token] = (now, payload)
-    return token
+    return _store_put("vectors", source_id, data, scene=scene)
 
 
 def _validate_cell(cell: str) -> bool:

@@ -19,7 +19,6 @@ MATRIX_ID = "A"
 MIN_N = 1
 MAX_N = INVERSE_MAX_DIMENSION
 DEFAULT_N = 3
-CELL_PX = 64
 
 
 class SquareMatrixPanel:
@@ -71,7 +70,7 @@ class SquareMatrixPanel:
                         self.btn_dec = (
                             ui.button(icon="remove", color=None, on_click=lambda: self.resize(-1))
                             .props("ripple=false")
-                            .classes("btn-neo-icon w-8 h-8 p-0")
+                            .classes("btn-neo-icon w-8 h-8 p-0 flex-shrink-0")
                             .tooltip("Quitar fila y columna")
                         )
                         self.lbl_n = ui.label(str(self.n)).classes(
@@ -80,7 +79,7 @@ class SquareMatrixPanel:
                         self.btn_inc = (
                             ui.button(icon="add", color=None, on_click=lambda: self.resize(+1))
                             .props("ripple=false")
-                            .classes("btn-neo-icon w-8 h-8 p-0")
+                            .classes("btn-neo-icon w-8 h-8 p-0 flex-shrink-0")
                             .tooltip("Añadir fila y columna")
                         )
 
@@ -100,7 +99,7 @@ class SquareMatrixPanel:
 
             # Texto de ayuda
             ui.label(
-                "Tab/flechas para moverte · Pegá desde Excel con Ctrl+V · Máx. 50×50"
+                f"Tab/flechas para moverte · Pega desde Excel con Ctrl+V · Máx. {MAX_N}×{MAX_N}"
             ).classes("fs-small text-sec mt-2")
 
         self._update_controls()
@@ -118,10 +117,10 @@ class SquareMatrixPanel:
                 self.on_data_change()
 
         val = self.cache.get((i, j), "")
+        compact_cls = " grid-cell-compact" if self.n > 12 else ""
         cell = (
             ui.input(value=val, placeholder="", on_change=handler)
-            .classes("matrix-input")
-            .style(f"width: {CELL_PX}px; min-width: {CELL_PX}px; flex-shrink: 0;")
+            .classes(f"matrix-input grid-cell{compact_cls} flex-shrink-0")
             .props(
                 f'data-matrix-id="{MATRIX_ID}" data-matrix-row="{i}" data-matrix-col="{j}" '
                 f'borderless autocomplete="new-password" name="{MATRIX_ID}_r{i}c{j}"'
@@ -239,6 +238,14 @@ class SquareMatrixPanel:
             self.n += 1
             await asyncio.sleep(0.05)
             await self._animate(self.n - 1, "add")
+
+        if (delta == 1 and self.n == 13) or (delta == -1 and self.n == 12):
+            for row in self.cells:
+                for c in row:
+                    if self.n > 12:
+                        c.classes(add="grid-cell-compact")
+                    else:
+                        c.classes(remove="grid-cell-compact")
 
         if not self._is_alive():
             return

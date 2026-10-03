@@ -85,15 +85,22 @@ class RomanCalculatorUI:
                 ).classes('btn-primary w-full py-3 text-lg mt-2 font-bold')
 
             # --- CONTENEDOR DINÁMICO DE RESULTADOS ---
-            resultado_container = ui.column().classes('w-full gap-6 mt-6')
+            def notify_change():
+                p = getattr(self, 'ai_panel', None)
+                if p and hasattr(p, 'schedule_context_refresh'):
+                    p.schedule_context_refresh()
 
             def actualizar_signo(e):
                 signos = {'suma': '+', 'resta': '−', 'mult': '×'}
                 lbl_signo.text = signos.get(e.value, '+')
                 lbl_error.text = ''
+                notify_change()
 
             tabs_op.on_value_change(actualizar_signo)
             tabs_op.set_value('suma')
+
+            input_a.on_value_change(lambda _: notify_change())
+            input_b.on_value_change(lambda _: notify_change())
 
             input_a.on('keydown.enter', lambda: operar_romanos())
             input_b.on('keydown.enter', lambda: operar_romanos())
@@ -353,16 +360,47 @@ class RomanCalculatorUI:
                                         ui.label(f'({res_dec})').classes('text-lg md:text-xl text-sec font-mono')
 
                 except RomanNumeralError as err:
+                    self.last_result = None
+                    self.last_error = err
                     lbl_error.text = str(err)
                     if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
                         self.chips_container.clear()
                         with self.chips_container:
                             self.ai_panel.render_inline_chips()
                 except Exception as err:
+                    self.last_result = None
+                    self.last_error = err
                     lbl_error.text = str(err)
+                finally:
+                    from src.ai.context import fingerprint
+                    entrada = {"a": val_a, "b": val_b, "operacion": op}
+                    self._result_fp = fingerprint(entrada)
+                    p = getattr(self, 'ai_panel', None)
+                    if p and hasattr(p, 'schedule_context_refresh'):
+                        p.schedule_context_refresh()
+
+        def classify_roman_error(exc: Exception) -> str | None:
+            code = getattr(exc, "code", None)
+            if code:
+                if code == "SUB_ZERO":
+                    return "err_sub_zero"
+                if code == "SUB_NEG":
+                    return "err_sub_neg"
+                if code in ("SYNTAX", "NOT_CANONICAL"):
+                    return "err_syntax"
+            msg = str(exc).lower()
+            if "no existe el número cero" in msg:
+                return "err_sub_zero"
+            if "no existen los números negativos" in msg:
+                return "err_sub_neg"
+            if "sintaxis válida" in msg or "canónica" in msg:
+                return "err_syntax"
+            return None
+
+        self.classify_roman_error = classify_roman_error
 
         def get_ai_context():
-            from src.ai.context import AIContext, sanitize_user_string
+            from src.ai.context import AIContext, sanitize_user_string, is_stale
             val_a = input_a.value
             val_b = input_b.value
             if not val_a and not val_b:
@@ -378,17 +416,26 @@ class RomanCalculatorUI:
                     "operacion": tabs_op.value
                 }
             )
+            entrada_actual = {"a": (val_a or "").strip().upper(), "b": (val_b or "").strip().upper(), "operacion": tabs_op.value}
+            ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+
             if getattr(self, 'last_result', None):
-                ctx.result = {
-                    "status": "SUCCESS",
-                    "resultado_romano": self.last_result.resultado_romano,
-                    "resultado_decimal": self.last_result.resultado_decimal
-                }
+                if ctx.stale:
+                    ctx.result = None
+                else:
+                    ctx.result = {
+                        "status": "SUCCESS",
+                        "resultado_romano": self.last_result.resultado_romano,
+                        "resultado_decimal": self.last_result.resultado_decimal
+                    }
             elif lbl_error.text:
-                ctx.result = {
-                    "status": "ERROR",
-                    "message": lbl_error.text
-                }
+                if ctx.stale:
+                    ctx.result = None
+                else:
+                    ctx.result = {
+                        "status": "ERROR",
+                        "message": lbl_error.text
+                    }
             return ctx
             
         self.get_ai_context = get_ai_context
@@ -411,8 +458,18 @@ class RomanCalculatorUI:
                 elif v_b and not re.match(regex, v_b):
                     invalid = InvalidCell(label="Operando B")
                     
-                if getattr(self, 'last_result', None) and not getattr(self.get_ai_context(), 'stale', True):
-                    state = "result"
+                stale = getattr(self.get_ai_context(), 'stale', False)
+                if not stale:
+                    if getattr(self, 'last_result', None):
+                        state = "ok"
+                    elif getattr(self, 'last_error', None):
+                        state = "error"
+                        err_flag = classify_roman_error(self.last_error)
+                        if err_flag:
+                            flags.add(err_flag)
+                            
+                if tabs_op.value == 'mult':
+                    flags.add("op_mult")
                     
                 return Signals(tool="romanos", state=state, flags=frozenset(flags), invalid=invalid)
             except Exception:

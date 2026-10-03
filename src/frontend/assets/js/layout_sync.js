@@ -72,6 +72,7 @@
         }
     });
 
-    mo.observe(document.body, { childList: true, subtree: true });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('DOMContentLoaded', scanPlots);
     scanPlots(); // Initial scan
 })();

@@ -79,6 +79,26 @@ _CATALOG = [
     ("visualizador", "result", "visualizador.span", "¿Qué es el span de estos vectores?", "state"),
 ]
 
+import os
+
+def glosa_configured() -> bool:
+    return bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+
+def first_invalid_cell(items) -> InvalidCell | None:
+    from src.backend.utils.validators import MatrixValidator
+    for item in items:
+        label = item[0]
+        valor = item[1]
+        focus = item[2] if len(item) > 2 else None
+        
+        val_str = str(valor).strip() if valor is not None else ""
+        if not val_str or val_str in ('0', '0.0'):
+            continue
+        ok, _, _ = MatrixValidator.parse_number_exact(val_str)
+        if not ok:
+            return InvalidCell(label=label, focus=focus)
+    return None
+
 def chips_active() -> bool:
     return flags.dock_enabled() and flags.proactive_enabled()
 
@@ -94,7 +114,7 @@ def candidates(signals: Signals | None) -> list[Suggestion]:
             label = label[:23] + "…"
         cands.append(Suggestion(
             id=f"{signals.tool}.invalid",
-            text=f"¿Por qué {label} no es válida?",
+            text=f"¿Por qué {label} no es válido?",
             role="specific",
             focus=signals.invalid.focus
         ))

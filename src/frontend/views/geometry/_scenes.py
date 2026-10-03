@@ -16,6 +16,7 @@ from src.frontend.theme import (
     CHART_GRID_COLOR,
     CHART_ZERO_COLOR,
     CHART_FONT_COLOR,
+    CHART_SOLUTION_COLOR,
 )
 
 
@@ -83,7 +84,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
     sol_set = result.get("set")
     colors = CHART_PALETTE
     font_color = CHART_FONT_COLOR.get(theme, '#23262E')
-    solution_color = CHART_FONT_COLOR.get(theme, '#23262E')
+    solution_color = CHART_SOLUTION_COLOR
 
     if n == 2:
         # Draw infinite solutions 2D (LINE) BEFORE equations
@@ -96,7 +97,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                     mode='lines',
                     name='Conjunto solución (recta)',
                     line=dict(color=solution_color, width=10),
-                    opacity=0.35,
+                    opacity=0.95,
                     hovertext=sol_set.get("param_latex", ""),
                     hoverinfo='text',
                 ))
@@ -181,7 +182,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                         mode='lines',
                         name='Conjunto solución (recta)',
                         line=dict(color=solution_color, width=8),
-                        opacity=0.35,
+                        opacity=0.95,
                         hovertext=sol_set.get("param_latex", ""),
                         hoverinfo='text',
                     ))
@@ -198,7 +199,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                         Z = [[(offset - a * X[r][c] - b_coeff * Y[r][c]) / c_coeff
                               for c in range(grid_size)] for r in range(grid_size)]
                         fig.add_trace(go.Surface(
-                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.35,
+                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.95,
                             colorscale=[[0, solution_color], [1, solution_color]],
                         ))
                     elif max_idx == 1 and abs(b_coeff) > 1e-12:
@@ -207,7 +208,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                         Y = [[(offset - a * X[r][c] - c_coeff * Z[r][c]) / b_coeff
                               for c in range(grid_size)] for r in range(grid_size)]
                         fig.add_trace(go.Surface(
-                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.35,
+                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.95,
                             colorscale=[[0, solution_color], [1, solution_color]],
                         ))
                     elif abs(a) > 1e-12:
@@ -216,7 +217,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                         X = [[(offset - b_coeff * Y[r][c] - c_coeff * Z[r][c]) / a
                               for c in range(grid_size)] for r in range(grid_size)]
                         fig.add_trace(go.Surface(
-                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.35,
+                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.95,
                             colorscale=[[0, solution_color], [1, solution_color]],
                         ))
 

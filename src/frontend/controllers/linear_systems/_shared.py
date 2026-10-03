@@ -151,7 +151,7 @@ def validate_and_build_augmented(
 
     return matrix, A_fractions, b_fractions, m, n, None
 
-def build_steps_meta(raw_steps: list[dict]) -> list[dict]:
+def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
     from src.ai.context import excerpt_rows
     from src.frontend.controllers._step_classifier import classify_step
 
@@ -172,8 +172,8 @@ def build_steps_meta(raw_steps: list[dict]) -> list[dict]:
         rows_after = {}
         cols_range = None
         
-        prev_mat = raw_steps[i-1]["matrix"] if i > 0 else mat
-        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if i > 0 else rows
+        prev_mat = raw_steps[i-1]["matrix"] if i > 0 else (initial if initial is not None else mat)
+        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if (i > 0 or initial is not None) else rows
         
         if kind == "pivote":
             r = parsed["row1"]

@@ -79,19 +79,43 @@
             }
         }
 
+        function inertOthers(elTarget) {
+            if (!elTarget) return;
+            let curr = elTarget;
+            while (curr && curr !== document.body && curr !== document.documentElement) {
+                const parent = curr.parentElement;
+                if (!parent) break;
+                Array.from(parent.children).forEach(sibling => {
+                    if (sibling === curr) return;
+                    if (sibling.hasAttribute('data-glosa-keep')) return;
+                    if (sibling.classList.contains('glosa-scrim') || sibling.classList.contains('glosa-dock')) return;
+                    const tag = sibling.tagName;
+                    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK') return;
+                    if (!sibling.inert) {
+                        sibling.setAttribute('data-glosa-inert', '');
+                        sibling.inert = true;
+                    }
+                });
+                curr = parent;
+            }
+        }
+
+        function restoreInert() {
+            document.querySelectorAll('[data-glosa-inert]').forEach(el => {
+                el.removeAttribute('data-glosa-inert');
+                el.inert = false;
+            });
+        }
+
         // Manage traps
         if (mode !== 'push') {
-            const siblings = Array.from(document.body.children).filter(el => 
-                el !== dock && !el.hasAttribute('data-glosa-keep') && el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE' && !el.classList.contains('glosa-scrim') && !el.classList.contains('glosa-fab') && !el.classList.contains('glosa-dock')
-            );
-            const header = document.querySelector('.q-header');
             if (newState === 'open') {
-                siblings.forEach(el => { if (!el.inert) { el.setAttribute('data-glosa-inert', ''); el.inert = true; } });
-                if (header) header.inert = true;
+                inertOthers(dock);
             } else {
-                document.querySelectorAll('[data-glosa-inert]').forEach(el => { el.removeAttribute('data-glosa-inert'); el.inert = false; });
-                if (header) header.inert = false;
+                restoreInert();
             }
+        } else {
+            restoreInert();
         }
 
         if (newState === 'open') {
@@ -208,15 +232,24 @@
     });
 
     // Mount observer
-    const observer = new MutationObserver((mutations, obs) => {
+    function initDock() {
         const dock = document.getElementById('glosa-dock');
         if (dock) {
             document.documentElement.setAttribute('data-glosa-ready', '');
             dock.inert = !window.scalarisGlosa.isOpen();
             dock.setAttribute('aria-expanded', window.scalarisGlosa.isOpen());
-            obs.disconnect();
+            return true;
         }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+        return false;
+    }
+
+    if (!initDock()) {
+        const observer = new MutationObserver((mutations, obs) => {
+            if (initDock()) {
+                obs.disconnect();
+            }
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
 
 })();

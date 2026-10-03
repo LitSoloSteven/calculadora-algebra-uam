@@ -66,6 +66,13 @@ class NumericSystemsRenderingMixin:
             self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
             self._mostrar_procedimiento()
             
+            from src.ai.context import fingerprint
+            entrada = {"valor": val, "base_origen": self.base_activa, "base_destino": self.base_destino}
+            self._result_fp = fingerprint(entrada)
+            p = getattr(self, 'ai_panel', None)
+            if p and hasattr(p, 'schedule_context_refresh'):
+                p.schedule_context_refresh()
+
             if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
                 self.chips_container.clear()
                 with self.chips_container:

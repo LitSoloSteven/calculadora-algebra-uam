@@ -72,13 +72,13 @@ class EquationGrid:
             # Controles inline de filas (Se añade color=None)
             from functools import partial
             with ui.column().classes('gap-2 mt-12 items-center justify-center mr-2'):
-                self.btn_m_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_m=1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Añadir Ecuación')
-                self.btn_m_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_m=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Quitar Ecuación')
+                self.btn_m_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_m=1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Añadir Ecuación')
+                self.btn_m_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_m=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Quitar Ecuación')
 
         # Controles inline de columnas (Se añade color=None)
         with ui.row().classes('w-full justify-center gap-2 mt-4'):
-            self.btn_n_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_n=1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Añadir Variable')
-            self.btn_n_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_n=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false').tooltip('Quitar Variable')
+            self.btn_n_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_n=1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Añadir Variable')
+            self.btn_n_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_n=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Quitar Variable')
             
         self.generar_cuadricula()
 
@@ -115,10 +115,9 @@ class EquationGrid:
             # Cabeceras Sticky (x₁, x₂, etc)
             with ui.row().classes('items-center gap-2 mb-2 no-wrap w-full z-10 bg-[var(--bg-panel)]').style('position: sticky; top: 0; min-width: max-content;'):
                 for j in range(self.n):
-                    # CORRECCIÓN: Se reemplaza ui.label() por ui.html() para permitir etiquetas <sub>
-                    ui.html(f'x<sub>{j+1}</sub>').classes('w-20 text-center math-label').style('min-width: 80px;')
-                ui.label('=').classes('w-8 text-center text-transparent') # Espaciador
-                ui.label('b').classes('w-20 text-center math-label').style('min-width: 80px;')
+                    ui.html(f'x<sub>{j+1}</sub>').classes('grid-cell text-center math-label')
+                ui.label('=').classes('w-8 text-center text-transparent flex-shrink-0') # Espaciador
+                ui.label('b').classes('grid-cell text-center math-label')
 
             with ui.column().style('min-width: max-content;'):
                 for i in range(self.m):
@@ -131,11 +130,11 @@ class EquationGrid:
                                 self._cache_A[(r, c)] = e.value
                                 if self.on_data_change: self.on_data_change()
                                 
-                            celda = ui.input(value=val, placeholder='', on_change=update_cache_A).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
+                            celda = ui.input(value=val, placeholder='', on_change=update_cache_A).classes('matrix-input grid-cell').props(f'data-row="{i}" data-col="{j}" borderless autocomplete="new-password" name="r{i}c{j}"')
                             fila_A.append(celda)
                             
                         self.entradas_A.append(fila_A)
-                        ui.label('=').classes('w-8 text-center math-label text-xl')
+                        ui.label('=').classes('w-8 text-center math-label text-xl flex-shrink-0')
                         
                         val_b = self._cache_b.get(i, '')
                         
@@ -143,7 +142,7 @@ class EquationGrid:
                             self._cache_b[r] = e.value
                             if self.on_data_change: self.on_data_change()
                             
-                        celda_b = ui.input(value=val_b, placeholder='', on_change=update_cache_b).classes('matrix-input w-20').style('min-width: 80px;').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
+                        celda_b = ui.input(value=val_b, placeholder='', on_change=update_cache_b).classes('matrix-input grid-cell').props(f'data-row="{i}" data-col="{self.n}" borderless autocomplete="new-password" name="r{i}cb"')
                         self.entradas_b.append(celda_b)
 
     def get_matrix_data(self):
