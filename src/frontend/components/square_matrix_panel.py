@@ -94,7 +94,7 @@ class SquareMatrixPanel:
                     )
 
             # Cuadrícula con scroll propio
-            with ui.column().classes("overflow-auto w-full").style("max-height: 60dvh;"):
+            with ui.column().classes("overflow-auto w-full grid-scroll").style("max-height: 60dvh;"):
                 self.grid_container = ui.column().style("min-width: max-content;")
                 self._render_full()
 

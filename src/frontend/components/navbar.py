@@ -58,12 +58,13 @@ def create_navbar(active_ui=None, active_route='/'):
                                             
                         ui.element('div').classes('nav-sep')
                     
-                def toggle_ai_panel():
-                    if active_ui and hasattr(active_ui, 'ai_panel'):
-                        active_ui.ai_panel.toggle()
-                        
-                with ui.button(on_click=toggle_ai_panel, color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false aria-label="Tutor IA"').tooltip('Tutor IA'):
-                    ui.html(icon_svg('tutor_ia'))
+                if not flags.dock_enabled():
+                    def toggle_ai_panel():
+                        if active_ui and hasattr(active_ui, 'ai_panel'):
+                            active_ui.ai_panel.toggle()
+                            
+                    with ui.button(on_click=toggle_ai_panel, color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false aria-label="Tutor IA"').tooltip('Tutor IA'):
+                        ui.html(icon_svg('tutor_ia'))
                 
             ui.element('div').classes('nav-sep')
             

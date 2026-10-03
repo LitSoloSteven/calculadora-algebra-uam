@@ -105,14 +105,16 @@ function updatePlotlyTheme(theme) {
   if (theme === 'marea') { textColor = '#0B1F33'; gridColor = 'rgba(11,31,51,0.1)'; }
 
   document.querySelectorAll('.js-plotly-plot').forEach(plot => {
-    if (!plot._fullLayout) return;
+    if (!plot.isConnected || !plot._fullLayout) return;
     if (window.Plotly && window.Plotly.relayout) {
-      Plotly.relayout(plot, {
-        'font.color': textColor,
-        'scene.xaxis.gridcolor': gridColor,
-        'scene.yaxis.gridcolor': gridColor,
-        'scene.zaxis.gridcolor': gridColor
-      }).catch(() => { });
+      try {
+        Plotly.relayout(plot, {
+          'font.color': textColor,
+          'scene.xaxis.gridcolor': gridColor,
+          'scene.yaxis.gridcolor': gridColor,
+          'scene.zaxis.gridcolor': gridColor
+        }).catch(() => { });
+      } catch(e) {}
     }
   });
 }
@@ -121,7 +123,7 @@ window.updatePlotlyThemeWhenReady = function (maxWaitMs = 5000) {
   var start = Date.now();
   function attempt() {
     let plots = document.querySelectorAll('.js-plotly-plot');
-    let ready = Array.from(plots).some(p => p._fullLayout);
+    let ready = Array.from(plots).some(p => p.isConnected && p._fullLayout);
     if (ready) {
       let currentTheme = document.documentElement.getAttribute('data-theme') || 'papel';
       updatePlotlyTheme(currentTheme);

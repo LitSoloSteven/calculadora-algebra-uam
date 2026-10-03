@@ -1,8 +1,26 @@
 """Composition root de la interfaz web de Scalaris."""
 import os
+import logging
 from nicegui import app, ui
 from src.frontend.routes import register_routes
 from src.frontend.theme import setup_theme  # Reexport para compatibilidad
+
+logger = logging.getLogger(__name__)
+
+def resolve_storage_secret(env) -> str:
+    env_name = env.get("SCALARIS_ENV", "").strip().lower()
+    secret = env.get("STORAGE_SECRET", "").strip()
+    
+    if env_name == "production":
+        if not secret:
+            raise SystemExit("ERROR CRÍTICO: SCALARIS_ENV es production pero falta STORAGE_SECRET.")
+        return secret
+        
+    if not secret:
+        logger.warning("STORAGE_SECRET ausente. Usando secreto de desarrollo (inseguro).")
+        return "scalaris_dev_secret_key"
+        
+    return secret
 
 _initialized = False
 
@@ -20,10 +38,11 @@ def init_app():
 def run():
     """Punto de arranque del servidor web de Scalaris."""
     init_app()
+    secret = resolve_storage_secret(os.environ)
     ui.run(
         title="Scalaris",
         favicon="src/frontend/assets/LogoOscuro.png",
-        storage_secret=os.getenv("STORAGE_SECRET"),
+        storage_secret=secret,
     )
 
 

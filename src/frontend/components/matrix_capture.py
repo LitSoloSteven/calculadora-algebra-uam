@@ -208,7 +208,7 @@ class MatrixCapturePanel:
                     if mat['n'] <= 1: mat['btn_n_dec'].disable()
                     if mat['n'] >= 10: mat['btn_n_inc'].disable()
 
-                    mat['ui_container'] = ui.column().classes('overflow-auto w-full max-h-[300px]')
+                    mat['ui_container'] = ui.column().classes('overflow-auto w-full max-h-[300px] grid-scroll')
                     self.render_matrix_grid(name)
 
     def _handle_invert(self, name):

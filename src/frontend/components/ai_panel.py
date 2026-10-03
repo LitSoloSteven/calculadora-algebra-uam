@@ -3,11 +3,12 @@ import html
 import logging
 from nicegui import ui, app, run
 from src.ai.openrouter_ai import OpenRouterIA
+from src.frontend import flags
+from src.frontend.components.glosa_dock import GlosaDockMixin
 
 logger = logging.getLogger(__name__)
 
-
-class AIPanel:
+class AIPanel(GlosaDockMixin):
     @property
     def _storage(self):
         try:
@@ -22,6 +23,7 @@ class AIPanel:
 
     @property
     def is_open(self):
+        """Devuelve True si el panel legacy está abierto. En dock, la verdad vive en html[data-glosa]."""
         return self._storage.get('ai_panel_open', False)
 
     @is_open.setter
@@ -30,7 +32,9 @@ class AIPanel:
 
     @property
     def chat_history(self):
-        return self._storage.get('ai_chat_history', [])
+        if 'ai_chat_history' not in self._storage:
+            self._storage['ai_chat_history'] = []
+        return self._storage['ai_chat_history']
 
     @chat_history.setter
     def chat_history(self, value):
@@ -48,13 +52,29 @@ class AIPanel:
         
         storage = self._storage
         if 'ai_chat_history' not in storage:
-            storage['ai_chat_history'] = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
+            storage['ai_chat_history'] = []
+        else:
+            # Migrar historial antiguo: si el primero es el saludo, lo eliminamos
+            hist = storage['ai_chat_history']
+            if hist and hist[0].get('text', '').startswith('¡Hola! Estoy aquí'):
+                storage['ai_chat_history'] = hist[1:]
+                
         if 'ai_panel_open' not in storage:
             storage['ai_panel_open'] = False
 
     def toggle(self):
+        if flags.dock_enabled():
+            ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.toggle();')
+            return
         self.is_open = not self.is_open
         self._update_visibility()
+        
+    def open(self):
+        if flags.dock_enabled():
+            ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.open();')
+            return
+        if not self.is_open:
+            self.toggle()
 
     def _update_visibility(self):
         if not self.panel_container: return
@@ -132,8 +152,11 @@ class AIPanel:
         self.context_chip.set_visibility(False)
 
     def clear_chat(self):
-        self.chat_history = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "api_text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
-        self.render_chat()
+        self.chat_history = []
+        if flags.dock_enabled():
+            self.render_chat_dock()
+        else:
+            self.render_chat()
 
     def render_chat(self):
         if not self.chat_area: return
@@ -182,7 +205,7 @@ class AIPanel:
         MAX_HISTORY = 10
         history = [
             {"role": "user" if m.get("sent") else "assistant", "content": m.get("api_text", m.get("text"))}
-            for m in self.chat_history[1:]
+            for m in self.chat_history
             if not m.get("error")
         ][-MAX_HISTORY:]
         
@@ -210,26 +233,12 @@ class AIPanel:
         self.render_chat()
 
     def build(self):
+        if flags.dock_enabled():
+            self.build_dock()
+            return
+            
         self.overlay = ui.element('div').style('position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); z-index: 2999; transition: opacity 240ms var(--ease-std); pointer-events: none;')
         self.overlay.on('click', self.toggle)
-        
-        ui.add_head_html('''
-            <style>
-                @keyframes bounce {
-                  0%, 80%, 100% { transform: translateY(0); }
-                  40% { transform: translateY(-5px); }
-                }
-                .ai-input-wrapper .q-field__control { height: auto !important; min-height: 48px; }
-                
-                @media (max-width: 639px) {
-                    .ai-panel-card {
-                        inset: 8px !important;
-                        width: auto !important;
-                        height: auto !important;
-                    }
-                }
-            </style>
-        ''')
         
         self.panel_container = ui.column().classes('no-wrap ai-panel-card').style('''
             position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: calc(100vh - 104px);

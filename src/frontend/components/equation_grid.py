@@ -67,7 +67,7 @@ class EquationGrid:
         
         with ui.row().classes('w-full items-start no-wrap gap-2'):
             # Contenedor con scroll interno para la matriz
-            self.contenedor_matriz = ui.column().classes('overflow-auto panel-card p-4 flex-1').style('max-height: 60dvh;')
+            self.contenedor_matriz = ui.column().classes('overflow-auto panel-card p-4 flex-1 grid-scroll').style('max-height: 60dvh;')
             
             # Controles inline de filas (Se añade color=None)
             from functools import partial

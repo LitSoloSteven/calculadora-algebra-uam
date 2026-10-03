@@ -42,6 +42,30 @@ _HEAD_HTML = """
     <script src="/assets/js/hub.js"></script>
 """
 
+from src.frontend import flags
+
+_DOCK_HEAD_HTML = """
+    <!-- Pre-paint de Glosa -->
+    <script>
+    try {
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+            const state = localStorage.getItem('scalaris:glosa');
+            if (state === 'open') {
+                document.documentElement.setAttribute('data-glosa', 'open');
+            } else {
+                document.documentElement.setAttribute('data-glosa', 'closed');
+            }
+        } else {
+            document.documentElement.setAttribute('data-glosa', 'closed');
+        }
+    } catch(e) {}
+    </script>
+    <script src="/assets/js/glosa_dock.js"></script>
+    <script src="/assets/js/layout_sync.js"></script>
+"""
+
 def setup_theme():
     """Configura fuentes, hojas de estilo, MathJax y scripts globales."""
     ui.add_head_html(_HEAD_HTML)
+    if flags.dock_enabled():
+        ui.add_head_html(_DOCK_HEAD_HTML)

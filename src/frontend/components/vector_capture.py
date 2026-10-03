@@ -134,7 +134,7 @@ class VectorCapturePanel:
         v['ui_container'].clear()
         
         with v['ui_container']:
-            container_classes = 'items-center gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-2' if v['orientation'] == 'row' else 'items-center gap-2 overflow-y-auto max-h-[300px]'
+            container_classes = 'items-center gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-2 grid-scroll' if v['orientation'] == 'row' else 'items-center gap-2 overflow-y-auto max-h-[300px] grid-scroll'
             layout = ui.row() if v['orientation'] == 'row' else ui.column()
             
             with layout.classes(container_classes).style('flex-wrap: nowrap;' if v['orientation'] == 'row' else ''):
