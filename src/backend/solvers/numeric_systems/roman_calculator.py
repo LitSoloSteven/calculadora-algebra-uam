@@ -1,6 +1,11 @@
 """
 Módulo para operaciones aritméticas con números romanos.
 Soporta suma, resta y multiplicación de 1 dígito decimal mediante sumas repetidas.
+
+Contrato de errores:
+    RomanNumeralError lleva `code` (identificador estable) y `invalid_token`
+    (el valor ofensivo, si aplica). El frontend mapea `code` a sugerencias
+    de Glosa sin parsear el texto del mensaje.
 """
 
 from dataclasses import dataclass, field
@@ -8,9 +13,43 @@ import re
 from typing import List, Tuple
 
 
+# ---------------------------------------------------------------------------
+# Códigos de error (contrato con el frontend)
+# ---------------------------------------------------------------------------
+
+ERROR_INVALID_TYPE = "INVALID_TYPE"
+ERROR_EMPTY_INPUT = "EMPTY_INPUT"
+ERROR_INVALID_SYNTAX = "INVALID_SYNTAX"
+ERROR_NOT_CANONICAL = "NOT_CANONICAL"
+ERROR_OUT_OF_RANGE = "OUT_OF_RANGE"
+ERROR_ZERO_NOT_REPRESENTABLE = "ZERO_NOT_REPRESENTABLE"
+ERROR_NEGATIVE_NOT_REPRESENTABLE = "NEGATIVE_NOT_REPRESENTABLE"
+ERROR_OPERAND_NOT_SINGLE_DIGIT = "OPERAND_NOT_SINGLE_DIGIT"
+
+
 class RomanNumeralError(ValueError):
-    """Excepción para errores de sintaxis o reglas aritméticas en números romanos."""
-    pass
+    """Excepción estructurada para errores de validación y cálculo en
+    números romanos.
+
+    Atributos:
+        code: identificador estable del tipo de error (ver constantes
+            ERROR_* del módulo).
+        invalid_token: el valor específico que causó el error, si aplica.
+            Para errores de la operación (resta inválida, overflow) es None.
+    """
+
+    def __init__(self, message: str, code: str, invalid_token: str | None = None):
+        super().__init__(message)
+        self.code = code
+        self.invalid_token = invalid_token
+
+    def to_dict(self) -> dict:
+        return {
+            "status": "ERROR",
+            "error_code": self.code,
+            "message": str(self),
+            "token": self.invalid_token,
+        }
 
 
 DECIMAL_TO_ROMAN_PAIRS: List[Tuple[int, str]] = [
@@ -51,10 +90,16 @@ class RomanOperationResult:
 def int_to_roman(number: int) -> str:
     """Convierte un entero positivo (1 a 3999) a su representación en números romanos."""
     if not isinstance(number, int):
-        raise RomanNumeralError(f"El valor debe ser un entero, se recibió: {type(number).__name__}")
+        raise RomanNumeralError(
+            f"El valor debe ser un entero, se recibió: {type(number).__name__}",
+            code=ERROR_INVALID_TYPE,
+            invalid_token=str(number),
+        )
     if number < 1 or number > 3999:
         raise RomanNumeralError(
-            f"El sistema romano tradicional solo admite números entre 1 y 3999. Recibido: {number}"
+            f"El sistema romano tradicional solo admite números entre 1 y 3999. Recibido: {number}",
+            code=ERROR_OUT_OF_RANGE,
+            invalid_token=str(number),
         )
 
     result = []
@@ -73,15 +118,27 @@ def roman_to_int(roman: str) -> int:
     Aplica validación estricta de formato canónico (rechaza IIII, VX, IC, etc.).
     """
     if not isinstance(roman, str):
-        raise RomanNumeralError("La entrada debe ser una cadena de texto.")
+        raise RomanNumeralError(
+            "La entrada debe ser una cadena de texto.",
+            code=ERROR_INVALID_TYPE,
+            invalid_token=str(roman),
+        )
 
     cleaned = roman.strip().upper()
 
     if not cleaned:
-        raise RomanNumeralError("La cadena del número romano no puede estar vacía.")
+        raise RomanNumeralError(
+            "La cadena del número romano no puede estar vacía.",
+            code=ERROR_EMPTY_INPUT,
+            invalid_token=roman,
+        )
 
     if not ROMAN_REGEX.match(cleaned):
-        raise RomanNumeralError(f"'{roman}' no es un número romano con sintaxis válida.")
+        raise RomanNumeralError(
+            f"'{roman}' no es un número romano con sintaxis válida.",
+            code=ERROR_INVALID_SYNTAX,
+            invalid_token=roman,
+        )
 
     total = 0
     i = 0
@@ -100,7 +157,9 @@ def roman_to_int(roman: str) -> int:
     canonical = int_to_roman(total)
     if canonical != cleaned:
         raise RomanNumeralError(
-            f"'{roman}' no es una forma canónica válida (se esperaba '{canonical}')."
+            f"'{roman}' no es una forma canónica válida (se esperaba '{canonical}').",
+            code=ERROR_NOT_CANONICAL,
+            invalid_token=roman,
         )
 
     return total
@@ -120,7 +179,9 @@ class RomanCalculator:
         total_dec = val_a + val_b
         if total_dec > 3999:
             raise RomanNumeralError(
-                f"El resultado de la suma ({total_dec}) excede el límite máximo romano de 3999 (MMMCMXCIX)."
+                f"El resultado de la suma ({total_dec}) excede el límite máximo romano de 3999 (MMMCMXCIX).",
+                code=ERROR_OUT_OF_RANGE,
+                invalid_token=str(total_dec),
             )
 
         total_rom = int_to_roman(total_dec)
@@ -157,11 +218,15 @@ class RomanCalculator:
 
         if val_a == val_b:
             raise RomanNumeralError(
-                f"Resta inválida ({rom_a} - {rom_b} = 0): En el sistema de numeración romana tradicional no existe el número cero."
+                f"Resta inválida ({rom_a} - {rom_b} = 0): En el sistema de numeración romana tradicional no existe el número cero.",
+                code=ERROR_ZERO_NOT_REPRESENTABLE,
+                invalid_token=None,
             )
         if val_a < val_b:
             raise RomanNumeralError(
-                f"Resta inválida ({rom_a} - {rom_b} = {val_a - val_b}): En el sistema de numeración romana tradicional no existen los números negativos."
+                f"Resta inválida ({rom_a} - {rom_b} = {val_a - val_b}): En el sistema de numeración romana tradicional no existen los números negativos.",
+                code=ERROR_NEGATIVE_NOT_REPRESENTABLE,
+                invalid_token=None,
             )
 
         total_dec = val_a - val_b
@@ -201,11 +266,15 @@ class RomanCalculator:
 
         if val_a < 1 or val_a > 9:
             raise RomanNumeralError(
-                f"El operando A '{rom_a}' ({val_a}) no es de 1 dígito. Debe estar entre I (1) y IX (9)."
+                f"El operando A '{rom_a}' ({val_a}) no es de 1 dígito. Debe estar entre I (1) y IX (9).",
+                code=ERROR_OPERAND_NOT_SINGLE_DIGIT,
+                invalid_token=a,
             )
         if val_b < 1 or val_b > 9:
             raise RomanNumeralError(
-                f"El operando B '{rom_b}' ({val_b}) no es de 1 dígito. Debe estar entre I (1) y IX (9)."
+                f"El operando B '{rom_b}' ({val_b}) no es de 1 dígito. Debe estar entre I (1) y IX (9).",
+                code=ERROR_OPERAND_NOT_SINGLE_DIGIT,
+                invalid_token=b,
             )
 
         pasos = [
