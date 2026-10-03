@@ -157,11 +157,11 @@ class NumericSystemsRenderingMixin:
                     with ui.expansion(titulo, icon='vertical_align_bottom').classes('w-full panel-card font-bold text-main timeline-expansion'):
                         filas_html = ""
                         for f in paso["filas"]:
-                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
+                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center' style='overflow-wrap: anywhere;'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold' style='overflow-wrap: anywhere;'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
 
                         tabla = f"""
                         <div class="flex items-center gap-6 mt-4 font-normal">
-                            <div class="overflow-x-auto flex-grow">
+                            <div class="overflow-x-auto flex-grow" style="min-width: 0;">
                                 <table class="w-full text-sm border-collapse">
                                     <thead>
                                         <tr class="bg-[var(--bg-elevated)]">
@@ -174,7 +174,7 @@ class NumericSystemsRenderingMixin:
                                     <tbody>{filas_html}</tbody>
                                 </table>
                             </div>
-                            <div class="flex flex-col items-center justify-center text-sec">
+                            <div class="flex flex-col items-center justify-center text-sec flex-shrink-0">
                                 <span class="material-icons text-3xl">arrow_upward</span>
                                 <span class="text-xs text-center w-24">{paso["lectura"]}</span>
                             </div>

@@ -16,7 +16,7 @@ class HubUI:
         self.ai_panel = AIPanel(self)
         create_app_shell(self, active_route=HUB_ROUTE)
         
-        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 gap-8 hub-root'):
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 gap-8 hub-root view-root'):
             ui.label("Scalaris").classes('text-2xl font-bold text-main')
             ui.label("Álgebra lineal y utilidades numéricas, con cada paso a la vista.").classes('fs-small text-sec')
             

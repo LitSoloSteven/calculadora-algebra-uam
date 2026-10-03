@@ -263,7 +263,7 @@ class LinearSystemsResultsMixin:
                             if is_unique:
                                 ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main')
                             else:
-                                ui.html(f'<div class="px-4 py-2 panel-card math-label text-main">$$ {latex_var} = {val} $$</div>')
+                                ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main">$$ {latex_var} = {val} $$</div>')
 
                 if respuesta.get("intermediate_steps_latex"):
                     ui.label('Procedimiento paso a paso').classes('font-bold mt-6 text-xl text-main')

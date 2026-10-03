@@ -323,10 +323,10 @@ class InverseOpsResultsMixin:
                         )
                 else:
                     with ui.row().classes('items-start justify-center gap-8 flex-wrap w-full my-4'):
-                        with ui.column().classes('items-center'):
+                        with ui.column().classes('items-center layout-fit'):
                             ui.label('A').classes('font-bold text-main mb-2')
                             ui.html(matrix_table_html(result['matrix_a']))
-                        with ui.column().classes('items-center'):
+                        with ui.column().classes('items-center layout-fit'):
                             ui.label('A⁻¹').classes('font-bold text-main mb-2')
                             ui.html(matrix_table_html(result['inverse']))
 

@@ -50,7 +50,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
         self.square_panel.on_data_change = self._on_matrix_change
         self.calculator.inject_scripts()
 
-        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
             self.handoff_slot = ui.column().classes('w-full')
             # Encabezado
             with ui.column().classes('mb-8'):
@@ -60,9 +60,9 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                 ).style('letter-spacing: 0.08em;')
 
             # Fila principal de trabajo: Matriz (izq) y Herramientas (der)
-            with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
+            with ui.element('div').classes('layout-split mb-8'):
                 # Columna Izquierda: Captura y Botones
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
+                with ui.column().classes('layout-pane'):
                     self.square_panel.build_container()
 
                     with ui.row().classes('w-full mt-6 gap-4'):
@@ -81,7 +81,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                         ).classes('btn-primary flex-[2] py-3').props('ripple=false')
 
                 # Columna Derecha: Panel de herramientas (Teclado, Preview, Historial)
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1 tools-panel'):
+                with ui.column().classes('layout-pane tools-panel'):
                     with ui.tabs().classes('neo-tabs w-full').props('dense no-caps') as self.tools_tabs:
                         ui.tab('teclado', label='Teclado')
                         ui.tab('preview', label='Vista previa')

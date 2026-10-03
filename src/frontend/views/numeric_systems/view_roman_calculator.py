@@ -17,7 +17,7 @@ class RomanCalculatorUI:
         self.ai_panel = AIPanel(self)
         create_app_shell(self, active_route=route_of('romanos'))
 
-        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
+        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6 view-root'):
             # --- PANEL DE ENTRADA ---
             with ui.column().classes('w-full panel-card p-6 gap-6'):
                 ui.label('Calculadora de Números Romanos').classes('text-2xl font-bold text-main')
@@ -63,14 +63,14 @@ class RomanCalculatorUI:
                     with ui.row().classes('w-full items-center gap-3 flex-nowrap'):
                         input_a = ui.input(placeholder='Operando A (ej: XIV)').classes(
                             'flex-1 matrix-input conversor-input text-center'
-                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase;')
+                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase; min-width: 0;')
                         input_a.props('autocomplete="off" spellcheck="false"')
 
                         lbl_signo = ui.label('+').classes('text-2xl font-bold text-sec flex-shrink-0')
 
                         input_b = ui.input(placeholder='Operando B (ej: IX)').classes(
                             'flex-1 matrix-input conversor-input text-center'
-                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase;')
+                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase; min-width: 0;')
                         input_b.props('autocomplete="off" spellcheck="false"')
 
                     lbl_error = ui.label('').classes('fs-small').style(
@@ -191,7 +191,7 @@ class RomanCalculatorUI:
                             'w-full panel-card rounded-2xl text-main font-bold text-xl'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
                             with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
-                                with ui.row().classes('w-full grid grid-cols-1 md:grid-cols-2 gap-4'):
+                                with ui.element('div').classes('layout-grid-2'):
                                     # Card Operando A
                                     with ui.row().classes('p-5 rounded-xl border items-center justify-between').style(
                                         'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'

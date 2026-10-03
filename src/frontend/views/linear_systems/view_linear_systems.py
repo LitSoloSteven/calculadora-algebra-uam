@@ -45,7 +45,7 @@ class LinearSystemsUI(
         self.grid.on_data_change = self._on_grid_change
         self.calculator.inject_scripts()
 
-        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
             self.handoff_slot = ui.column().classes('w-full')
             # Header con Título y Selectores
             with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
@@ -69,8 +69,8 @@ class LinearSystemsUI(
 
                 self.mode_tabs.on_value_change(on_mode_change)
 
-            with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
+            with ui.element('div').classes('layout-split mb-8'):
+                with ui.column().classes('layout-pane'):
                     with ui.tab_panels(self.mode_tabs, value='Matriz').classes(
                         'w-full p-0 overflow-hidden panel-card main-grid-panel'
                     ).props('animated transition-prev="slide-right" transition-next="slide-left"'):
@@ -117,7 +117,7 @@ class LinearSystemsUI(
                             'Resolver', on_click=lambda e: self.resolver_sistema(e.sender), color=None
                         ).classes('btn-primary flex-[2] py-3').props('ripple=false')
 
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1 tools-panel'):
+                with ui.column().classes('layout-pane tools-panel'):
                     with ui.tabs().classes('neo-tabs w-full').props('dense no-caps') as self.tools_tabs:
                         ui.tab('teclado', label='Teclado')
                         ui.tab('preview', label='Vista previa')

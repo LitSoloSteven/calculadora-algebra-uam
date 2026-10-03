@@ -57,12 +57,12 @@ class VectorOpsUI(VectorOpsResultsMixin):
 
         self.panel_add_sub.inject_scripts()
 
-        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
-            with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
+            with ui.element('div').classes('layout-split mb-8'):
                 # --- PANEL IZQUIERDO (Entrada) ---
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1 p-8 bg-[var(--bg-page)]').style('scroll-behavior: smooth;') as self.left_panel:
+                with ui.column().classes('layout-pane p-8 bg-[var(--bg-page)]').style('scroll-behavior: smooth;') as self.left_panel:
                     with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
-                        with ui.tabs().classes('neo-tabs method-tabs').props('dense no-caps').style('max-width: 560px !important') as self.method_tabs:
+                        with ui.tabs().classes('neo-tabs method-tabs').props('dense no-caps mobile-arrows').style('max-width: 560px !important') as self.method_tabs:
                             ui.tab('add_sub', label='Suma / Resta')
                             ui.tab('scalar', label='Escalar × Vector')
                             ui.tab('lin_comb', label='Combinación Lineal')
@@ -111,7 +111,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
                         self.btn_calculate = ui.button('Calcular', icon='calculate', on_click=self.calculate, color=None).classes('btn-primary px-8 py-2 font-bold')
 
                 # --- PANEL DERECHO (Resultados) ---
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1 p-8 bg-[var(--bg-page)]') as self.right_panel:
+                with ui.column().classes('layout-pane p-8 bg-[var(--bg-page)]') as self.right_panel:
                     self.render_empty_state()
 
         self.ai_panel.build()

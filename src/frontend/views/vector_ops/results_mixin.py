@@ -56,7 +56,7 @@ class VectorOpsResultsMixin:
         if final_latex:
             ui.label('Resultado').classes('text-xl font-bold mb-4 text-main')
             with ui.card().classes('panel-card w-full p-6 mb-6 items-center justify-center'):
-                ui.html(f'<div class="math-label overflow-x-auto p-4 text-lg text-center">$$ {final_latex} $$</div>')
+                ui.html(f'<div class="math-scroll-container math-label p-4 text-lg text-center">$$ {final_latex} $$</div>')
 
         steps = res.get('steps', [])
         if len(steps) > 1:
@@ -75,7 +75,7 @@ class VectorOpsResultsMixin:
                             ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2')
                             if latex:
                                 ui.html(
-                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                    f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'
                                 )
 
     def render_linear_combination_result(self, res: dict):
@@ -91,7 +91,7 @@ class VectorOpsResultsMixin:
                     ui.label('Verificación formal (y = c₁v₁ + ... + cᵣvᵣ):').classes('font-bold mb-2')
                     detail_tex = v_step.get("detail_latex") or v_step.get("formula_latex", "")
                     if detail_tex:
-                        ui.html(f'<div class="math-label overflow-x-auto">$$ {detail_tex} $$</div>')
+                        ui.html(f'<div class="math-scroll-container math-label">$$ {detail_tex} $$</div>')
 
         elif status == 'INFINITE':
             sol_str = ", ".join(res.get('solucion_parametrica', []))
@@ -112,7 +112,7 @@ class VectorOpsResultsMixin:
                             ui.label(desc).classes('text-sm font-bold text-sec mb-2')
                             if latex:
                                 ui.html(
-                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                    f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'
                                 )
 
         # 2. ACORDEÓN DE ELIMINACIÓN GAUSSIANA
@@ -138,7 +138,7 @@ class VectorOpsResultsMixin:
                             ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2')
                             if latex:
                                 ui.html(
-                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                    f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'
                                 )
 
         # 3. ACORDEÓN DE SUSTITUCIÓN HACIA ATRÁS
@@ -150,5 +150,5 @@ class VectorOpsResultsMixin:
                 with ui.column().classes('w-full p-4 gap-4 bg-[var(--input-bg)]'):
                     for bs in back_steps:
                         ui.html(
-                            f'<div class="math-label bg-[var(--bg-elevated)] p-3 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto">$$ {bs} $$</div>'
+                            f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-3 rounded-lg shadow-sm border border-[var(--border-input)]">$$ {bs} $$</div>'
                         )

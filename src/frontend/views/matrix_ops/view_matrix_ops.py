@@ -117,13 +117,13 @@ class MatrixOpsUI:
         create_app_shell(self, active_route=route_of('matrices'))
         self.capture_panel.inject_scripts()
         
-        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
             with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
                 ui.label('Operaciones con Matrices').classes('text-2xl font-bold text-main')
 
-            with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
+            with ui.element('div').classes('layout-split mb-8'):
                 # Panel izquierdo (Matrices y expresión)
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
+                with ui.column().classes('layout-pane'):
                     self.capture_panel.build_container()
                     
                     def do_invert(name, mat):
@@ -157,7 +157,7 @@ class MatrixOpsUI:
                         ui.button('Evaluar', icon='calculate', on_click=lambda e: self.evaluar_expresion(e.sender), color=None).classes('btn-primary w-full py-3 mt-4').props('ripple=false')
 
                 # Panel derecho (Resultados)
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1'):
+                with ui.column().classes('layout-pane'):
                     self.contenedor_resultados = ui.column().classes('w-full panel-card p-6 items-center justify-center min-h-[400px]').props('id="resultados-ops"')
                     self.reset_resultados()
                     

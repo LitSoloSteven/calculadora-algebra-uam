@@ -35,7 +35,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
         self.ai_panel = AIPanel(self)
         create_app_shell(self, active_route=route_of('bases'))
 
-        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
+        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6 view-root'):
             # --- HERO SECTION (Entrada) ---
             with ui.column().classes('w-full panel-card p-6 gap-6'):
                 ui.label('Conversor de Bases').classes('text-2xl font-bold text-main')
@@ -91,7 +91,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
                 ).classes('btn-primary w-full py-3 text-lg mt-2 font-bold')
 
             # --- RESULTADOS (Tarjetas 2x2) ---
-            with ui.row().classes('w-full grid grid-cols-1 md:grid-cols-2 gap-4 mt-6'):
+            with ui.element('div').classes('layout-grid-2 mt-6'):
                 self._crear_tarjeta_resultado('decimal', 'Decimal', '10')
                 self._crear_tarjeta_resultado('hexadecimal', 'Hexadecimal', '16')
                 self._crear_tarjeta_resultado('binario', 'Binario', '2')

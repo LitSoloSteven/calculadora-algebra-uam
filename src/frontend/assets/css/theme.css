@@ -44,6 +44,7 @@
     --z-fab: 2500;
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
+    --fab-reserve: 88px;
     --scrim: color-mix(in srgb, var(--text-main) 28%, transparent);
 }
 
@@ -100,6 +101,7 @@
     --z-fab: 2500;
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
+    --fab-reserve: 88px;
     --scrim: color-mix(in srgb, var(--text-main) 28%, transparent);
 }
 
@@ -150,6 +152,7 @@
     --z-fab: 2500;
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
+    --fab-reserve: 88px;
     --scrim: color-mix(in srgb, var(--text-main) 28%, transparent);
 }
 
@@ -200,6 +203,7 @@
     --z-fab: 2500;
     --z-modal: 6000;
     --glosa-w: clamp(360px, 32vw, 440px);
+    --fab-reserve: 88px;
     --scrim: color-mix(in srgb, var(--input-bg) 60%, transparent);
 }
 
@@ -710,7 +714,7 @@ html[data-theme="medianoche"] .brand-logo-dark {
 }
 
 /* === MATRIZ INVERSA === */
-.inv-scroll { overflow: auto; max-width: 100%; max-height: 60vh; border-radius: var(--radius-input); box-shadow: var(--elev-inset); background: var(--bg-panel); }
+.inv-scroll { overflow: auto; max-width: 100%; max-height: 60dvh; border-radius: var(--radius-input); box-shadow: var(--elev-inset); background: var(--bg-panel); }
 .inv-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; font-size: var(--fs-small); color: var(--text-main); }
 .inv-table th, .inv-table td { padding: 6px 12px; text-align: center; white-space: nowrap; background: var(--bg-elevated); border-bottom: 1px solid var(--border-input); max-width: 16ch; overflow: hidden; text-overflow: ellipsis; transition: background var(--dur-med) var(--ease-std); }
 .inv-table thead th { position: sticky; top: 0; z-index: 2; background: var(--bg-panel); color: var(--text-sec); }
@@ -765,6 +769,59 @@ html[data-theme="medianoche"] { --show-medianoche: block; }
 .crumb-sep { color: var(--text-placeholder); }
 
 .hub-root { container-type: inline-size; }
+.view-root { container-type: inline-size; }
+.view-root::after {
+    content: "";
+    display: block;
+    height: var(--fab-reserve);
+    flex-shrink: 0;
+}
+
+/* === F3: Layout por contenedor === */
+/*
+ * Derivación de umbrales:
+ * El container query mide el content box de .view-root.
+ * .nicegui-content tiene padding: 16px (x2 = 32px).
+ * .view-root estándar tiene p-6 (48px). UMBRAL_LG = 1024 - 32 - 48 = 944px.
+ * .view-root compacto tiene q-pa-md (32px). UMBRAL_MD = 768 - 32 - 32 = 704px.
+ */
+.layout-split {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-8);
+    width: 100%;
+}
+.layout-pane {
+    width: 100%;
+    min-width: 0;
+}
+@container (min-width: 944px) {
+    .layout-split {
+        flex-direction: row;
+    }
+    .layout-pane {
+        width: 50%;
+        flex: 1 1 0%;
+    }
+}
+
+.layout-grid-2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    width: 100%;
+}
+@container (min-width: 704px) {
+    .layout-grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.layout-fit {
+    min-width: 0;
+    max-width: 100%;
+}
 .hub-section-title { font-size: var(--fs-h2); font-weight: var(--fw-h2); color: var(--text-main); margin: 0; }
 .hub-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6); width: 100%; }
 @container (min-width: 760px) { .hub-cols { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: start; } }
