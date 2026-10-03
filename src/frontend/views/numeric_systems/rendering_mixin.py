@@ -129,6 +129,19 @@ class NumericSystemsRenderingMixin:
                     nombre = nombres_base.get(paso["base_origen"], f'Base {paso["base_origen"]}')
                     titulo = f'{idx}. Expansión Posicional desde {nombre}'
                     with ui.expansion(titulo, icon='functions').classes('w-full panel-card font-bold text-main timeline-expansion'):
+                        if getattr(self, 'ai_panel', None):
+                            with ui.row().classes('w-full justify-end px-4 py-2 bg-[var(--bg-elevated)] border-b border-[var(--border-input)]'):
+                                from src.frontend.components.glosa_chips import render_explain_button
+                                render_explain_button(
+                                    idx, 
+                                    len(self.resultados_completos.get("pasos", [])), 
+                                    titulo, 
+                                    lambda ix, t=titulo: self.ai_panel.trigger_explain_step({
+                                        'index': ix, 'total': len(self.resultados_completos.get("pasos", [])), 'kind': 'otro', 'op': t
+                                    }),
+                                    is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                )
+                                
                         filas_html = ""
                         eq_str = ""
                         for t in paso["terminos"]:
@@ -163,6 +176,19 @@ class NumericSystemsRenderingMixin:
                     nombre = nombres_base.get(paso["base_destino"], f'Base {paso["base_destino"]}')
                     titulo = f'{idx}. Divisiones Sucesivas hacia {nombre}'
                     with ui.expansion(titulo, icon='vertical_align_bottom').classes('w-full panel-card font-bold text-main timeline-expansion'):
+                        if getattr(self, 'ai_panel', None):
+                            with ui.row().classes('w-full justify-end px-4 py-2 bg-[var(--bg-elevated)] border-b border-[var(--border-input)]'):
+                                from src.frontend.components.glosa_chips import render_explain_button
+                                render_explain_button(
+                                    idx, 
+                                    len(self.resultados_completos.get("pasos", [])), 
+                                    titulo, 
+                                    lambda ix, t=titulo: self.ai_panel.trigger_explain_step({
+                                        'index': ix, 'total': len(self.resultados_completos.get("pasos", [])), 'kind': 'otro', 'op': t
+                                    }),
+                                    is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                )
+                                
                         filas_html = ""
                         for f in paso["filas"]:
                             filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center' style='overflow-wrap: anywhere;'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold' style='overflow-wrap: anywhere;'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"

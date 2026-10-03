@@ -37,6 +37,10 @@ class GlosaDockMixin:
             with ui.column().classes('w-full p-4 border-t border-[var(--border-input)] bg-[var(--bg-elevated)] flex-shrink-0'):
                 self.render_context_pill()
                 
+                self.focus_chip_container = ui.row().classes('w-full mt-2 empty:hidden')
+                with self.focus_chip_container:
+                    self.render_focus_chip_ui()
+                
                 self.dock_chips_container = ui.column().classes('w-full mt-2')
                 self._last_chips_ids = ()
                 self._render_dock_chips()
@@ -98,6 +102,22 @@ class GlosaDockMixin:
             self._ctx_version += 1
         self.render_context_pill.refresh()
         self._render_dock_chips()
+
+    @ui.refreshable
+    def render_focus_chip_ui(self):
+        foc = getattr(self, 'explain_focus', None)
+        if not foc: return
+        from src.frontend.components.glosa_chips import render_focus_chip
+        text = f"Paso {foc['index']}: {foc['op']}"
+        render_focus_chip(text, self.clear_explain_focus)
+
+    def set_explain_focus(self, step_meta):
+        self.explain_focus = step_meta
+        self.render_focus_chip_ui.refresh()
+        
+    def clear_explain_focus(self):
+        self.explain_focus = None
+        self.render_focus_chip_ui.refresh()
 
     def _render_dock_chips(self):
         if not hasattr(self, 'dock_chips_container') or not self.dock_chips_container:
@@ -233,6 +253,27 @@ class GlosaDockMixin:
             ui.run_javascript("setTimeout(() => { const el = document.querySelector('.glosa-input textarea'); if(el) el.focus(); }, 100);")
             
         asyncio.create_task(self._submit(f.question, cacheable=False, simpler=f.simpler, from_keyboard=from_keyboard))
+
+    def trigger_explain_step(self, step_meta):
+        if getattr(self, '_is_sending', False):
+            ui.notify('Glosa está respondiendo. Espera a que termine.', type='warning')
+            return
+            
+        from src.frontend import flags
+        if flags.dock_enabled() and not getattr(self, 'is_open', False):
+            ui.run_javascript("if(window.scalarisGlosa) window.scalarisGlosa.open();")
+            
+        self.set_explain_focus(step_meta)
+        
+        from src.ai.prompts import build_explain_step_question
+        question = build_explain_step_question(
+            step_meta.get("kind", "otro"),
+            step_meta.get("index", 1),
+            step_meta.get("total", 1),
+            step_meta.get("op", "")
+        )
+        
+        asyncio.create_task(self._submit(question, cacheable=True, simpler=True))
 
     async def _submit(self, text, *, cacheable=False, simpler=False, from_keyboard=False, is_retry=False):
         if getattr(self, '_is_sending', False):

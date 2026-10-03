@@ -140,7 +140,20 @@ class VectorOpsResultsMixin:
                             latex = matrix_to_latex(step['matrix'])
 
                         with ui.column().classes('w-full'):
-                            ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2')
+                            with ui.row().classes('w-full justify-between items-start gap-2'):
+                                ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2 flex-1')
+                                
+                                if "steps_meta" in res and getattr(self, 'ai_panel', None):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    meta = res["steps_meta"][i-1]
+                                    render_explain_button(
+                                        meta['index'], 
+                                        meta['total'], 
+                                        meta['op'], 
+                                        lambda idx, m=meta: self.ai_panel.trigger_explain_step(m),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+
                             if latex:
                                 ui.html(
                                     f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'

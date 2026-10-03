@@ -76,8 +76,11 @@ class InverseOpsStepsMixin:
             )
 
             # Textos descriptivos del paso
-            self.step_desc = ui.label('').classes('font-semibold text-main text-sm')
-            self.step_expl = ui.html('').classes('w-full')
+            with ui.row().classes('w-full justify-between items-start gap-2'):
+                with ui.column().classes('flex-1 gap-1'):
+                    self.step_desc = ui.label('').classes('font-semibold text-main text-sm')
+                    self.step_expl = ui.html('').classes('w-full')
+                self.step_explain_btn_container = ui.row()
 
             # Bloque visual de la matriz aumentada
             with ui.column().classes('w-full items-center my-2'):
@@ -233,6 +236,23 @@ class InverseOpsStepsMixin:
 
         # 3. Descripción y Explicación
         self.step_desc.set_text(step.get("description", ""))
+        
+        if getattr(self, 'ai_panel', None):
+            self.step_explain_btn_container.clear()
+            with self.step_explain_btn_container:
+                from src.frontend.components.glosa_chips import render_explain_button
+                render_explain_button(
+                    self.current_step + 1,
+                    n_steps,
+                    step.get("description", ""),
+                    lambda idx, st=step: self.ai_panel.trigger_explain_step({
+                        'index': idx, 'total': n_steps, 'kind': st.get('kind', 'otro'), 'op': st.get('description', ''),
+                        'cols': st.get('focus', {}).get('cols'),
+                        'rows_before': st.get('focus', {}).get('rows_before', {}),
+                        'rows_after': st.get('focus', {}).get('rows_after', {})
+                    }),
+                    is_loading=getattr(self.ai_panel, '_is_sending', False)
+                )
 
         expl_text = step.get("explanation", "")
         if is_autoplay:

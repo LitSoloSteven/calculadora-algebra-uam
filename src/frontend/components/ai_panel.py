@@ -112,6 +112,27 @@ class AIPanel(GlosaDockMixin):
             ctx_obj = self.active_ui.get_ai_context()
             if ctx_obj is None or getattr(ctx_obj, 'empty', False):
                 return ""
+                
+            foc = getattr(self, 'explain_focus', None)
+            if foc:
+                from src.ai.context import StepRef
+                import dataclasses
+                # Si context_obj.focus ya existe, podríamos reemplazar, pero aquí lo asignamos
+                new_focus = StepRef(
+                    index=foc['index'],
+                    total=foc['total'],
+                    kind=foc['kind'],
+                    op=foc['op'],
+                    rows_before=foc.get('rows_before', {}),
+                    rows_after=foc.get('rows_after', {}),
+                    cols=tuple(foc['cols']) if foc.get('cols') else None,
+                    detail=None
+                )
+                if hasattr(ctx_obj, 'focus') and ctx_obj.focus:
+                    ctx_obj.focus = new_focus
+                else:
+                    ctx_obj.focus = new_focus
+
             return serialize_context(ctx_obj)
         except Exception as e:
             logger.exception("Error al recopilar el contexto para la IA")

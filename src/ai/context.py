@@ -17,6 +17,7 @@ class StepRef:
     rows_before: Dict[str, List[str]]
     rows_after: Dict[str, List[str]]
     cols: Tuple[int, int] | None = None
+    detail: Dict[str, Any] | None = None
 
 @dataclass
 class AIContext:
@@ -47,19 +48,10 @@ def sanitize_user_string(s: str, limit: int) -> str:
 
 def compact_number(s: str, max_len: int = NUMBER_MAX_LEN) -> str:
     s = str(s).strip()
+    if "/" in s:
+        return s
     if len(s) <= max_len:
         return s
-    
-    if "/" in s:
-        try:
-            num, den = s.split("/")
-            val = float(num) / float(den)
-            aprox = f"≈{val:.1f}"
-            if len(aprox) <= max_len:
-                return aprox
-        except Exception:
-            pass
-            
     return clip_text(s, max_len)
 
 def describe_matrix(rows: Sequence[Sequence[Any]], *, full_max=FULL_MATRIX_MAX, window=WINDOW) -> dict:
@@ -145,6 +137,8 @@ def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
             }
             if c.focus.cols:
                 d["focus"]["cols"] = list(c.focus.cols)
+            if c.focus.detail:
+                d["focus"]["detail"] = c.focus.detail
                 
         meta = {}
         if c.window_note:
@@ -169,7 +163,15 @@ def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
         
     is_truncated = True
     
-    # 1. Quitar extras opcionales
+    # 1. Quitar detail del foco
+    if working_ctx.focus and working_ctx.focus.detail:
+        import dataclasses
+        working_ctx.focus = dataclasses.replace(working_ctx.focus, detail=None)
+            
+    res_str = get_str(working_ctx, is_truncated)
+    if len(res_str) <= max_chars: return res_str
+    
+    # 2. Quitar extras opcionales
     if working_ctx.result:
         for k in ["inverse", "steps", "segment_steps", "pasos"]:
             working_ctx.result.pop(k, None)

@@ -86,9 +86,22 @@ class MatrixOpsUI:
                     ui.label('Evaluación paso a paso:').classes('font-bold text-xl text-main mb-4')
                     for i, step in enumerate(respuesta["segment_steps"]):
                         with ui.column().classes('w-full panel-card p-6 mb-4'):
-                            op_tex = html.escape(step.get("operation_display") or f"\\text{{Paso {i+1}}}")
-                            ui.html(f'<div class="math-scroll-container math-label text-lg font-bold">$$ {op_tex} $$</div>')
-                            
+                            with ui.row().classes('w-full justify-between items-start gap-2'):
+                                op_tex = html.escape(step.get("operation_display") or f"\\text{{Paso {i+1}}}")
+                                ui.html(f'<div class="math-scroll-container math-label text-lg font-bold">$$ {op_tex} $$</div>').classes('flex-1')
+                                
+                                if getattr(self, 'ai_panel', None):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        i + 1,
+                                        len(respuesta["segment_steps"]),
+                                        step.get("description", "Operación con matrices"),
+                                        lambda idx, st=step: self.ai_panel.trigger_explain_step({
+                                            'index': idx, 'total': len(respuesta["segment_steps"]), 'kind': 'otro', 'op': st.get('description', 'Operación matricial')
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                                    
                             with ui.row().classes('w-full items-center justify-center gap-4 py-4'):
                                 sym = step.get("symbolic_matrix_latex")
                                 res = step.get("result_matrix_latex")

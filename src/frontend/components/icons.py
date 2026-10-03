@@ -102,6 +102,13 @@ def icon_svg(nombre: str) -> str:
             <line x1="16" y1="17" x2="8" y2="17"></line>
             <line x1="4" y1="4" x2="4" y2="20"></line>
         </svg>'''
+        
+    elif nombre == 'explicar_paso':
+        return base + '''
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            <line x1="12" y1="9" x2="12" y2="9.01"></line>
+            <path d="M12 13v4"></path>
+        </svg>'''
     
     return ''
 

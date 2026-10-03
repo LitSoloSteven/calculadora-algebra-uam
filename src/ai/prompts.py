@@ -34,3 +34,27 @@ def build_messages(history: list[dict], question: str, context_block: str = None
         
     messages.append({"role": "user", "content": user_content})
     return messages
+
+def build_explain_step_question(kind: str, index: int, total: int, op: str) -> str:
+    from src.ai.context import sanitize_user_string
+    op_clean = sanitize_user_string(op, 200)
+    
+    base = f"Paso {index} de {total}: {op_clean}\n\n"
+    inst = "Explícame brevemente qué hace este paso, por qué se hace y qué cambia. Usa los datos del contexto, no recalcules nada."
+    
+    if kind == "intercambio":
+        inst = "Explícame brevemente por qué intercambiamos estas filas y qué cambia en la matriz. Usa los datos del contexto, no recalcules nada."
+    elif kind == "pivote":
+        inst = "Explícame brevemente qué significa seleccionar este pivote y qué cambia. Usa los datos del contexto, no recalcules nada."
+    elif kind == "eliminacion":
+        inst = "Explícame brevemente cómo hace cero ese elemento y qué cambia en la fila. Usa los datos del contexto, no recalcules nada."
+    elif kind == "normalizacion":
+        inst = "Explícame brevemente por qué dividimos la fila y qué cambia. Usa los datos del contexto, no recalcules nada."
+    elif kind == "planteamiento":
+        inst = "Explícame brevemente cómo se plantea este problema y qué representa. Usa los datos del contexto, no recalcules nada."
+    elif kind == "sustitucion":
+        inst = "Explícame brevemente cómo se realiza esta sustitución y qué significa. Usa los datos del contexto, no recalcules nada."
+    elif kind == "verificacion":
+        inst = "Explícame brevemente cómo se verifica este resultado. Usa los datos del contexto, no recalcules nada."
+
+    return base + inst

@@ -51,7 +51,7 @@ class RomanCalculatorUI:
                                 'px-3.5 py-1.5 rounded-lg border text-main '
                                 'font-mono text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer'
                             ).style(
-                                'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'
+                                'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                             ).props('no-caps flat ripple=false')
 
                         chip_ejemplo('XIV + IX', 'XIV', 'IX', 'suma')
@@ -170,7 +170,7 @@ class RomanCalculatorUI:
                                     ui.label('RESULTADO DE LA OPERACIÓN').classes('text-xs font-bold tracking-widest text-sec')
                                     ui.label(nombre_op.upper()).classes(
                                         'text-[10px] font-extrabold px-2.5 py-0.5 rounded border'
-                                    ).style('background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
+                                    ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
                                 ui.button(icon='content_copy', on_click=lambda: copiar(res_rom), color=None).classes(
                                     'btn-neo-icon w-9 h-9 p-0 text-sec'
                                 ).props('flat round').tooltip('Copiar resultado romano')
@@ -184,7 +184,7 @@ class RomanCalculatorUI:
                                 ui.label(res_rom).classes(
                                     'text-4xl md:text-5xl font-black font-mono tracking-wider px-6 py-2.5 rounded-xl border'
                                 ).style(
-                                    'background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);'
+                                    'background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);'
                                 )
 
                         # ----------------------------------------------------
@@ -198,11 +198,21 @@ class RomanCalculatorUI:
                         with ui.expansion('1. Decodificación de Operandos a Decimal', icon='tag').classes(
                             'w-full panel-card rounded-2xl text-main font-bold text-xl'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
-                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
+                            if getattr(self, 'ai_panel', None):
+                                with ui.row().classes('w-full justify-end px-6 py-2').style('background: var(--bg-elevated);'):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        1, 3, "Decodificación de Operandos a Decimal",
+                                        lambda idx: self.ai_panel.trigger_explain_step({
+                                            'index': 1, 'total': 3, 'kind': 'otro', 'op': 'Decodificación de Operandos a Decimal'
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
                                 with ui.element('div').classes('layout-grid-2'):
                                     # Card Operando A
                                     with ui.row().classes('p-5 rounded-xl border items-center justify-between').style(
-                                        'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         with ui.column().classes('gap-1'):
                                             ui.label('Operando A').classes('text-base font-semibold text-sec')
@@ -211,7 +221,7 @@ class RomanCalculatorUI:
 
                                     # Card Operando B
                                     with ui.row().classes('p-5 rounded-xl border items-center justify-between').style(
-                                        'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         with ui.column().classes('gap-1'):
                                             ui.label('Operando B').classes('text-base font-semibold text-sec')
@@ -227,12 +237,22 @@ class RomanCalculatorUI:
                         with ui.expansion(titulo_paso_2, icon='calculate').classes(
                             'w-full panel-card rounded-2xl text-main font-bold text-xl mt-4'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
-                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
+                            if getattr(self, 'ai_panel', None):
+                                with ui.row().classes('w-full justify-end px-6 py-2').style('background: var(--bg-elevated);'):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        2, 3, titulo_paso_2,
+                                        lambda idx, t=titulo_paso_2: self.ai_panel.trigger_explain_step({
+                                            'index': 2, 'total': 3, 'kind': 'otro', 'op': t
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
 
                                 if op == 'mult' and isinstance(dec_b, int):
                                     with ui.column().classes('w-full gap-2.5'):
                                         with ui.row().classes('w-full py-3.5 px-5 rounded-xl text-base font-bold text-sec items-center border').style(
-                                            'background: var(--elev-2); border-color: var(--border-input);'
+                                            'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                         ):
                                             ui.label('Iteración').classes('w-1/4 text-center')
                                             ui.label('Operando Sumado').classes('w-1/4 text-center')
@@ -256,7 +276,7 @@ class RomanCalculatorUI:
                                                     )
                                 else:
                                     with ui.column().classes('w-full p-6 rounded-2xl border gap-4').style(
-                                        'background: var(--elev-2); border-color: var(--border-input);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         with ui.row().classes('items-center justify-between w-full'):
                                             ui.label('Operación Aritmética Evaluada').classes(
@@ -265,11 +285,11 @@ class RomanCalculatorUI:
                                             if op == 'resta':
                                                 ui.label('Validación: A > B ✓').classes(
                                                     'text-base md:text-lg font-bold px-4 py-1.5 rounded-xl border'
-                                                ).style('background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
+                                                ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
                                             else:
                                                 ui.label('Adición Directa ✓').classes(
                                                     'text-base md:text-lg font-bold px-4 py-1.5 rounded-xl border'
-                                                ).style('background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
+                                                ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
 
                                         with ui.row().classes('items-center gap-5 py-3 justify-center flex-wrap'):
                                             ui.label(f'{dec_a}').classes('text-4xl md:text-5xl font-mono font-bold text-main')
@@ -287,12 +307,22 @@ class RomanCalculatorUI:
                         with ui.expansion('3. Notación y Construcción Canónica Romana', icon='history_edu').classes(
                             'w-full panel-card rounded-2xl text-main font-bold text-xl mt-4'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
-                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
+                            if getattr(self, 'ai_panel', None):
+                                with ui.row().classes('w-full justify-end px-6 py-2').style('background: var(--bg-elevated);'):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        3, 3, "Notación y Construcción Canónica Romana",
+                                        lambda idx: self.ai_panel.trigger_explain_step({
+                                            'index': 3, 'total': 3, 'kind': 'otro', 'op': 'Notación y Construcción Canónica Romana'
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
                                 pasos_can = _desglosar_pasos_canónicos(res_dec)
 
                                 with ui.column().classes('w-full gap-2'):
                                     with ui.row().classes('w-full py-3.5 px-5 rounded-xl text-base font-bold text-sec items-center border').style(
-                                        'background: var(--elev-2); border-color: var(--border-input);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         ui.label('Sustracción').classes('w-1/3 text-center')
                                         ui.label('Glifo Asignado').classes('w-1/3 text-center')
@@ -313,7 +343,7 @@ class RomanCalculatorUI:
 
                                 with ui.column().classes(
                                     'w-full p-6 items-center justify-center border rounded-2xl shadow-inner mt-4'
-                                ).style('background: var(--elev-2); border-color: var(--border-input);'):
+                                ).style('background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'):
                                     ui.label('EXPRESIÓN FINAL VERIFICADA').classes('text-xs md:text-sm font-bold text-sec tracking-widest')
                                     with ui.row().classes('items-baseline gap-4 mt-2 flex-wrap justify-center'):
                                         ui.label(f'{val_a} {simbolo_op} {val_b} =').classes('text-2xl md:text-3xl text-sec font-mono font-medium')

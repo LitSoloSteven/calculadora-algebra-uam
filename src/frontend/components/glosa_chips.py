@@ -65,3 +65,45 @@ def render_followups(followups, on_pick, *, disabled=False):
             buttons.append(btn)
             
     return container, buttons
+
+def render_explain_button(step_index: int, total_steps: int, op: str, on_click, *, is_loading=False) -> ui.button:
+    """Renderiza el botón 'Explicar paso' para un paso específico."""
+    from src.frontend.suggestions import chips_active
+    from src.frontend import flags
+    
+    # Si el dock está desactivado por flag, no renderizamos el botón porque la experiencia
+    # depende de abrir el dock (F7).
+    if not flags.dock_enabled():
+        return None
+        
+    btn = ui.button(icon='explicar_paso', color=None).classes('glosa-explain-btn').props(
+        f'aria-label="Explicar paso {step_index}" round flat ripple=false'
+    ).tooltip("Explicar este paso")
+    
+    if is_loading:
+        btn.props('disabled')
+        btn.classes('is-loading')
+        return btn
+        
+    if not chips_active():
+        btn.props('disabled')
+        btn.tooltip("Glosa no está configurada")
+        return btn
+        
+    def handler(e):
+        from_keyboard = getattr(e, 'args', 1) == 0
+        if from_keyboard:
+            ui.run_javascript("document.documentElement.setAttribute('data-glosa-instant', 'true'); setTimeout(() => document.documentElement.removeAttribute('data-glosa-instant'), 100);")
+        on_click(step_index)
+        
+    btn.on('click', handler, args=['detail'])
+    return btn
+
+def render_focus_chip(text: str, on_remove) -> ui.element:
+    """Renderiza el chip de foco en el dock."""
+    chip = ui.element('div').classes('glosa-explain-focus').props(f'title="{html.escape(text)}"')
+    with chip:
+        ui.icon('center_focus_strong').classes('glosa-explain-focus-icon')
+        ui.label(text).classes('glosa-explain-focus-text')
+        ui.button(icon='close', color=None, on_click=on_remove).classes('glosa-explain-focus-close').props('round flat size=xs ripple=false').tooltip("Quitar foco")
+    return chip

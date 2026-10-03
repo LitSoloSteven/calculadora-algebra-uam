@@ -94,6 +94,8 @@ class VectorOpsController:
             # Formatear matrices de Gauss
             if "steps" in res:
                 from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
+                from src.frontend.controllers.linear_systems._shared import build_steps_meta
+                res["steps_meta"] = build_steps_meta(res["steps"])
                 for step in res["steps"]:
                     if step.get("matrix") is not None:
                         # Si no hay detail_latex, formateamos la matriz

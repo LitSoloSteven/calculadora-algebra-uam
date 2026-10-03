@@ -29,12 +29,7 @@ from src.frontend.controllers.linear_systems._shared import parse_payload
 
 logger = logging.getLogger(__name__)
 
-# Expresiones regulares para clasificar pasos elementales de Gauss-Jordan
-RE_INICIAL = r"^Matriz inicial"
-RE_INTERCAMBIO = r"^Intercambio: Fila (\d+) ↔ Fila (\d+)"
-RE_PIVOTE = r"^Pivote seleccionado en Fila (\d+), Columna (\d+)"
-RE_ELIMINACION = r"^Fila (\d+) = Fila \1 − \((.+)\) · Fila (\d+)$"
-RE_NORMALIZA = r"^Normalizar pivote(?: a 1)?: Fila (\d+) = Fila \1 / (.+)$"
+from src.frontend.controllers._step_classifier import classify_step
 
 
 class InverseOpsController:
@@ -275,20 +270,14 @@ class InverseOpsController:
             desc = step.get("description", "")
             mat = step.get("matrix")
 
-            kind = "otro"
+            parsed = classify_step(desc)
+            kind = parsed["kind"]
             pivot: tuple[int, int] | None = None
             rows_changed: list[int] = []
             swap_rows: tuple[int, int] | None = None
             explanation = desc
 
-            m_init = re.match(RE_INICIAL, desc)
-            m_swap = re.match(RE_INTERCAMBIO, desc)
-            m_piv = re.match(RE_PIVOTE, desc)
-            m_elim = re.match(RE_ELIMINACION, desc)
-            m_norm = re.match(RE_NORMALIZA, desc)
-
-            if m_init:
-                kind = "inicial"
+            if kind == "inicial":
                 explanation = (
                     "Construimos la matriz aumentada [A | I]: A a la izquierda y la "
                     "identidad I a la derecha. Meta: aplicar operaciones elementales "
@@ -305,10 +294,9 @@ class InverseOpsController:
                 raw_groups.append(group)
                 group_idx = len(raw_groups) - 1
 
-            elif m_swap:
-                kind = "intercambio"
-                a = int(m_swap.group(1))
-                b = int(m_swap.group(2))
+            elif kind == "intercambio":
+                a = parsed["row1"] + 1
+                b = parsed["row2"] + 1
                 swap_rows = (a - 1, b - 1)
                 rows_changed = [a - 1, b - 1]
                 explanation = (
@@ -330,10 +318,9 @@ class InverseOpsController:
                 raw_groups.append(current_col_group)
                 group_idx = len(raw_groups) - 1
 
-            elif m_piv:
-                kind = "pivote"
-                r = int(m_piv.group(1))
-                c = int(m_piv.group(2))
+            elif kind == "pivote":
+                r = parsed["row1"] + 1
+                c = parsed["col"] + 1
                 pivot = (r - 1, c - 1)
                 rows_changed = []
                 p_val = (
@@ -370,11 +357,10 @@ class InverseOpsController:
                     raw_groups.append(current_col_group)
                     group_idx = len(raw_groups) - 1
 
-            elif m_elim:
-                kind = "eliminacion"
-                t = int(m_elim.group(1))
-                f = m_elim.group(2)
-                p = int(m_elim.group(3))
+            elif kind == "eliminacion":
+                t = parsed["row1"] + 1
+                f = parsed["val_str"]
+                p = parsed["row2"] + 1
                 rows_changed = [t - 1]
                 pivot_col = (
                     current_col_group["pivot_col"]
@@ -408,10 +394,9 @@ class InverseOpsController:
                         current_other_group["step_indices"].append(idx)
                         group_idx = raw_groups.index(current_other_group)
 
-            elif m_norm:
-                kind = "normalizacion"
-                r = int(m_norm.group(1))
-                v = m_norm.group(2)
+            elif kind == "normalizacion":
+                r = parsed["row1"] + 1
+                v = parsed["val_str"]
                 rows_changed = [r - 1]
                 pivot = (r - 1, r - 1) if (r - 1 < n) else None
                 explanation = (

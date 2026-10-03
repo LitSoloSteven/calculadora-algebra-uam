@@ -272,11 +272,24 @@ class LinearSystemsResultsMixin:
                 if respuesta.get("intermediate_steps_latex"):
                     ui.label('Procedimiento paso a paso').classes('font-bold mt-6 text-xl text-main')
                     with ui.expansion('Ver pasos matriciales', icon='visibility').classes('w-full panel-card mt-2 timeline-expansion').props('header-class="font-bold text-main"'):
-                        for paso in respuesta["intermediate_steps_latex"]:
+                        for i, paso in enumerate(respuesta["intermediate_steps_latex"]):
                             with ui.column().classes('w-full p-4 border-l-2 border-l-[var(--accent)] ml-2 mb-2 bg-[var(--bg-panel)] rounded-r-lg'):
-                                desc_id = f"desc-{id(paso)}"
-                                ui.html(f'<span id="{desc_id}"></span>').classes('text-sm font-semibold mb-2 text-sec block')
-                                ui.timer(0.05, lambda text=paso["descripcion"], eid=desc_id: ui.run_javascript(f'typewriterEffect("{eid}", {json.dumps(text)}, 18)'), once=True)
+                                with ui.row().classes('w-full justify-between items-start'):
+                                    desc_id = f"desc-{id(paso)}"
+                                    ui.html(f'<span id="{desc_id}"></span>').classes('text-sm font-semibold mb-2 text-sec block flex-1')
+                                    ui.timer(0.05, lambda text=paso["descripcion"], eid=desc_id: ui.run_javascript(f'typewriterEffect("{eid}", {json.dumps(text)}, 18)'), once=True)
+                                    
+                                    if "steps_meta" in respuesta and getattr(self, 'ai_panel', None):
+                                        from src.frontend.components.glosa_chips import render_explain_button
+                                        meta = respuesta["steps_meta"][i]
+                                        render_explain_button(
+                                            meta['index'], 
+                                            meta['total'], 
+                                            meta['op'], 
+                                            lambda idx, m=meta: self.ai_panel.trigger_explain_step(m),
+                                            is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                        )
+
                                 ui.html(f'<div class="math-scroll-container math-label text-lg">$$ {paso["matriz"]} $$</div>')
 
                 if respuesta.get("back_substitution_steps") or respuesta.get("verification_steps_latex"):
