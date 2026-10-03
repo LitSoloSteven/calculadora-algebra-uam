@@ -205,6 +205,10 @@ class GeometryController:
             status, equations, solution_status, set, pending_param,
             flags, range, error_cell, message, n
         """
+        pending_param = False
+        sp = None
+        flags_list = []
+
         data, err = parse_payload(payload_json)
         if err is not None:
             err_dict = json.loads(err)
@@ -247,12 +251,12 @@ class GeometryController:
             coeffs = A_fracs[i]
             bi = b_fracs[i]
             kind = _classify_equation(coeffs, bi, n)
-            
+
             c_exact = [_frac_str(c) for c in coeffs]
             b_ex = _frac_str(bi)
-            lhs = format_linear_expression(c_exact, var_names)
-            rhs = number_to_latex(b_ex)
-            
+            lhs = format_linear_expression(coeffs, var_names)
+            rhs = number_to_latex(bi)
+
             eq_data = {
                 "index": i,
                 "kind": kind,
@@ -296,7 +300,6 @@ class GeometryController:
         h = axis_range[1]
 
         # Extra validation and enrichment for INFINITE_SOLUTIONS
-        sp = None
         if solution_status == "INFINITE_SOLUTIONS":
             from src.frontend.controllers.geometry._solution_set import get_solution_param, from_solution_param
             sp = get_solution_param(result)
@@ -322,57 +325,69 @@ class GeometryController:
                     pending_param = False
                 else:
                     logger.error("Fallo validación defensiva en INFINITE_SOLUTIONS")
+                    sol_set = None
                     pending_param = True
                     sp = None
             else:
                 pending_param = True
+                sol_set = None
 
         set_data = None
         if sol_set is not None:
             point_float = None
             point_exact = None
+            point_latex = None
             if sol_set.point is not None:
                 point_float = [_safe_float(p) for p in sol_set.point]
                 point_exact = [_frac_str(p) for p in sol_set.point]
-            
+                point_mat = Matrix(n, 1, [[x] for x in sol_set.point])
+                point_latex = vector_to_latex(point_mat)
+
+            is_whole_space = (sol_set.dimension == n)
+            # Para whole_space en R² (kind sale PLANE por classify), la vista debe mirar whole_space antes que kind
+            kind_label = "whole_space" if is_whole_space else sol_set.kind.value
+
             set_data = {
                 "kind": sol_set.kind.value,
+                "kind_label": kind_label,
                 "dimension": sol_set.dimension,
-                "whole_space": sol_set.dimension == n,
+                "whole_space": is_whole_space,
                 "point": point_float,
                 "point_exact": point_exact,
+                "point_latex": point_latex,
             }
             if sp:
                 # Add directions
                 set_data["directions"] = [[_safe_float(v) for v in d] for d in sp["directions"]]
                 set_data["directions_exact"] = [[_frac_str(v) for v in d] for d in sp["directions"]]
                 set_data["param_names"] = sp["param_names"]
-                set_data["free_vars"] = [["x","y","z"][c] for c in sp["free_cols"]]
-                
+                set_data["free_vars"] = [["x", "y", "z"][c] for c in sp["free_cols"]]
+
                 # param_latex
                 parts = []
-                p_latex = vector_to_latex(Matrix(n, 1, point_exact))
+                p_mat = Matrix(n, 1, [[x] for x in sp["particular"]])
+                p_latex = vector_to_latex(p_mat)
                 parts.append(p_latex)
                 for i, d in enumerate(sp["directions"]):
-                    d_exact = [_frac_str(v) for v in d]
-                    d_latex = vector_to_latex(Matrix(n, 1, d_exact))
+                    d_mat = Matrix(n, 1, [[x] for x in d])
+                    d_latex = vector_to_latex(d_mat)
                     parts.append(f"{sp['param_names'][i]}{d_latex}")
-                
+
                 set_data["param_latex"] = r"\mathbf{x} = " + " + ".join(parts)
-                
+
                 # description
                 if n == 2 and sol_set.dimension == 1:
                     d_str = ", ".join(set_data["directions_exact"][0])
-                    p_str = ", ".join(point_exact)
+                    p_str = ", ".join(point_exact) if point_exact else ""
                     set_data["description"] = f"Las soluciones forman una recta que pasa por ({p_str}) con dirección ({d_str})."
                 elif n == 3 and sol_set.dimension == 1:
                     d_str = ", ".join(set_data["directions_exact"][0])
-                    p_str = ", ".join(point_exact)
+                    p_str = ", ".join(point_exact) if point_exact else ""
                     set_data["description"] = f"Las soluciones forman una recta que pasa por ({p_str}) con dirección ({d_str})."
                 elif n == 3 and sol_set.dimension == 2:
                     d1_str = ", ".join(set_data["directions_exact"][0])
                     d2_str = ", ".join(set_data["directions_exact"][1])
-                    p_str = ", ".join(point_exact)
+                    p_str = ", ".join(point_exact) if point_exact else ""
                     set_data["description"] = f"Las soluciones forman un plano que pasa por ({p_str}) generado por ({d1_str}) y ({d2_str})."
 
                 # Clip geometry
@@ -400,12 +415,28 @@ class GeometryController:
                         offset = nx*p[0] + ny*p[1] + nz*p[2]
                         set_data["normal_exact"] = [_frac_str(nx), _frac_str(ny), _frac_str(nz)]
                         set_data["offset_exact"] = _frac_str(offset)
-                        
+
                         nx_f, ny_f, nz_f = _safe_float(nx), _safe_float(ny), _safe_float(nz)
                         off_f = _safe_float(offset)
                         if all(v is not None for v in (nx_f, ny_f, nz_f, off_f)):
                             set_data["normal"] = [nx_f, ny_f, nz_f]
                             set_data["offset"] = off_f
+
+        # Parallel flag
+        if n == 2 and solution_status == "NO_SOLUTION" and m >= 2:
+            for i in range(m):
+                for j in range(i + 1, m):
+                    if _are_proportional(A_fracs[i], A_fracs[j]):
+                        ratio = None
+                        for ai, aj in zip(A_fracs[i], A_fracs[j]):
+                            if ai != 0:
+                                ratio = Fraction(aj, ai)
+                                break
+                        if ratio is not None and b_fracs[j] != ratio * b_fracs[i]:
+                            flags_list.append("parallel")
+                            break
+                if "parallel" in flags_list:
+                    break
 
         return {
             "status": "OK",

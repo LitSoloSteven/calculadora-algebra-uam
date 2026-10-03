@@ -33,6 +33,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         self._preview_task = None
         self._first_draw = True
         self._plotly_element = None
+        self._fig_key = None
 
         # Containers
         self.controls_container = None
@@ -137,6 +138,8 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             
             if result.status == 'ok' and result.data:
                 scene_from_data = result.data.get("scene", self.scene)
+                if scene_from_data not in VALID_SCENES:
+                    scene_from_data = self.scene
                 vectors_data = result.data.get("data", [])
                 
                 from src.frontend.components.handoff import HandoffResult
@@ -187,6 +190,8 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         self.last_result = None
         self.last_payload_hash = None
         self._first_draw = True
+        self._fig_key = None
+        self._plotly_element = None
 
         # Update URL without reload
         ui.run_javascript(f"""
@@ -201,6 +206,8 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
     def _render_empty_state(self):
         """Show empty orientational state."""
+        self._fig_key = None
+        self._plotly_element = None
         if self.figure_container:
             self.figure_container.clear()
         if self.slider_container:
@@ -245,6 +252,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                 self.last_result = None
                 self._first_draw = True
                 self._plotly_element = None
+                self._fig_key = None
                 self._render_empty_state()
                 return
 
@@ -263,7 +271,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             else:
                 # Dim the existing figure
                 if self.figure_container:
-                    ui.run_javascript(f"""
+                    ui.run_javascript("""
                         var c = document.querySelector('.geo-figure');
                         if (c) c.style.opacity = '0.4';
                     """)
@@ -279,17 +287,18 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             else:
                 return
 
+            if result.get("status") == "ERROR":
+                self._fig_key = None
+                self._plotly_element = None
+                self._render_error(result)
+                return
+
             # Clear markInvalid
             ui.run_javascript('scalarisGeo.markInvalid(null);')
 
             # Reutilizar figura si aplica
-            old_scene = getattr(self.last_result, '_scene_marker', None) if getattr(self, 'last_result', None) else None
-            old_n = self.last_result.get('n') if getattr(self, 'last_result', None) else None
-            
-            self.last_result = result
-            self.last_result['_scene_marker'] = self.scene
-            
-            if not self._first_draw and self._plotly_element and old_scene == self.scene and old_n == result.get('n'):
+            new_fig_key = (self.scene, result.get("n"))
+            if not self._first_draw and self._plotly_element and self._fig_key == new_fig_key:
                 # Actualizar in situ
                 fig = await self._get_figure_only(result, self.scene)
                 if fig:
@@ -298,42 +307,35 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                         frames_json = json.dumps(result["frames"])
                         wrap_id = f"geo-fig-{id(self)}"
                         ui.run_javascript(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+                # En el camino de reutilización restaura la opacidad atenuada (.geo-figure vuelve a opacity 1) al terminar
+                ui.run_javascript("""
+                    var c = document.querySelector('.geo-figure');
+                    if (c) c.style.opacity = '1';
+                """)
             else:
                 # Build figure from scratch
                 await self._build_figure(result, self.scene)
-                
+
+            self._fig_key = new_fig_key
+            self.last_result = result
+
             self._build_slider(result, self.scene)
             self._render_summary(result, self.scene)
-
-            # Handle pending_param (INFINITE without solution_param)
-            if result.get("pending_param"):
-                logger.debug("INFINITE solution without solution_param — pending F8b")
-                with self.summary_container:
-                    with ui.element('div').classes('geo-notice mt-2'):
-                        ui.label("Este sistema tiene infinitas soluciones. Por ahora solo dibujamos las ecuaciones.").classes('text-sm text-sec')
-
             self._first_draw = False
 
         except asyncio.CancelledError:
             pass
-        except Exception as e:
+        except Exception:
             logger.exception("Error al actualizar figura geométrica")
 
     def _build_payload(self) -> dict | None:
         """Extract payload from current inputs."""
         try:
             if self.scene == 'rectas-planos':
-                if not self.grid:
+                if not self.grid or self.grid.is_strictly_empty():
                     return None
                 matrix_A, vector_b = self.grid.get_matrix_data()
                 if not matrix_A or not matrix_A[0]:
-                    return None
-                # Check if all empty
-                all_empty = all(
-                    not str(v).strip()
-                    for row in matrix_A for v in row
-                ) and all(not str(v).strip() for v in vector_b)
-                if all_empty:
                     return None
                 return {"matrix_A": matrix_A, "vector_b": vector_b}
 
@@ -341,21 +343,21 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                 panel = self.vec_panel if self.scene == 'vectores' else self.comb_panel
                 if not panel:
                     return None
-                    
+
                 dim = panel.dim
                 vec_list = []
                 for name, vdata in panel.vectors.items():
                     cache = vdata.get('cache', {})
                     coords = [cache.get(i, '0') or '0' for i in range(dim)]
                     vec_list.append({"data": coords, "orientation": "column"})
-                    
+
                 has_data = any(
                     any(val != '0' for val in vec["data"])
                     for vec in vec_list
                 )
                 if not has_data:
                     return None
-                    
+
                 if self.scene == 'vectores':
                     return {"vectors": vec_list}
                 else:
@@ -366,6 +368,8 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
     def _render_error(self, result: dict):
         """Render error state with cell marking."""
+        self._fig_key = None
+        self._plotly_element = None
         if self.figure_container:
             self.figure_container.clear()
         if self.slider_container:
@@ -393,11 +397,11 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                             # Mark the cell
                             selector = self._cell_selector(error_cell)
                             if selector:
-                                ui.run_javascript(f'scalarisGeo.markInvalid("{selector}");')
+                                ui.run_javascript(f'scalarisGeo.markInvalid({json.dumps(selector)});')
                                 # "Go to cell" button
                                 ui.button('Ir a la celda', icon='gps_fixed', color=None,
                                           on_click=lambda s=selector: ui.run_javascript(
-                                              f'var el = document.querySelector("{s}"); if(el) {{ el.focus(); el.scrollIntoView({{block: "center"}}); }}'
+                                              f'var el = document.querySelector({json.dumps(s)}); if(el) {{ el.focus(); el.scrollIntoView({{block: "center"}}); }}'
                                           )).classes('btn-ghost mt-2').props('ripple=false')
 
     def _cell_selector(self, error_cell: dict) -> str | None:

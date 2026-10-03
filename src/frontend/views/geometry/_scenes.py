@@ -83,9 +83,25 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
     sol_set = result.get("set")
     colors = CHART_PALETTE
     font_color = CHART_FONT_COLOR.get(theme, '#23262E')
+    solution_color = CHART_FONT_COLOR.get(theme, '#23262E')
 
     if n == 2:
-        # Draw lines
+        # Draw infinite solutions 2D (LINE) BEFORE equations
+        if sol_set and sol_set.get("kind") in ("LINE", "PLANE") and not sol_set.get("whole_space"):
+            seg = sol_set.get("segment")
+            if seg:
+                fig.add_trace(go.Scatter(
+                    x=[seg[0][0], seg[1][0]],
+                    y=[seg[0][1], seg[1][1]],
+                    mode='lines',
+                    name='Conjunto solución (recta)',
+                    line=dict(color=solution_color, width=10),
+                    opacity=0.35,
+                    hovertext=sol_set.get("param_latex", ""),
+                    hoverinfo='text',
+                ))
+
+        # Draw lines (equations)
         for eq in equations:
             idx = eq["index"]
             kind = eq["kind"]
@@ -117,7 +133,7 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                     line=dict(color=color, width=3),
                 ))
 
-        # Draw solution point
+        # Draw solution point (POINT)
         if sol_set and sol_set.get("kind") == "POINT" and sol_set.get("point"):
             pt = sol_set["point"]
             exact = sol_set.get("point_exact", [])
@@ -132,19 +148,6 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                 hovertext=hover_text,
                 hoverinfo='text',
             ))
-
-        # Draw infinite solutions 2D (LINE)
-        if sol_set and sol_set.get("kind") == "AFFINE_SUBSPACE" and not sol_set.get("whole_space"):
-            seg = sol_set.get("segment")
-            if seg:
-                fig.add_trace(go.Scatter(
-                    x=[seg[0][0], seg[1][0]],
-                    y=[seg[0][1], seg[1][1]],
-                    mode='lines', name='Conjunto solución',
-                    line=dict(color='gold', width=4),
-                    hovertext=sol_set.get("param_latex", ""),
-                    hoverinfo='text',
-                ))
 
         _layout_common_2d(fig, axis_range=axis_range, font_color=font_color, uirevision="lines")
 
@@ -165,6 +168,59 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
         x_vals = _linspace(axis_range[0], axis_range[1], grid_size)
         y_vals = _linspace(axis_range[0], axis_range[1], grid_size)
 
+        # Draw infinite solutions 3D (LINE or PLANE) BEFORE equations
+        if sol_set and sol_set.get("kind") in ("LINE", "PLANE") and not sol_set.get("whole_space"):
+            dim = sol_set.get("dimension")
+            if dim == 1:
+                seg = sol_set.get("segment")
+                if seg:
+                    fig.add_trace(go.Scatter3d(
+                        x=[seg[0][0], seg[1][0]],
+                        y=[seg[0][1], seg[1][1]],
+                        z=[seg[0][2], seg[1][2]],
+                        mode='lines',
+                        name='Conjunto solución (recta)',
+                        line=dict(color=solution_color, width=8),
+                        opacity=0.35,
+                        hovertext=sol_set.get("param_latex", ""),
+                        hoverinfo='text',
+                    ))
+            elif dim == 2:
+                normal = sol_set.get("normal")
+                offset = sol_set.get("offset")
+                if normal and offset is not None:
+                    a, b_coeff, c_coeff = normal[0], normal[1], normal[2]
+                    abs_coeffs = [abs(c) for c in normal]
+                    max_idx = abs_coeffs.index(max(abs_coeffs))
+
+                    if max_idx == 2 and abs(c_coeff) > 1e-12:
+                        X, Y = _meshgrid(x_vals, y_vals)
+                        Z = [[(offset - a * X[r][c] - b_coeff * Y[r][c]) / c_coeff
+                              for c in range(grid_size)] for r in range(grid_size)]
+                        fig.add_trace(go.Surface(
+                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.35,
+                            colorscale=[[0, solution_color], [1, solution_color]],
+                        ))
+                    elif max_idx == 1 and abs(b_coeff) > 1e-12:
+                        z_vals = _linspace(axis_range[0], axis_range[1], grid_size)
+                        X, Z = _meshgrid(x_vals, z_vals)
+                        Y = [[(offset - a * X[r][c] - c_coeff * Z[r][c]) / b_coeff
+                              for c in range(grid_size)] for r in range(grid_size)]
+                        fig.add_trace(go.Surface(
+                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.35,
+                            colorscale=[[0, solution_color], [1, solution_color]],
+                        ))
+                    elif abs(a) > 1e-12:
+                        z_vals = _linspace(axis_range[0], axis_range[1], grid_size)
+                        Y, Z = _meshgrid(y_vals, z_vals)
+                        X = [[(offset - b_coeff * Y[r][c] - c_coeff * Z[r][c]) / a
+                              for c in range(grid_size)] for r in range(grid_size)]
+                        fig.add_trace(go.Surface(
+                            z=Z, x=X, y=Y, name='Conjunto solución (plano)', showscale=False, opacity=0.35,
+                            colorscale=[[0, solution_color], [1, solution_color]],
+                        ))
+
+        # Draw planes (equations)
         for eq in equations:
             idx = eq["index"]
             kind = eq["kind"]
@@ -224,56 +280,6 @@ def build_lines_planes_figure(result: dict, *, theme: str = 'papel') -> Any:
                 hovertext=hover_text,
                 hoverinfo='text',
             ))
-
-        # Draw infinite solutions 3D (LINE or PLANE)
-        if sol_set and sol_set.get("kind") == "AFFINE_SUBSPACE" and not sol_set.get("whole_space"):
-            dim = sol_set.get("dimension")
-            if dim == 1:
-                seg = sol_set.get("segment")
-                if seg:
-                    fig.add_trace(go.Scatter3d(
-                        x=[seg[0][0], seg[1][0]],
-                        y=[seg[0][1], seg[1][1]],
-                        z=[seg[0][2], seg[1][2]],
-                        mode='lines', name='Conjunto solución',
-                        line=dict(color='gold', width=5),
-                        hovertext=sol_set.get("param_latex", ""),
-                        hoverinfo='text',
-                    ))
-            elif dim == 2:
-                normal = sol_set.get("normal")
-                offset = sol_set.get("offset")
-                if normal and offset is not None:
-                    a, b_coeff, c_coeff = normal[0], normal[1], normal[2]
-                    abs_coeffs = [abs(c) for c in normal]
-                    max_idx = abs_coeffs.index(max(abs_coeffs))
-
-                    if max_idx == 2 and abs(c_coeff) > 1e-12:
-                        X, Y = _meshgrid(x_vals, y_vals)
-                        Z = [[(offset - a * X[r][c] - b_coeff * Y[r][c]) / c_coeff
-                              for c in range(grid_size)] for r in range(grid_size)]
-                        fig.add_trace(go.Surface(
-                            z=Z, x=X, y=Y, name='Conjunto solución', showscale=False, opacity=0.35,
-                            colorscale=[[0, 'gold'], [1, 'gold']],
-                        ))
-                    elif max_idx == 1 and abs(b_coeff) > 1e-12:
-                        z_vals = _linspace(axis_range[0], axis_range[1], grid_size)
-                        X, Z = _meshgrid(x_vals, z_vals)
-                        Y = [[(offset - a * X[r][c] - c_coeff * Z[r][c]) / b_coeff
-                              for c in range(grid_size)] for r in range(grid_size)]
-                        fig.add_trace(go.Surface(
-                            z=Z, x=X, y=Y, name='Conjunto solución', showscale=False, opacity=0.35,
-                            colorscale=[[0, 'gold'], [1, 'gold']],
-                        ))
-                    elif abs(a) > 1e-12:
-                        z_vals = _linspace(axis_range[0], axis_range[1], grid_size)
-                        Y, Z = _meshgrid(y_vals, z_vals)
-                        X = [[(offset - b_coeff * Y[r][c] - c_coeff * Z[r][c]) / a
-                              for c in range(grid_size)] for r in range(grid_size)]
-                        fig.add_trace(go.Surface(
-                            z=Z, x=X, y=Y, name='Conjunto solución', showscale=False, opacity=0.35,
-                            colorscale=[[0, 'gold'], [1, 'gold']],
-                        ))
 
         _layout_common_3d(fig, axis_range=axis_range, font_color=font_color, uirevision="planes")
 

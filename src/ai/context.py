@@ -48,10 +48,19 @@ def sanitize_user_string(s: str, limit: int) -> str:
 
 def compact_number(s: str, max_len: int = NUMBER_MAX_LEN) -> str:
     s = str(s).strip()
-    if "/" in s:
-        return s
     if len(s) <= max_len:
         return s
+
+    if "/" in s:
+        try:
+            num, den = s.split("/")
+            val = float(num) / float(den)
+            aprox = f"≈{val:.1f}"
+            if len(aprox) <= max_len:
+                return aprox
+        except Exception:
+            pass
+
     return clip_text(s, max_len)
 
 def describe_matrix(rows: Sequence[Sequence[Any]], *, full_max=FULL_MATRIX_MAX, window=WINDOW) -> dict:

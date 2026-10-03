@@ -244,8 +244,10 @@ def test_lines_infinite_pending():
     })
     result = GeometryController.process_lines_planes(payload)
     assert result["status"] == "OK"
-    assert result["pending_param"]
-    assert result["set"] is None
+    assert result["pending_param"] is False
+    assert result["set"] is not None
+    assert result["set"]["kind"] == "LINE"
+    assert "segment" in result["set"] and result["set"]["segment"] is not None
 
 
 # ---- process_vectors ----

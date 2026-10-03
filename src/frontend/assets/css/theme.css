@@ -1288,13 +1288,9 @@ html[data-theme="medianoche"] {
     color: var(--text-placeholder);
 }
 
-.hub-root {
-    container-type: inline-size;
-}
+.hub-root { container-type: inline-size; }
 
-.view-root {
-    container-type: inline-size;
-}
+.view-root { container-type: inline-size; }
 
 .view-root::after {
     content: "";
@@ -2033,10 +2029,6 @@ html[data-glosa-instant] .q-header {
     text-align: center;
 }
 
-.geo-cell-error {
-    border-color: var(--error) !important;
-    box-shadow: 0 0 0 2px var(--error) !important;
-}
 
 /* Hover on interactive elements */
 @media (hover: hover) and (pointer: fine) {
