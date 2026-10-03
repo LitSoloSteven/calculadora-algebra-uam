@@ -1,67 +1,79 @@
 """Registro de rutas y páginas públicas de Scalaris."""
+from __future__ import annotations
+
+from fastapi import Request
 from fastapi.responses import RedirectResponse
 from nicegui import app, ui
+
+from src.frontend.navigation import (
+    legacy_redirects,
+    redirect_location,
+    route_of,
+    tool_by_id,
+)
 from src.frontend.theme import setup_theme
 
 
-def register_routes():
-    """Registra todas las redirecciones y páginas de la aplicación."""
+def register_legacy_redirects(target_app) -> None:
+    """Registra los manejadores HTTP GET para las rutas legacy de Scalaris.
 
-    @app.get('/')
-    def index_redirect():
-        return RedirectResponse('/sistemas-lineales')
+    Acepta una instancia de FastAPI o el objeto `app` de NiceGUI.
+    Cada ruta calcula la redirección con preservación de parámetros query
+    y devuelve un estado HTTP 302 explícito.
+    """
+    for rule in legacy_redirects():
+        def _make_handler(current_rule):
+            async def _handler(request: Request) -> RedirectResponse:
+                incoming_items = request.query_params.multi_items()
+                target_url = redirect_location(current_rule, incoming_items)
+                return RedirectResponse(target_url, status_code=302)
+            return _handler
 
-    @app.get('/gauss')
-    def redirect_gauss():
-        return RedirectResponse('/sistemas-lineales?method=gauss')
+        target_app.get(rule.path)(_make_handler(rule))
 
-    @app.get('/gauss-jordan')
-    def redirect_gauss_jordan():
-        return RedirectResponse('/sistemas-lineales?method=gauss-jordan')
 
-    @app.get('/ia')
-    def vista_ia_redirect():
-        return RedirectResponse('/sistemas-lineales')
+def register_routes() -> None:
+    """Registra todas las redirecciones legacy y páginas canónicas de la aplicación."""
+    register_legacy_redirects(app)
 
-    @ui.page('/sistemas-lineales')
-    def linear_systems_page(method: str = 'gauss'):
-        if method not in ('gauss', 'gauss-jordan'):
-            method = 'gauss'
+    @ui.page(route_of("sistemas"), title=tool_by_id("sistemas").page_title)
+    def linear_systems_page(method: str = "gauss"):
+        if method not in ("gauss", "gauss-jordan"):
+            method = "gauss"
         from src.frontend.views.linear_systems.view_linear_systems import LinearSystemsUI
         setup_theme()
         app_ui = LinearSystemsUI(initial_method=method)
         app_ui.build()
 
-    @ui.page('/operaciones-matrices')
-    def matrix_ops_page():
-        from src.frontend.views.matrix_ops.view_matrix_ops import MatrixOpsUI
-        setup_theme()
-        app_ui = MatrixOpsUI()
-        app_ui.build()
-
-    @ui.page('/matriz-inversa')
-    def matrix_inverse_page():
-        from src.frontend.views.inverse_ops.view_inverse_ops import InverseOpsUI
-        setup_theme()
-        app_ui = InverseOpsUI()
-        app_ui.build()
-
-    @ui.page('/vectores')
+    @ui.page(route_of("vectores"), title=tool_by_id("vectores").page_title)
     def vector_ops_page():
         from src.frontend.views.vector_ops.view_vector_ops import VectorOpsUI
         setup_theme()
         app_ui = VectorOpsUI()
         app_ui.build()
 
-    @ui.page('/conversor')
+    @ui.page(route_of("matrices"), title=tool_by_id("matrices").page_title)
+    def matrix_ops_page():
+        from src.frontend.views.matrix_ops.view_matrix_ops import MatrixOpsUI
+        setup_theme()
+        app_ui = MatrixOpsUI()
+        app_ui.build()
+
+    @ui.page(route_of("inversa"), title=tool_by_id("inversa").page_title)
+    def matrix_inverse_page():
+        from src.frontend.views.inverse_ops.view_inverse_ops import InverseOpsUI
+        setup_theme()
+        app_ui = InverseOpsUI()
+        app_ui.build()
+
+    @ui.page(route_of("bases"), title=tool_by_id("bases").page_title)
     def conversor_page():
         from src.frontend.views.numeric_systems.view_numeric_systems import NumericSystemsUI
         setup_theme()
         app_ui = NumericSystemsUI()
         app_ui.build()
 
-    # --- NUEVA VISTA DEDICADA: NÚMEROS ROMANOS ---
-    @ui.page('/romanos')
+    @ui.page(route_of("romanos"), title=tool_by_id("romanos").page_title)
     def roman_calculator_page():
         from src.frontend.views.numeric_systems.view_roman_calculator import RomanCalculatorUI
         setup_theme()

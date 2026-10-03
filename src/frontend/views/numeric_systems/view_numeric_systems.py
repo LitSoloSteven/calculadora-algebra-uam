@@ -2,6 +2,7 @@
 from nicegui import ui
 from src.backend.solvers.numeric_systems.conversor_bases import ConversorBases
 from src.frontend.components.navbar import create_navbar
+from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from .interaction_mixin import NumericSystemsInteractionMixin
 from .rendering_mixin import NumericSystemsRenderingMixin
@@ -32,7 +33,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/conversor')
+        create_navbar(self, active_route=route_of('bases'))
 
         with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
             # --- HERO SECTION (Entrada) ---

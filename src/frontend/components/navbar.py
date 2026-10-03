@@ -1,12 +1,14 @@
 from nicegui import ui
 from src.frontend.components.icons import icon_svg
+from src.frontend.navigation import NAV_FLAT_ORDER, tool_by_id
+
 
 def create_navbar(active_ui=None, active_route='/'):
     # Header flotante: Logo en la esquina izquierda y píldora neumórfica centrada
     with ui.header().classes('px-4 sm:px-8 py-2 sm:py-4 flex items-center justify-center w-full bg-transparent relative pointer-events-none').style('view-transition-name: navbar;').props('reveal'):
         
-        # Logo de Scalaris en la esquina izquierda de la vista (aumentado a 72px, reactivo al tema)
-        with ui.link(target='/sistemas-lineales').classes(
+        # Logo de Scalaris en la esquina izquierda de la vista (apunta a '/', reactivo al tema)
+        with ui.link(target='/').classes(
             'brand-logo-link brand-corner-link pointer-events-auto absolute left-6 sm:left-10 top-1/2 -translate-y-1/2 flex items-center justify-center select-none no-underline transition-transform duration-200 hover:scale-105 active:scale-95 z-10'
         ).props('aria-label="Scalaris - Inicio"').tooltip('Scalaris — Inicio'):
             ui.html('''
@@ -21,41 +23,21 @@ def create_navbar(active_ui=None, active_route='/'):
             
             # Secciones principales
             with ui.row().classes('items-center gap-4'):
-                def btn_styles(route):
-                    is_active = active_route == route
+                # Orden plano temporal idéntico al actual; se elimina en F2
+                for tool_id in NAV_FLAT_ORDER:
+                    tool = tool_by_id(tool_id)
+                    is_active = (active_route == tool.route)
                     color = 'var(--accent)' if is_active else 'var(--text-main)'
                     shadow = 'var(--elev-inset)' if is_active else 'var(--elev-2)'
-                    return f'color: {color} !important; box-shadow: {shadow} !important;'
-                
-                # 1. Sistemas Lineales
-                with ui.button(on_click=lambda: ui.navigate.to('/sistemas-lineales'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/sistemas-lineales')).props('flat ripple=false aria-label="Sistemas Lineales"').tooltip('Sistemas Lineales'):
-                    ui.html(icon_svg('sistemas_lineales'))
+                    style_str = f'color: {color} !important; box-shadow: {shadow} !important;'
                     
-                # 2. Operaciones con Matrices
-                with ui.button(on_click=lambda: ui.navigate.to('/operaciones-matrices'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/operaciones-matrices')).props('flat ripple=false aria-label="Operaciones con Matrices"').tooltip('Operaciones con Matrices'):
-                    ui.html(icon_svg('operaciones_matrices'))
-
-                # 3. Matriz Inversa
-                with ui.button(on_click=lambda: ui.navigate.to('/matriz-inversa'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/matriz-inversa')).props('flat ripple=false aria-label="Matriz Inversa"').tooltip('Matriz Inversa'):
-                    ui.html(icon_svg('matriz_inversa'))
-
-                # 4. Operaciones con Vectores
-                with ui.button(on_click=lambda: ui.navigate.to('/vectores'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/vectores')).props('flat ripple=false aria-label="Operaciones con Vectores"').tooltip('Operaciones con Vectores'):
-                    ui.html(icon_svg('vectores'))
-
-                # 4. Conversor de Bases Numéricas
-                with ui.button(on_click=lambda: ui.navigate.to('/conversor'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/conversor')).props('flat ripple=false aria-label="Conversor"').tooltip('Conversor de Bases'):
-                    ui.html(icon_svg('conversor_bases'))
-
-                # 5. Calculadora de Números Romanos (Nuevo botón)
-                with ui.button(on_click=lambda: ui.navigate.to('/romanos'), color=None).classes('btn-neo-icon p-0').style(btn_styles('/romanos')).props('flat ripple=false aria-label="Números Romanos"').tooltip('Números Romanos'):
-                    ui.html('''
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 6h4M6 6v12M4 18h4M13 6l3.5 12 3.5-12"/>
-                        </svg>
-                    ''')
+                    aria_current = ' aria-current="page"' if is_active else ''
+                    props_str = f'flat ripple=false href="{tool.route}" aria-label="{tool.name}"{aria_current}'
+                    
+                    with ui.button(color=None).classes('btn-neo-icon p-0').style(style_str).props(props_str).tooltip(tool.name):
+                        ui.html(icon_svg(tool.icon))
                 
-                # 6. Tutor IA
+                # Tutor IA (sin cambios)
                 def toggle_ai_panel():
                     if active_ui and hasattr(active_ui, 'ai_panel'):
                         active_ui.ai_panel.toggle()
@@ -63,10 +45,10 @@ def create_navbar(active_ui=None, active_route='/'):
                 with ui.button(on_click=toggle_ai_panel, color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false aria-label="Tutor IA"').tooltip('Tutor IA'):
                     ui.html(icon_svg('tutor_ia'))
                 
-            # Separador vertical sutil
+            # Separador vertical sutil (sin cambios)
             ui.html('<div class="h-6 w-px opacity-20" style="background-color: var(--text-sec);"></div>')
             
-            # Acciones (Selector de temas)
+            # Acciones (Selector de temas, sin cambios)
             with ui.row().classes('items-center'):
                 with ui.button(color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false').tooltip('Seleccionar Tema'):
                     ui.html(icon_svg('temas'))

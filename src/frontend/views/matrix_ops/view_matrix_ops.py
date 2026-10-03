@@ -6,6 +6,7 @@ from nicegui import ui
 
 logger = logging.getLogger(__name__)
 from src.frontend.components.navbar import create_navbar
+from src.frontend.navigation import route_of
 from src.frontend.components.matrix_capture import MatrixCapturePanel
 from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixOpsController
 from src.frontend.components.ai_panel import AIPanel
@@ -113,7 +114,7 @@ class MatrixOpsUI:
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/operaciones-matrices')
+        create_navbar(self, active_route=route_of('matrices'))
         self.capture_panel.inject_scripts()
         
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):

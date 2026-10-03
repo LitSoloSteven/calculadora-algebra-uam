@@ -10,6 +10,7 @@ from src.backend.utils.validators import MatrixValidator
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.components.calculator import CalculatorPanel
 from src.frontend.components.navbar import create_navbar
+from src.frontend.navigation import route_of
 from src.frontend.components.square_matrix_panel import SquareMatrixPanel
 from src.frontend.views.inverse_ops._config import AI_CONTEXT_MAX_N
 from src.frontend.views.inverse_ops.history_mixin import InverseOpsHistoryMixin
@@ -43,7 +44,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
     def build(self):
         """Construye la interfaz completa de la vista."""
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/matriz-inversa')
+        create_navbar(self, active_route=route_of('inversa'))
 
         self.square_panel.inject_scripts()
         self.square_panel.on_data_change = self._on_matrix_change

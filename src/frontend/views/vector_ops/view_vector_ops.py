@@ -3,6 +3,7 @@ import json
 import asyncio
 from nicegui import ui
 from src.frontend.components.navbar import create_navbar
+from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.components.vector_capture import VectorCapturePanel
 from src.frontend.controllers.vector_ops.controller_vector_ops import VectorOpsController
@@ -51,7 +52,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/vectores')
+        create_navbar(self, active_route=route_of('vectores'))
         ui.add_head_html('<script>if(window.typesetMathWhenReady){window.typesetMathWhenReady();}</script>')
 
         self.panel_add_sub.inject_scripts()

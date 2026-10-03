@@ -1,6 +1,7 @@
 """Vista principal de Sistemas Lineales (Gauss / Gauss-Jordan) en Scalaris."""
 from nicegui import ui
 from src.frontend.components.navbar import create_navbar
+from src.frontend.navigation import route_of
 from src.frontend.components.equation_grid import EquationGrid
 from src.frontend.components.calculator import CalculatorPanel
 from src.frontend.components.ai_panel import AIPanel
@@ -39,7 +40,7 @@ class LinearSystemsUI(
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/sistemas-lineales')
+        create_navbar(self, active_route=route_of('sistemas'))
         self.grid.inject_scripts()
         self.grid.on_data_change = self._on_grid_change
         self.calculator.inject_scripts()
