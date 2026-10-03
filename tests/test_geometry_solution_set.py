@@ -7,6 +7,8 @@ from src.frontend.controllers.geometry._solution_set import (
     classify,
     from_gauss_result,
     has_solution_param,
+    get_solution_param,
+    from_solution_param,
 )
 
 
@@ -62,16 +64,21 @@ def test_from_gauss_no_solution():
     assert ss.kind == SolutionKind.EMPTY
 
 
-def test_from_gauss_infinite_returns_none():
+def test_from_gauss_infinite():
     from src.backend.models.matrix import Matrix
     from src.backend.solvers.linear_systems.gauss import GaussSolver
 
-    # x + y = 1 (single equation, 2 variables)
+    # x + y = 1 (single equation, 2 variables) -> solution_param is set
     data = [[Fraction(1), Fraction(1), Fraction(1)]]
     matrix = Matrix(1, 3, data)
     result = GaussSolver(matrix).solve()
     ss = from_gauss_result(result)
-    assert ss is None
+    
+    assert ss is not None
+    assert ss.kind == SolutionKind.LINE
+    assert ss.dimension == 1
+    assert ss.point == (Fraction(1), Fraction(0))
+    assert ss.directions == ((-Fraction(1), Fraction(1)),)
 
 
 def test_has_solution_param_true():
@@ -82,8 +89,8 @@ def test_has_solution_param_false():
     assert not has_solution_param({"status": "OK"})
 
 
-def test_has_solution_param_key_present_does_not_break():
-    """Presence of solution_param key doesn't break from_gauss_result."""
+def test_has_solution_param_key_present_invalid_format():
+    """Presence of invalid solution_param key returns None."""
     result = {
         "status": "INFINITE_SOLUTIONS",
         "solution_param": "x = 1 + t",
@@ -92,6 +99,31 @@ def test_has_solution_param_key_present_does_not_break():
         "free_cols": [1],
     }
     ss = from_gauss_result(result)
-    # Should still return None for INFINITE
+    # Returns None because get_solution_param fails
     assert ss is None
     assert has_solution_param(result)
+
+def test_get_solution_param_valid():
+    result = {
+        "solution_param": {
+            "num_vars": 2,
+            "particular": [Fraction(1), Fraction(0)],
+            "directions": [[Fraction(-1), Fraction(1)]],
+            "free_cols": [1],
+            "param_names": ["t"]
+        }
+    }
+    sp = get_solution_param(result)
+    assert sp is not None
+
+def test_get_solution_param_invalid():
+    result = {
+        "solution_param": {
+            "num_vars": 2,
+            "particular": [1, 0], # ints instead of Fraction
+            "directions": [[-1, 1]],
+            "free_cols": [1],
+            "param_names": ["t"]
+        }
+    }
+    assert get_solution_param(result) is None

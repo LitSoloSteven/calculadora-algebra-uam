@@ -6,6 +6,8 @@ from fractions import Fraction
 from src.frontend.controllers.geometry.controller_geometry import (
     GeometryController,
     auto_range,
+    clip_line_to_box,
+    error_cell_selector,
 )
 
 
@@ -41,6 +43,51 @@ def test_auto_range_empty():
 def test_auto_range_none_values():
     r = auto_range([None, 3.0, None])
     assert r[0] == -r[1]
+
+# ---- clip_line_to_box ----
+
+def test_clip_line_to_box_inside():
+    # p=(0,0), d=(1,0), half=5 -> t in [-5, 5]
+    res = clip_line_to_box([0.0, 0.0], [1.0, 0.0], 5.0)
+    assert res is not None
+    assert abs(res[0] - (-5.0)) < 1e-6
+    assert abs(res[1] - 5.0) < 1e-6
+
+def test_clip_line_to_box_outside():
+    # p=(10,0), d=(1,0), half=5 -> outside because y matches but x starts at 10 and we want to see if it crosses... wait, d=(1,0) -> y=0 which is inside.
+    # The x bound would be -15 to -5.
+    res = clip_line_to_box([10.0, 0.0], [1.0, 0.0], 5.0)
+    assert res is not None
+    assert abs(res[0] - (-15.0)) < 1e-6
+    assert abs(res[1] - (-5.0)) < 1e-6
+
+def test_clip_line_to_box_parallel_outside():
+    # p=(0,10), d=(1,0), half=5 -> y is out of bounds
+    res = clip_line_to_box([0.0, 10.0], [1.0, 0.0], 5.0)
+    assert res is None
+
+def test_clip_line_to_box_zero_dir():
+    # p=(0,0), d=(0,0)
+    res = clip_line_to_box([0.0, 0.0], [0.0, 0.0], 5.0)
+    assert res is None
+
+# ---- error_cell_selector ----
+
+def test_error_cell_selector_A():
+    res = error_cell_selector({"kind": "A", "row": 1, "col": 2}, scene="rectas-planos", grid_n=2)
+    assert res == 'input[data-row="1"][data-col="2"]'
+
+def test_error_cell_selector_b():
+    res = error_cell_selector({"kind": "b", "row": 1}, scene="rectas-planos", grid_n=2)
+    assert res == 'input[data-row="1"][data-col="2"]'
+
+def test_error_cell_selector_vec():
+    res = error_cell_selector({"kind": "vec", "name": "v_1", "index": 0}, scene="vectores", grid_n=2)
+    assert res == 'input[data-vec-id="geo_vec_v_1"][data-vec-idx="0"]'
+
+def test_error_cell_selector_comb():
+    res = error_cell_selector({"kind": "vec", "name": "b", "index": 1}, scene="combinacion", grid_n=2)
+    assert res == 'input[data-vec-id="geo_comb_b"][data-vec-idx="1"]'
 
 
 def test_auto_range_large_tope():

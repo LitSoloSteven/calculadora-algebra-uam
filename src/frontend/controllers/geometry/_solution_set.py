@@ -31,7 +31,37 @@ def classify(point: tuple[Fraction, ...] | None, directions: tuple[tuple[Fractio
         return SolutionKind.AFFINE_SUBSPACE
 
 def has_solution_param(result: dict[str, Any]) -> bool:
-    return "solution_param" in result
+    return result.get("solution_param") is not None
+
+def get_solution_param(result: dict[str, Any]) -> dict | None:
+    sp = result.get("solution_param")
+    if sp is None:
+        return None
+    try:
+        num_vars = sp["num_vars"]
+        particular = sp["particular"]
+        directions = sp["directions"]
+        free_cols = sp["free_cols"]
+        param_names = sp["param_names"]
+        if num_vars != len(particular) or len(directions) != len(free_cols) or len(free_cols) != len(param_names):
+            return None
+        # Ensure all are Fraction
+        for p in particular:
+            if not isinstance(p, Fraction): return None
+        for d in directions:
+            for v in d:
+                if not isinstance(v, Fraction): return None
+        return sp
+    except (KeyError, TypeError, ValueError):
+        return None
+
+def from_solution_param(sp: dict[str, Any]) -> SolutionSet | None:
+    if sp is None:
+        return None
+    point = tuple(sp["particular"])
+    directions = tuple(tuple(d) for d in sp["directions"])
+    k = classify(point, directions)
+    return SolutionSet(kind=k, dimension=len(directions), point=point, directions=directions)
 
 def from_gauss_result(result: dict[str, Any]) -> SolutionSet | None:
     status = result.get("status")
@@ -42,5 +72,8 @@ def from_gauss_result(result: dict[str, Any]) -> SolutionSet | None:
         point = tuple(Fraction(x) for x in result.get("solution_exact", []))
         return SolutionSet(kind=SolutionKind.POINT, dimension=0, point=point, directions=())
     elif status == "INFINITE_SOLUTIONS":
+        sp = get_solution_param(result)
+        if sp is not None:
+            return from_solution_param(sp)
         return None
     return None

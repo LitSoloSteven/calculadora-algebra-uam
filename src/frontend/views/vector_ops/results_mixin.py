@@ -52,6 +52,62 @@ class VectorOpsResultsMixin:
                 self.render_steps_and_result(res)
             else:
                 self.render_linear_combination_result(res)
+                
+            # A4: Ver en el visualizador
+            if self.active_op in ['add_sub', 'lin_comb']:
+                dim = None
+                if 'static' in res and 'u' in res['static']:
+                    dim = len(res['static']['u'])
+                elif 'b' in res and 'vectors' in res:
+                    dim = len(res.get('b', {}).get('float', [])) or len(res.get('vectors', [])[0].get('float', [])) if res.get('vectors') else None
+                
+                # If we don't have dim directly in res, let's look at the result data.
+                # Since we don't know the exact structure of res in InverseOps, let's safely fetch it.
+                # Actually, the result from MatrixOpsController usually doesn't have 'static'.
+                # Let's extract dim from the original matrices.
+                
+                show_visualizer = False
+                handoff_token = None
+                scene_name = ''
+                
+                from src.frontend.components.handoff import put_vectors, handoff_url
+                from src.frontend.navigation import route_of
+                
+                if self.active_op == 'add_sub' and res.get('status') != 'ERROR':
+                    # need to check dim
+                    # The vectors are in self.vec_panel.get_vectors_dict() usually, but here we can just read self.right_panel? No, self is VectorOpsUI.
+                    # Or we just check self.vec_panel.dim
+                    try:
+                        vecs = self.vec_panel.get_vectors_dict()
+                        if len(vecs) >= 2:
+                            v1_data = vecs['v_1']['data']
+                            dim = len(v1_data)
+                            if dim in (2, 3):
+                                show_visualizer = True
+                                scene_name = 'vectores'
+                                raw_data = [vecs['v_1']['data'], vecs['v_2']['data']]
+                                handoff_token = put_vectors('vectores', 'vectores', raw_data)
+                    except Exception:
+                        pass
+                
+                elif self.active_op == 'lin_comb' and res.get('status') != 'ERROR':
+                    try:
+                        vecs = self.vec_panel.get_vectors_dict()
+                        if len(vecs) >= 2 and len(vecs) <= 5:
+                            v1_data = vecs['b']['data']
+                            dim = len(v1_data)
+                            if dim in (2, 3):
+                                show_visualizer = True
+                                scene_name = 'combinacion'
+                                raw_data = [vecs['b']['data']] + [v['data'] for k, v in vecs.items() if k != 'b']
+                                handoff_token = put_vectors('vectores', 'combinacion', raw_data)
+                    except Exception:
+                        pass
+
+                if show_visualizer and handoff_token:
+                    url = handoff_url(route_of('visualizador'), handoff_token) + f"&escena={scene_name}"
+                    with ui.row().classes('mt-6'):
+                        ui.button('Ver en el Visualizador', icon='explore', on_click=lambda u=url: ui.navigate.to(u)).classes('btn-ghost text-accent')
 
     def render_steps_and_result(self, res: dict):
         final_latex = res.get('result_vector_latex')

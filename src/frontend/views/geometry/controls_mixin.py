@@ -33,7 +33,7 @@ class GeometryControlsMixin:
         self.grid = EquationGrid(default_m=2, default_n=2)
         self.grid.inject_scripts()
         self.grid.on_data_change = self._on_data_change
-        self.grid.build()
+        self.grid.build_grid_container()
 
     def _build_vectors_controls(self):
         """Build VectorCapturePanel for vectors scene (2 vectors)."""
@@ -96,20 +96,8 @@ class GeometryControlsMixin:
                     frames[default_idx].get("k_exact", "1")
                 ).classes('font-bold text-sm text-main geo-slider-value')
 
-                slider = ui.slider(
-                    min=0, max=len(frames) - 1, value=default_idx, step=1
-                ).classes('flex-1').props('label-always')
-
-                # JS-only handler: no server round-trip
-                js_code = f"""
-                (function() {{
-                    var frames = {json.dumps(frames)};
-                    var labelEl = document.querySelector('.geo-slider-value');
-                    var idx = $event;
-                    if (frames[idx]) {{
-                        if (labelEl) labelEl.textContent = frames[idx].k_exact || String(frames[idx].k);
-                        if (window.scalarisGeo) window.scalarisGeo.setFrame('{wrap_id}', idx);
-                    }}
-                }})()
-                """
-                slider.on('update:model-value', js_handler=js_code)
+                # Slider nativo (sin round-trips al servidor)
+                ui.element('input').classes('flex-1 geo-slider-input').style('accent-color: var(--accent)').props(
+                    f'type="range" min="0" max="{len(frames) - 1}" step="1" value="{default_idx}" '
+                    f'data-geo-slider="{wrap_id}" aria-label="Valor del parámetro k" aria-valuetext="{frames[default_idx].get("k_exact", "1")}"'
+                )

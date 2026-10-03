@@ -20,23 +20,30 @@ class GeometryScenesMixin:
         except Exception:
             return 'papel'
 
-    async def _build_figure(self, result: dict, scene: str):
-        """Build and display the Plotly figure for the given scene."""
+    async def _get_figure_only(self, result: dict, scene: str):
         try:
             if scene == 'rectas-planos':
                 from ._scenes import build_lines_planes_figure
                 theme = await self._tema_actual()
-                fig = build_lines_planes_figure(result, theme=theme)
+                return build_lines_planes_figure(result, theme=theme)
             elif scene == 'vectores':
                 from ._scenes import build_vectors_figure
                 theme = await self._tema_actual()
                 frame_idx = getattr(self, '_current_frame_index', None)
-                fig = build_vectors_figure(result, theme=theme, frame_index=frame_idx)
+                return build_vectors_figure(result, theme=theme, frame_idx=frame_idx)
             elif scene == 'combinacion':
                 from ._scenes import build_combination_figure
                 theme = await self._tema_actual()
-                fig = build_combination_figure(result, theme=theme)
-            else:
+                return build_combination_figure(result, theme=theme)
+        except Exception:
+            pass
+        return None
+
+    async def _build_figure(self, result: dict, scene: str):
+        """Build and display the Plotly figure for the given scene."""
+        try:
+            fig = await self._get_figure_only(result, scene)
+            if fig is None:
                 return
         except ImportError:
             with self.figure_container:
@@ -92,19 +99,7 @@ class GeometryScenesMixin:
                     b_val = eq.get("b_exact", "0")
                     var_names = ["x", "y", "z"][:n]
 
-                    # Build LaTeX
-                    terms = []
-                    for j, (c, v) in enumerate(zip(coeffs, var_names)):
-                        if c == "0":
-                            continue
-                        if c == "1":
-                            terms.append(v)
-                        elif c == "-1":
-                            terms.append(f"-{v}")
-                        else:
-                            terms.append(f"{c}{v}")
-                    lhs = " + ".join(terms).replace("+ -", "- ") if terms else "0"
-                    latex = f"{lhs} = {b_val}"
+                    latex = eq.get("latex", f"0 = {b_val}")
                     ui.html(f'<div id="{eq_id}" class="math-label text-sm mb-1">$$ {latex} $$</div>')
 
             if eq_ids:
@@ -115,18 +110,41 @@ class GeometryScenesMixin:
             exact = sol_set["point_exact"]
             point_str = ", ".join(exact)
             with ui.element('div').classes('geo-summary mt-2').style('overflow-wrap: anywhere;'):
-                ui.label(f"Solución: ({point_str})").classes('font-bold text-sm text-main')
+                ui.label(f"Única solución en ({point_str})").classes('badge-info')
+                
+                # Render \mathbf{x} = [pt]
+                from src.backend.solvers.vector_ops.formatters import vector_to_latex
+                from src.backend.models.matrix import Matrix
+                p_latex = vector_to_latex(Matrix(len(exact), 1, exact))
+                eq_id = f"geo-sol-{id(sol_set)}"
+                ui.html(f'<div id="{eq_id}" class="math-label mt-2 mb-1">$$ \\mathbf{{x}} = {p_latex} $$</div>')
+                ui.run_javascript(f"typesetMathWhenReady(['{eq_id}']);")
 
         elif sol_status == "NO_SOLUTION":
             msg = "El sistema no tiene solución"
             if "parallel" in flags and n == 2:
                 msg = "Las rectas son paralelas y no se intersectan"
             with ui.element('div').classes('geo-summary mt-2'):
-                ui.label(msg).classes('font-bold text-sm text-main')
+                ui.label(msg).classes('badge-error')
 
         elif sol_status == "INFINITE_SOLUTIONS":
-            with ui.element('div').classes('geo-notice mt-2'):
-                ui.label("Este sistema tiene infinitas soluciones. Por ahora solo dibujamos las ecuaciones.").classes('text-sm text-sec')
+            if sol_set and sol_set.get("whole_space"):
+                ui.label(f"Todo el espacio R^{n}").classes('badge-success mt-2')
+            else:
+                dim = sol_set.get("dimension", 0) if sol_set else 0
+                ui.label(f"Solución paramétrica (d={dim})").classes('badge-warning mt-2')
+                
+                if sol_set and sol_set.get("param_latex"):
+                    latex = sol_set["param_latex"]
+                    eq_id = f"geo-sol-{id(sol_set)}"
+                    ui.html(f'<div id="{eq_id}" class="math-label mt-2 mb-1">$$ {latex} $$</div>')
+                    ui.run_javascript(f"typesetMathWhenReady(['{eq_id}']);")
+                    
+                if sol_set and sol_set.get("description"):
+                    ui.label(sol_set["description"]).classes('text-sm text-sub mt-1')
+
+        elif pending:
+            ui.label("Ecuaciones linealmente dependientes. Resuelve el sistema para ver los parámetros.").classes('text-sm text-sub mt-2 italic')
 
     def _render_vectors_summary(self, result: dict):
         """Render summary for vectors scene."""

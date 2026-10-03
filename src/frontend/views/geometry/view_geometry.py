@@ -58,7 +58,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
             # Scene tabs
-            with ui.tabs().classes('neo-tabs method-tabs w-full').props('dense no-caps mobile-arrows') as self.scene_tabs:
+            with ui.tabs().classes('neo-tabs method-tabs tabs-wide w-full').props('dense no-caps mobile-arrows') as self.scene_tabs:
                 ui.tab('rectas-planos', label='Rectas y planos')
                 ui.tab('vectores', label='Vectores')
                 ui.tab('combinacion', label='Combinación lineal')
@@ -79,12 +79,12 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
         self.ai_panel.build()
 
-        # Process handoff
-        self._process_handoff(handoff_token)
-
         # Build initial controls
         self._build_controls(self.scene)
         self._render_empty_state()
+
+        # Process handoff AFTER empty state
+        self._process_handoff(handoff_token)
 
     def _process_handoff(self, token: str):
         """Process handoff token on page load."""
@@ -113,12 +113,16 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                     n = len(A[0]) if A else 2
                     self.grid.m = m
                     self.grid.n = n
+                    self.grid._cache_A.clear()
+                    self.grid._cache_b.clear()
                     for i, row in enumerate(A):
                         for j, val in enumerate(row):
                             self.grid._cache_A[(i, j)] = str(val)
                     for i, val in enumerate(b):
                         self.grid._cache_b[i] = str(val)
-                    self.grid._render_grid()
+                    self.grid.entradas_A.clear()
+                    self.grid.entradas_b.clear()
+                    self.grid.generar_cuadricula()
                     self._trigger_live_preview()
                 with self.status_container:
                     render_handoff_notice(result, f"Sistema cargado desde {result.source_name}")
@@ -130,25 +134,46 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             if result is None:
                 return
             clean_handoff_url()
+            
             if result.status == 'ok' and result.data:
                 scene_from_data = result.data.get("scene", self.scene)
-                if scene_from_data in VALID_SCENES:
+                vectors_data = result.data.get("data", [])
+                
+                from src.frontend.components.handoff import HandoffResult
+                is_valid = True
+                if scene_from_data == 'vectores':
+                    if len(vectors_data) != 2:
+                        result = HandoffResult(status='invalid', data=None, source_name=result.source_name, message="La escena de Vectores requiere exactamente 2 vectores.")
+                        is_valid = False
+                elif scene_from_data == 'combinacion':
+                    if not (2 <= len(vectors_data) <= 5):
+                        result = HandoffResult(status='invalid', data=None, source_name=result.source_name, message="La escena de Combinación lineal requiere entre 2 y 5 vectores (b + v1...v4).")
+                        is_valid = False
+                
+                if is_valid:
                     self.scene = scene_from_data
                     self.scene_tabs.value = self.scene
                     self._build_controls(self.scene)
 
-                vectors_data = result.data.get("data", [])
-                panel = self.vec_panel if self.scene == 'vectores' else self.comb_panel
-                if panel and vectors_data:
-                    for vi, vec in enumerate(vectors_data):
-                        name = list(panel.vectors.keys())[vi] if vi < len(panel.vectors) else None
-                        if name:
-                            for ci, val in enumerate(vec):
-                                panel.vectors[name]['cache'][ci] = str(val)
-                    panel._update_all_grids()
-                    self._trigger_live_preview()
-                with self.status_container:
-                    render_handoff_notice(result, f"Vectores cargados desde {result.source_name}")
+                    panel = self.vec_panel if self.scene == 'vectores' else self.comb_panel
+                    if panel and vectors_data:
+                        n = len(vectors_data[0]) if vectors_data else 2
+                        panel.dim = n
+                        while len(panel.vectors) < len(vectors_data):
+                            panel.add_vector()
+                            
+                        for vi, vec in enumerate(vectors_data):
+                            name = list(panel.vectors.keys())[vi] if vi < len(panel.vectors) else None
+                            if name:
+                                for ci, val in enumerate(vec):
+                                    panel.vectors[name]['cache'][ci] = str(val)
+                        panel.render_all_vectors()
+                        self._trigger_live_preview()
+                    with self.status_container:
+                        render_handoff_notice(result, f"Vectores cargados desde {result.source_name}")
+                else:
+                    with self.status_container:
+                        render_handoff_notice(result, "")
             else:
                 with self.status_container:
                     render_handoff_notice(result, "")
@@ -216,6 +241,11 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         try:
             payload = self._build_payload()
             if payload is None:
+                self.last_payload_hash = None
+                self.last_result = None
+                self._first_draw = True
+                self._plotly_element = None
+                self._render_empty_state()
                 return
 
             # Check if payload changed
@@ -249,18 +279,29 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             else:
                 return
 
-            self.last_result = result
-
-            # Handle errors
-            if result.get("status") == "ERROR":
-                self._render_error(result)
-                return
-
             # Clear markInvalid
             ui.run_javascript('scalarisGeo.markInvalid(null);')
 
-            # Build figure
-            await self._build_figure(result, self.scene)
+            # Reutilizar figura si aplica
+            old_scene = getattr(self.last_result, '_scene_marker', None) if getattr(self, 'last_result', None) else None
+            old_n = self.last_result.get('n') if getattr(self, 'last_result', None) else None
+            
+            self.last_result = result
+            self.last_result['_scene_marker'] = self.scene
+            
+            if not self._first_draw and self._plotly_element and old_scene == self.scene and old_n == result.get('n'):
+                # Actualizar in situ
+                fig = await self._get_figure_only(result, self.scene)
+                if fig:
+                    self._plotly_element.update_figure(fig)
+                    if self.scene == 'vectores' and result.get("frames"):
+                        frames_json = json.dumps(result["frames"])
+                        wrap_id = f"geo-fig-{id(self)}"
+                        ui.run_javascript(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+            else:
+                # Build figure from scratch
+                await self._build_figure(result, self.scene)
+                
             self._build_slider(result, self.scene)
             self._render_summary(result, self.scene)
 
@@ -296,53 +337,29 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                     return None
                 return {"matrix_A": matrix_A, "vector_b": vector_b}
 
-            elif self.scene == 'vectores':
-                if not self.vec_panel:
+            elif self.scene in ('vectores', 'combinacion'):
+                panel = self.vec_panel if self.scene == 'vectores' else self.comb_panel
+                if not panel:
                     return None
-                try:
-                    vecs = self.vec_panel.get_vectors_dict()
-                except ValueError:
-                    return None
-                if not vecs:
-                    return None
+                    
+                dim = panel.dim
                 vec_list = []
-                for name in self.vec_panel.vectors:
-                    if name in vecs:
-                        vec_list.append(vecs[name])
-                if len(vec_list) != 2:
-                    return None
-                # Check if any data
+                for name, vdata in panel.vectors.items():
+                    cache = vdata.get('cache', {})
+                    coords = [cache.get(i, '0') or '0' for i in range(dim)]
+                    vec_list.append({"data": coords, "orientation": "column"})
+                    
                 has_data = any(
-                    any(str(v).strip() and str(v).strip() != '0' for v in vec.get("data", []))
+                    any(val != '0' for val in vec["data"])
                     for vec in vec_list
                 )
                 if not has_data:
                     return None
-                return {"vectors": vec_list}
-
-            elif self.scene == 'combinacion':
-                if not self.comb_panel:
-                    return None
-                try:
-                    vecs = self.comb_panel.get_vectors_dict()
-                except ValueError:
-                    return None
-                if not vecs:
-                    return None
-                b_key = self.comb_panel.first_vector_fixed_label
-                b_vec = vecs.pop(b_key, None)
-                if not b_vec:
-                    return None
-                other_vecs = list(vecs.values())
-                if not other_vecs:
-                    return None
-                has_data = any(
-                    str(v).strip() and str(v).strip() != '0'
-                    for v in b_vec.get("data", [])
-                )
-                if not has_data:
-                    return None
-                return {"b": b_vec, "vectors": other_vecs}
+                    
+                if self.scene == 'vectores':
+                    return {"vectors": vec_list}
+                else:
+                    return {"b": vec_list[0], "vectors": vec_list[1:]}
 
         except Exception:
             return None
@@ -385,22 +402,9 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
     def _cell_selector(self, error_cell: dict) -> str | None:
         """Build a CSS selector for an error cell."""
-        if not error_cell:
-            return None
-        kind = error_cell.get("kind")
-        if kind == "A":
-            row = error_cell.get("row", 0)
-            col = error_cell.get("col", 0)
-            return f'[data-row="{row}"][data-col="{col}"]'
-        elif kind == "b":
-            row = error_cell.get("row", 0)
-            return f'[data-b-row="{row}"]'
-        elif kind == "vec":
-            name = error_cell.get("name", "")
-            index = error_cell.get("index", 0)
-            panel_id = "geo_vec" if self.scene == 'vectores' else "geo_comb"
-            return f'#{panel_id}_{name}_idx{index}'
-        return None
+        from src.frontend.controllers.geometry.controller_geometry import error_cell_selector
+        grid_n = self.grid.n if self.grid else 2
+        return error_cell_selector(error_cell, scene=self.scene, grid_n=grid_n)
 
     # --- AI Context ---
 
@@ -429,6 +433,10 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                 result_data["solution_status"] = result.get("solution_status", "")
                 if sol_set:
                     result_data["set_kind"] = sol_set.get("kind", "")
+                    if "dimension" in sol_set:
+                        result_data["dimension"] = sol_set["dimension"]
+                    if "free_vars" in sol_set:
+                        result_data["free_vars"] = sol_set["free_vars"]
                 if result.get("pending_param"):
                     result_data["pending"] = True
             elif self.scene in ('vectores', 'combinacion'):

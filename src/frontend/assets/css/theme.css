@@ -387,6 +387,11 @@ body {
     text-align: center !important;
 }
 
+/* === INVALID CELL === */
+.geo-cell-error {
+    box-shadow: var(--elev-inset), 0 0 0 2px var(--error) !important;
+}
+
 /* === ETIQUETAS MATEMÁTICAS === */
 .math-label {
     font-family: 'Space Grotesk', sans-serif !important;

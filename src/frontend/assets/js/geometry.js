@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  var registry = {};  // wrapId -> { frames: [...], plotEl: null }
+  var registry = {};  // wrapId -> { frames: [...], plotEl: null, reqFrame: null }
 
   /**
    * Register precomputed frames for a plotly figure wrapper.
@@ -15,7 +15,7 @@
    * @param {Array}  frames  - array of frame objects with {ku, ku_plus_v, k, k_exact}
    */
   function register(wrapId, frames) {
-    registry[wrapId] = { frames: frames, plotEl: null };
+    registry[wrapId] = { frames: frames, plotEl: null, reqFrame: null };
   }
 
   /**
@@ -58,16 +58,16 @@
       var dim = ku.length;
       if (dim === 2) {
         Plotly.restyle(el, {
-          x: [[[0, ku[0]]], undefined, [[0, kupv[0]]]],
-          y: [[[0, ku[1]]], undefined, [[0, kupv[1]]]],
-          name: [['k\u00B7u (k=' + kLabel + ')'], undefined, ['k\u00B7u + v']],
-        }, [0, 1, 2]);
+          x: [[0, ku[0]], [0, kupv[0]]],
+          y: [[0, ku[1]], [0, kupv[1]]],
+          name: ['k\u00B7u (k=' + kLabel + ')', 'k\u00B7u + v']
+        }, [0, 2]);
       } else if (dim === 3) {
         // In 3D we have pairs of traces per arrow (line + marker)
         // Trace 0,1 = k·u; Trace 2,3 = v; Trace 4,5 = k·u+v
-        Plotly.restyle(el, { x: [[0, ku[0]]], y: [[0, ku[1]]], z: [[0, ku[2]]] }, [0]);
+        Plotly.restyle(el, { x: [[0, ku[0]]], y: [[0, ku[1]]], z: [[0, ku[2]]], name: ['k\u00B7u (k=' + kLabel + ')'] }, [0]);
         Plotly.restyle(el, { x: [[ku[0]]], y: [[ku[1]]], z: [[ku[2]]] }, [1]);
-        Plotly.restyle(el, { x: [[0, kupv[0]]], y: [[0, kupv[1]]], z: [[0, kupv[2]]] }, [4]);
+        Plotly.restyle(el, { x: [[0, kupv[0]]], y: [[0, kupv[1]]], z: [[0, kupv[2]]], name: ['k\u00B7u + v'] }, [4]);
         Plotly.restyle(el, { x: [[kupv[0]]], y: [[kupv[1]]], z: [[kupv[2]]] }, [5]);
       }
     } catch (e) {
@@ -90,10 +90,35 @@
 
     var el = document.querySelector(selector);
     if (el) {
-      el.classList.add('geo-cell-error');
+      var target = el.closest('.q-field__control') || el;
+      target.classList.add('geo-cell-error');
       el.setAttribute('aria-invalid', 'true');
     }
   }
+
+  // Delegated event listener for the slider
+  document.addEventListener('input', function(e) {
+    if (e.target && e.target.matches('input[type="range"][data-geo-slider]')) {
+      var wrapId = e.target.getAttribute('data-geo-slider');
+      var idx = parseInt(e.target.value, 10);
+      var entry = registry[wrapId];
+      if (entry && entry.frames && entry.frames[idx]) {
+        var frame = entry.frames[idx];
+        var kExact = frame.k_exact || String(frame.k);
+        e.target.setAttribute('aria-valuetext', kExact);
+        var row = e.target.closest('.geo-slider-row');
+        if (row) {
+          var labelEl = row.querySelector('.geo-slider-value');
+          if (labelEl) labelEl.textContent = kExact;
+        }
+        
+        if (entry.reqFrame) cancelAnimationFrame(entry.reqFrame);
+        entry.reqFrame = requestAnimationFrame(function() {
+          setFrame(wrapId, idx);
+        });
+      }
+    }
+  });
 
   // Expose public API
   window.scalarisGeo = {
