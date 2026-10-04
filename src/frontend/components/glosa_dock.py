@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 MAX_HISTORY = 60
 
 class GlosaDockMixin:
+    def _spawn(self, coro) -> asyncio.Task:
+        """Crea una tarea async que entra al contexto del cliente antes de ejecutar la corrutina."""
+        async def runner():
+            client = getattr(self, '_client', None)
+            if client is not None and not getattr(client, 'is_deleted', False):
+                with client:
+                    return await coro
+            return await coro
+
+        return asyncio.create_task(runner())
+
     def open(self):
         ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.open();')
 
@@ -172,7 +183,17 @@ class GlosaDockMixin:
         self._scroll_to_bottom()
 
     def _scroll_to_bottom(self):
-        ui.run_javascript("setTimeout(() => { const el = document.getElementById('glosa-log') || document.getElementById('ai-chat-area') || document.querySelector('.glosa-messages'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+        client = getattr(self, '_client', None)
+        if client is not None and not getattr(client, 'is_deleted', False):
+            try:
+                client.run_javascript("setTimeout(() => { const el = document.getElementById('glosa-log') || document.getElementById('ai-chat-area') || document.querySelector('.glosa-messages'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+            except Exception as e:
+                logger.debug("Error en _scroll_to_bottom: %s", e)
+        else:
+            try:
+                ui.run_javascript("setTimeout(() => { const el = document.getElementById('glosa-log') || document.getElementById('ai-chat-area') || document.querySelector('.glosa-messages'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+            except Exception:
+                pass
 
     def _render_message_dock(self, msg, is_last=False):
         sent = msg.get('sent', False)
@@ -215,7 +236,7 @@ class GlosaDockMixin:
         self.render_chat_dock()
         
         if last_user:
-            asyncio.create_task(self._submit(
+            self._spawn(self._submit(
                 last_user.get('text', ''),
                 cacheable=last_user.get('cacheable', False),
                 simpler=last_user.get('simpler', False),
@@ -244,7 +265,7 @@ class GlosaDockMixin:
         if from_keyboard and self.input_field and not s.focus:
             ui.run_javascript("setTimeout(() => { const el = document.querySelector('.glosa-input textarea'); if(el) el.focus(); }, 100);")
             
-        asyncio.create_task(self._submit(s.text, cacheable=True, from_keyboard=from_keyboard))
+        self._spawn(self._submit(s.text, cacheable=True, from_keyboard=from_keyboard))
 
     def ask_followup(self, f, from_keyboard=False):
         if getattr(self, '_is_sending', False):
@@ -254,7 +275,7 @@ class GlosaDockMixin:
         if from_keyboard and self.input_field:
             ui.run_javascript("setTimeout(() => { const el = document.querySelector('.glosa-input textarea'); if(el) el.focus(); }, 100);")
             
-        asyncio.create_task(self._submit(f.question, cacheable=False, simpler=f.simpler, from_keyboard=from_keyboard))
+        self._spawn(self._submit(f.question, cacheable=False, simpler=f.simpler, from_keyboard=from_keyboard))
 
     def trigger_explain_step(self, step_meta):
         if getattr(self, '_is_sending', False):
@@ -275,7 +296,7 @@ class GlosaDockMixin:
             step_meta.get("op", "")
         )
         
-        asyncio.create_task(self._submit(question, cacheable=True, simpler=True))
+        self._spawn(self._submit(question, cacheable=True, simpler=True))
 
     async def _submit(self, text, *, cacheable=False, simpler=False, from_keyboard=False, is_retry=False):
         if getattr(self, '_is_sending', False):
@@ -350,7 +371,8 @@ class GlosaDockMixin:
                 self._finish_send(typing_row, cancel_btn_row)
                 self._last_send_time = 0.0
                 
-        ui.timer(0, show_cancel, once=True)
+        with self.chat_area:
+            ui.timer(0, show_cancel, once=True)
             
         try:
             from src.ai.openrouter_ai import AIResult, AIErrorKind

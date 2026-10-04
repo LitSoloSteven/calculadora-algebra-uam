@@ -11,12 +11,26 @@ logger = logging.getLogger(__name__)
 class GeometryScenesMixin:
     """Renderiza figuras Plotly para las tres escenas del Visualizador."""
 
-    async def _tema_actual(self) -> str:
+    def _js(self, code: str) -> None:
+        """Ejecuta código JavaScript de forma segura sobre el cliente NiceGUI."""
+        client = getattr(self, '_client', None)
+        if client is None or getattr(client, 'is_deleted', False):
+            return
         try:
-            return await ui.run_javascript(
+            client.run_javascript(code)
+        except Exception as e:
+            logger.debug("Error ejecutando JS en GeometryScenesMixin: %s", e)
+
+    async def _tema_actual(self) -> str:
+        client = getattr(self, '_client', None)
+        if client is None or getattr(client, 'is_deleted', False):
+            return 'papel'
+        try:
+            res = await client.run_javascript(
                 "document.documentElement.getAttribute('data-theme') || 'papel'",
                 timeout=3.0,
-            ) or 'papel'
+            )
+            return res or 'papel'
         except Exception:
             return 'papel'
 
@@ -40,18 +54,33 @@ class GeometryScenesMixin:
             logger.exception("Error al construir figura en _get_figure_only")
             return None
 
-    async def _build_figure(self, result: dict, scene: str):
+    async def _build_figure(self, result: dict, scene: str) -> bool:
         """Build and display the Plotly figure for the given scene."""
         try:
             fig = await self._get_figure_only(result, scene)
             if fig is None:
                 if hasattr(self, '_render_error'):
                     self._render_error({"code": "render_failed", "message": "No pudimos dibujar la figura. Revisa los valores e inténtalo de nuevo."})
-                ui.run_javascript("""
+                self._js("""
                     var c = document.querySelector('.geo-figure');
                     if (c) c.style.opacity = '1';
                 """)
-                return
+                return False
+
+            if self.figure_container:
+                self.figure_container.clear()
+                with self.figure_container:
+                    wrap_id = f"geo-fig-{id(self)}"
+                    sol_desc = (result.get("set") or {}).get("description")
+                    aria_desc = sol_desc if sol_desc else f"Visualización geométrica: {scene}"
+                    with ui.element('div').props(f'id="{wrap_id}" role="img" aria-label="{aria_desc}"').classes('geo-figure w-full'):
+                        self._plotly_element = ui.plotly(fig).classes('w-full h-full')
+
+                    # Register frames for vectors scene
+                    if scene == 'vectores' and result.get("frames"):
+                        frames_json = json.dumps(result["frames"])
+                        self._js(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+            return True
         except ImportError:
             if self.figure_container:
                 self.figure_container.clear()
@@ -59,21 +88,12 @@ class GeometryScenesMixin:
                     with ui.row().classes('items-center gap-2 px-4 py-2 badge-error w-fit'):
                         ui.icon('close', size='sm')
                         ui.label('No se pudo cargar el módulo de gráficos (plotly).').classes('font-bold')
-            return
-
-        if self.figure_container:
-            self.figure_container.clear()
-            with self.figure_container:
-                wrap_id = f"geo-fig-{id(self)}"
-                sol_desc = (result.get("set") or {}).get("description")
-                aria_desc = sol_desc if sol_desc else f"Visualización geométrica: {scene}"
-                with ui.element('div').props(f'id="{wrap_id}" role="img" aria-label="{aria_desc}"').classes('geo-figure w-full'):
-                    self._plotly_element = ui.plotly(fig).classes('w-full h-full')
-
-                # Register frames for vectors scene
-                if scene == 'vectores' and result.get("frames"):
-                    frames_json = json.dumps(result["frames"])
-                    ui.run_javascript(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+            return False
+        except Exception:
+            logger.exception("Error al dibujar la figura en _build_figure")
+            if hasattr(self, '_render_error'):
+                self._render_error({"code": "render_failed", "message": "No pudimos dibujar la figura. Revisa los valores e inténtalo de nuevo."})
+            return False
 
     def _render_summary(self, result: dict, scene: str):
         """Render textual summary below the figure."""
@@ -118,7 +138,7 @@ class GeometryScenesMixin:
                     ui.html(f'<div id="{eq_id}" class="math-label text-sm mb-1">$$ {latex} $$</div>')
 
             if eq_ids:
-                ui.run_javascript(f"typesetMathWhenReady({json.dumps(eq_ids)});")
+                self._js(f"typesetMathWhenReady({json.dumps(eq_ids)});")
 
         # Solution status
         # Orden de ramas: pending primero (pending_param con set is None)
@@ -136,7 +156,7 @@ class GeometryScenesMixin:
                     eq_id = f"geo-sol-{id(sol_set)}"
                     with ui.element('div').classes('math-scroll-container mt-2 mb-1'):
                         ui.html(f'<div id="{eq_id}" class="math-label">$$ \\mathbf{{x}} = {p_latex} $$</div>')
-                    ui.run_javascript(f"typesetMathWhenReady(['{eq_id}']);")
+                    self._js(f"typesetMathWhenReady(['{eq_id}']);")
 
         elif sol_status == "NO_SOLUTION":
             msg = "El sistema no tiene solución"
@@ -163,7 +183,7 @@ class GeometryScenesMixin:
                         eq_id = f"geo-sol-{id(sol_set)}"
                         with ui.element('div').classes('math-scroll-container mt-2 mb-1'):
                             ui.html(f'<div id="{eq_id}" class="math-label">$$ {latex} $$</div>')
-                        ui.run_javascript(f"typesetMathWhenReady(['{eq_id}']);")
+                        self._js(f"typesetMathWhenReady(['{eq_id}']);")
 
                     if sol_set.get("free_vars"):
                         vars_str = ", ".join(sol_set["free_vars"])
@@ -181,7 +201,7 @@ class GeometryScenesMixin:
             v_str = ", ".join(v_exact)
             summary_id = f"geo-vec-summary-{id(self)}"
             ui.html(f'<div id="{summary_id}" class="math-label text-sm">$$ \\mathbf{{u}} = ({u_str}), \\quad \\mathbf{{v}} = ({v_str}) $$</div>')
-            ui.run_javascript(f'typesetMathWhenReady(["{summary_id}"]);')
+            self._js(f'typesetMathWhenReady(["{summary_id}"]);')
 
     def _render_combination_summary(self, result: dict):
         """Render summary for combination scene."""
@@ -200,7 +220,7 @@ class GeometryScenesMixin:
             summary_id = f"geo-comb-summary-{id(self)}"
             vecs_tex = ", \\quad ".join(parts)
             ui.html(f'<div id="{summary_id}" class="math-label text-sm">$$ \\mathbf{{b}} = ({b_str}), \\quad {vecs_tex} $$</div>')
-            ui.run_javascript(f'typesetMathWhenReady(["{summary_id}"]);')
+            self._js(f'typesetMathWhenReady(["{summary_id}"]);')
 
         if sol_status == "UNIQUE":
             chain = result.get("chain", [])

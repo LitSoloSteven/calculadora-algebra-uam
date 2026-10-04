@@ -40,8 +40,9 @@ def test_matrix_focus_add():
     assert foc["detail"] is not None
     assert foc["detail"]["forma"] == "2×2"
     assert "ejemplo" in foc["detail"]
-    assert foc["detail"]["ejemplo"] == step["cell_by_cell_steps"][0]["description"]
+    assert foc["detail"]["ejemplo"].startswith("Celda (1, 1)")
     assert len(foc["detail"]["ejemplo"]) <= 120
+    assert foc["detail"]["ejemplo"] != step["cell_by_cell_steps"][0]["description"]
 
 
 def test_matrix_focus_multiply():
@@ -66,8 +67,27 @@ def test_matrix_focus_multiply():
     assert foc["detail"] is not None
     assert foc["detail"]["forma"] == "2×2"
     assert "ejemplo" in foc["detail"]
-    assert foc["detail"]["ejemplo"] == step["cell_by_cell_steps"][0]["description"]
+    assert foc["detail"]["ejemplo"].startswith("Fila 1 de A")
     assert len(foc["detail"]["ejemplo"]) <= 120
+    assert foc["detail"]["ejemplo"] != step["cell_by_cell_steps"][0]["description"]
+
+
+def test_matrix_focus_transpose():
+    evaluator = MatrixExpressionEvaluator()
+    m_a = Matrix(2, 2, [[Fraction(1), Fraction(2)], [Fraction(3), Fraction(4)]])
+    res = evaluator.evaluate("A^T", {"A": m_a})
+    assert res["status"] == "SUCCESS"
+    assert len(res["segment_steps"]) == 1
+
+    step = res["segment_steps"][0]
+    foc = MatrixOpsController.build_step_focus(step, 1, 1)
+
+    assert foc["index"] == 1
+    assert foc["total"] == 1
+    assert foc["kind"] == "otro"
+    assert foc["detail"] is not None
+    assert foc["detail"]["forma"] == "2×2"
+    assert "ejemplo" not in foc["detail"]
 
 
 def test_ai_panel_collect_context_step_detail():

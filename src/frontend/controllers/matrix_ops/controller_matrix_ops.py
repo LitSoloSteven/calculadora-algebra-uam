@@ -159,12 +159,13 @@ class MatrixOpsController:
             detail["forma"] = f"{res_mat['rows']}×{res_mat['cols']}"
 
         cell_steps = step.get("cell_by_cell_steps")
-        if cell_steps and isinstance(cell_steps, list) and len(cell_steps) > 0:
-            first_step = cell_steps[0]
-            if isinstance(first_step, dict):
-                first_desc = first_step.get("description")
-                if first_desc:
-                    detail["ejemplo"] = sanitize_user_string(first_desc, 120)
+        if cell_steps and isinstance(cell_steps, list):
+            for cs in cell_steps:
+                if isinstance(cs, dict) and cs.get("detail_latex"):
+                    first_desc = cs.get("description")
+                    if first_desc:
+                        detail["ejemplo"] = sanitize_user_string(first_desc, 120)
+                    break
 
         return {
             "index": index,

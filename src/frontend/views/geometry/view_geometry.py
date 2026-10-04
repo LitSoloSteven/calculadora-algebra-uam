@@ -25,6 +25,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
     """Controlador de vista del Visualizador Geométrico."""
 
     def __init__(self):
+        self._client = None
         self.ai_panel = None
         self.scene = 'rectas-planos'
         self.last_result = None
@@ -46,7 +47,33 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         self.vec_panel = None
         self.comb_panel = None
 
+    def _js(self, code: str) -> None:
+        """Ejecuta código JavaScript de forma segura sobre el cliente NiceGUI."""
+        client = getattr(self, '_client', None)
+        if client is None or getattr(client, 'is_deleted', False):
+            return
+        try:
+            client.run_javascript(code)
+        except Exception as e:
+            logger.debug("Error ejecutando JS en GeometryUI: %s", e)
+
+    def _spawn(self, coro) -> asyncio.Task:
+        """Crea una tarea async que entra al contexto del cliente antes de ejecutar la corrutina."""
+        async def runner():
+            client = getattr(self, '_client', None)
+            if client is not None and not getattr(client, 'is_deleted', False):
+                with client:
+                    return await coro
+            return await coro
+
+        return asyncio.create_task(runner())
+
     def build(self, escena: str = 'rectas-planos', handoff_token: str = ''):
+        try:
+            self._client = ui.context.client
+        except Exception:
+            self._client = None
+
         if escena not in VALID_SCENES:
             escena = 'rectas-planos'
         self.scene = escena
@@ -193,7 +220,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         self._plotly_element = None
 
         # Update URL without reload
-        ui.run_javascript(f"""
+        self._js(f"""
             const u = new URL(location.href);
             u.searchParams.set('escena', '{new_scene}');
             history.replaceState(null, '', u.pathname + u.search + u.hash);
@@ -238,12 +265,17 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         """Debounced preview: cancels previous task, waits 350ms."""
         if self._preview_task and not self._preview_task.done():
             self._preview_task.cancel()
-        self._preview_task = asyncio.create_task(self._debounced_update())
+        self._preview_task = self._spawn(self._debounced_update())
 
     async def _debounced_update(self):
         """Wait then update if payload changed."""
-        await asyncio.sleep(0.35)
-        await self._update_figure()
+        try:
+            await asyncio.sleep(0.35)
+            await self._update_figure()
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("Error no capturado en _debounced_update")
 
     async def _update_figure(self):
         """Process data and update the figure."""
@@ -272,7 +304,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             else:
                 # Dim the existing figure
                 if self.figure_container:
-                    ui.run_javascript("""
+                    self._js("""
                         var c = document.querySelector('.geo-figure');
                         if (c) c.style.opacity = '0.4';
                     """)
@@ -293,7 +325,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                 self._plotly_element = None
                 self.last_result = None
                 self.last_payload_hash = None
-                ui.run_javascript("""
+                self._js("""
                     var c = document.querySelector('.geo-figure');
                     if (c) c.style.opacity = '1';
                 """)
@@ -306,7 +338,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                 return
 
             # Clear markInvalid
-            ui.run_javascript('scalarisGeo.markInvalid(null);')
+            self._js('scalarisGeo.markInvalid(null);')
 
             # Reutilizar figura si aplica
             new_fig_key = (self.scene, result.get("n"))
@@ -318,18 +350,44 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                     if self.scene == 'vectores' and result.get("frames"):
                         frames_json = json.dumps(result["frames"])
                         wrap_id = f"geo-fig-{id(self)}"
-                        ui.run_javascript(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+                        self._js(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+                    # En el camino de reutilización restaura la opacidad atenuada (.geo-figure vuelve a opacity 1) al terminar
+                    self._js("""
+                        var c = document.querySelector('.geo-figure');
+                        if (c) c.style.opacity = '1';
+                    """)
                 else:
                     self._render_error({"code": "render_failed", "message": "No pudimos dibujar la figura. Revisa los valores e inténtalo de nuevo."})
+                    self.last_payload_hash = None
+                    self.last_result = None
+                    self._fig_key = None
+                    self._plotly_element = None
+                    self._first_draw = True
+                    self._js("""
+                        var c = document.querySelector('.geo-figure');
+                        if (c) c.style.opacity = '1';
+                    """)
+                    p = getattr(self, 'ai_panel', None)
+                    if p and hasattr(p, 'schedule_context_refresh'):
+                        p.schedule_context_refresh()
                     return
-                # En el camino de reutilización restaura la opacidad atenuada (.geo-figure vuelve a opacity 1) al terminar
-                ui.run_javascript("""
-                    var c = document.querySelector('.geo-figure');
-                    if (c) c.style.opacity = '1';
-                """)
             else:
                 # Build figure from scratch
-                await self._build_figure(result, self.scene)
+                figure_ok = await self._build_figure(result, self.scene)
+                if not figure_ok:
+                    self.last_payload_hash = None
+                    self.last_result = None
+                    self._fig_key = None
+                    self._plotly_element = None
+                    self._first_draw = True
+                    self._js("""
+                        var c = document.querySelector('.geo-figure');
+                        if (c) c.style.opacity = '1';
+                    """)
+                    p = getattr(self, 'ai_panel', None)
+                    if p and hasattr(p, 'schedule_context_refresh'):
+                        p.schedule_context_refresh()
+                    return
 
             self._fig_key = new_fig_key
             self.last_result = result
@@ -352,7 +410,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
         except asyncio.CancelledError:
             self.last_payload_hash = None
-            ui.run_javascript("""
+            self._js("""
                 var c = document.querySelector('.geo-figure');
                 if (c) c.style.opacity = '1';
             """)
@@ -403,46 +461,49 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
     def _render_error(self, result: dict):
         """Render error state with cell marking."""
-        self._fig_key = None
-        self._plotly_element = None
-        if self.figure_container:
-            self.figure_container.clear()
-        if self.slider_container:
-            self.slider_container.clear()
-        if self.summary_container:
-            self.summary_container.clear()
+        try:
+            self._fig_key = None
+            self._plotly_element = None
+            if self.figure_container:
+                self.figure_container.clear()
+            if self.slider_container:
+                self.slider_container.clear()
+            if self.summary_container:
+                self.summary_container.clear()
 
-        ui.run_javascript("""
-            var c = document.querySelector('.geo-figure');
-            if (c) c.style.opacity = '1';
-        """)
+            self._js("""
+                var c = document.querySelector('.geo-figure');
+                if (c) c.style.opacity = '1';
+            """)
 
-        error_cell = result.get("error_cell")
-        code = result.get("code", "")
-        message = result.get("message", "Error desconocido.")
+            error_cell = result.get("error_cell")
+            code = result.get("code", "")
+            message = result.get("message", "Error desconocido.")
 
-        if self.figure_container:
-            with self.figure_container:
-                with ui.column().classes('w-full py-8 items-center'):
-                    if code in ("bad_dimension", "not_finite"):
-                        with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning w-fit'):
-                            ui.icon('info', size='sm')
-                            ui.label(message).classes('font-bold')
-                    else:
-                        with ui.row().classes('items-center gap-2 px-4 py-2 badge-error w-fit'):
-                            ui.icon('close', size='sm')
-                            ui.label(message).classes('font-bold')
+            if self.figure_container:
+                with self.figure_container:
+                    with ui.column().classes('w-full py-8 items-center'):
+                        if code in ("bad_dimension", "not_finite"):
+                            with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning w-fit'):
+                                ui.icon('info', size='sm')
+                                ui.label(message).classes('font-bold')
+                        else:
+                            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error w-fit'):
+                                ui.icon('close', size='sm')
+                                ui.label(message).classes('font-bold')
 
-                        if error_cell:
-                            # Mark the cell
-                            selector = self._cell_selector(error_cell)
-                            if selector:
-                                ui.run_javascript(f'scalarisGeo.markInvalid({json.dumps(selector)});')
-                                # "Go to cell" button
-                                ui.button('Ir a la celda', icon='gps_fixed', color=None,
-                                          on_click=lambda s=selector: ui.run_javascript(
-                                              f'var el = document.querySelector({json.dumps(s)}); if(el) {{ el.focus(); el.scrollIntoView({{block: "center"}}); }}'
-                                          )).classes('btn-ghost mt-2').props('ripple=false')
+                            if error_cell:
+                                # Mark the cell
+                                selector = self._cell_selector(error_cell)
+                                if selector:
+                                    self._js(f'scalarisGeo.markInvalid({json.dumps(selector)});')
+                                    # "Go to cell" button
+                                    ui.button('Ir a la celda', icon='gps_fixed', color=None,
+                                              on_click=lambda s=selector: self._js(
+                                                  f'var el = document.querySelector({json.dumps(s)}); if(el) {{ el.focus(); el.scrollIntoView({{block: "center"}}); }}'
+                                              )).classes('btn-ghost mt-2').props('ripple=false')
+        except Exception:
+            logger.exception("Error al renderizar estado de error")
 
     def _cell_selector(self, error_cell: dict) -> str | None:
         """Build a CSS selector for an error cell."""

@@ -7,12 +7,10 @@ import threading
 from nicegui import ui, app, run
 from src.ai.openrouter_ai import OpenRouterIA
 from src.frontend import flags
-from src.frontend.components.glosa_dock import GlosaDockMixin
+from src.frontend.components.glosa_dock import GlosaDockMixin, MAX_HISTORY
 from src.ai.context import serialize_context, AIContext
 
 logger = logging.getLogger(__name__)
-
-MAX_HISTORY = 60
 
 class AIPanel(GlosaDockMixin):
     @property
@@ -47,6 +45,11 @@ class AIPanel(GlosaDockMixin):
         self._storage['ai_chat_history'] = value
 
     def __init__(self, active_ui):
+        try:
+            self._client = ui.context.client
+        except Exception:
+            self._client = None
+
         self.active_ui = active_ui
         self.motor_ia = OpenRouterIA()
         self.panel_container = None
@@ -124,7 +127,7 @@ class AIPanel(GlosaDockMixin):
                 logger.debug(f"Context refresh cancelado o abortado: {e}")
                 
         try:
-            self._refresh_task = asyncio.create_task(_debounced())
+            self._refresh_task = self._spawn(_debounced())
         except RuntimeError:
             pass
 
@@ -245,6 +248,12 @@ class AIPanel(GlosaDockMixin):
         render_chip_row(suggs, self.ask_suggestion, variant='inline', disabled=is_sending)
 
     def build(self):
+        if self._client is None:
+            try:
+                self._client = ui.context.client
+            except Exception:
+                pass
+
         if flags.dock_enabled():
             self.build_dock()
             return
