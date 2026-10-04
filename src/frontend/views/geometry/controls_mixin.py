@@ -1,7 +1,6 @@
 """Mixin de controles de entrada para el Visualizador Geométrico."""
 from __future__ import annotations
 
-import json
 import logging
 from nicegui import ui
 

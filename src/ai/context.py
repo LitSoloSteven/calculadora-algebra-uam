@@ -132,8 +132,15 @@ def _json_default(o):
         return {"rows": o.rows, "cols": o.cols}
     return clip_text(str(o), 40)
 
+def _normalize_for_fp(o: Any) -> Any:
+    if isinstance(o, dict):
+        return {str(k): _normalize_for_fp(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_normalize_for_fp(x) for x in o]
+    return o
+
 def fingerprint(obj: Any) -> str:
-    serialized = json.dumps(obj, sort_keys=True, default=str)
+    serialized = json.dumps(_normalize_for_fp(obj), sort_keys=True, default=str)
     return hashlib.sha1(serialized.encode("utf-8")).hexdigest()
 
 def is_stale(current_input: Any, result_fp: str | None) -> bool:

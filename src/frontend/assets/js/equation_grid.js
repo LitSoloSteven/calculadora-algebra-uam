@@ -79,6 +79,9 @@
 
 window.animateGridCellRemoval = function (target, isM, idxRow) {
   return new Promise(resolve => {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input${target}`);
     const anims = [];
     cells.forEach((input, i) => {
@@ -101,6 +104,9 @@ window.animateGridCellRemoval = function (target, isM, idxRow) {
 
 window.animateGridCellAddition = function (target) {
   return new Promise(resolve => {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input${target}`);
     const anims = [];
     cells.forEach((input, i) => {

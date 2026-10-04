@@ -83,6 +83,9 @@
 
 window.animateVectorDimensionRemoval = function (idxRemove) {
   return new Promise(resolve => {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input[data-vec-idx='${idxRemove}']`);
     const anims = [];
     cells.forEach(input => {
@@ -105,6 +108,9 @@ window.animateVectorDimensionRemoval = function (idxRemove) {
 
 window.animateVectorDimensionAddition = function (idxAdd) {
   return new Promise(resolve => {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input[data-vec-idx='${idxAdd}']`);
     const anims = [];
     cells.forEach(input => {

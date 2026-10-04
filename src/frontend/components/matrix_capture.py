@@ -73,6 +73,9 @@ class MatrixCapturePanel:
             
             js_salida = f'''
                 return new Promise(resolve => {{
+                    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {{
+                        return resolve();
+                    }}
                     let cells = document.querySelectorAll(`input[data-matrix-id='{name}']{target_attr}`);
                     const anims = [];
                     cells.forEach(input => {{
@@ -113,6 +116,9 @@ class MatrixCapturePanel:
             
             js_entrada = f'''
                 return new Promise(resolve => {{
+                    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {{
+                        return resolve();
+                    }}
                     let cells = document.querySelectorAll(`input[data-matrix-id='{name}']{target_attr}`);
                     const anims = [];
                     cells.forEach(input => {{

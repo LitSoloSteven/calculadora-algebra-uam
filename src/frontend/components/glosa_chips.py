@@ -84,33 +84,32 @@ def render_explain_button(step_index: int, total_steps: int, op: str, on_click, 
     from src.frontend import flags
     from src.frontend.suggestions import glosa_configured
     from src.frontend.components.icons import icon_svg
-    
+
     if not flags.dock_enabled():
         return None
-        
+
+    configured = glosa_configured()
     with ui.button(color=None).classes('glosa-explain-btn').props(
         f'aria-label="Explicar paso {step_index}" round flat ripple=false'
     ) as btn:
         ui.html(icon_svg('explicar_paso'))
-        
-    btn.tooltip("Explicar este paso")
-    
+
+    btn.tooltip("Explicar este paso" if configured else "Glosa no está configurada")
+
     if is_loading:
         btn.props('disabled')
         btn.classes('is-loading')
         return btn
-        
-    if not glosa_configured():
+    if not configured:
         btn.props('disabled')
-        btn.tooltip("Glosa no está configurada")
         return btn
-        
+
     def handler(e):
         from_keyboard = _is_keyboard_event(e)
         if from_keyboard:
             ui.run_javascript("document.documentElement.setAttribute('data-glosa-instant', 'true'); setTimeout(() => document.documentElement.removeAttribute('data-glosa-instant'), 100);")
         on_click(step_index)
-        
+
     btn.on('click', handler, args=['detail'])
     return btn
 

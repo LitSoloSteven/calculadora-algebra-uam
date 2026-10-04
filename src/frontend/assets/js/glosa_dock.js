@@ -129,11 +129,11 @@
                 if (dock) setTimeout(() => dock.focus(), 50);
             }
         } else {
-            if (opts.triggerEl) {
+            const fab = document.querySelector('.glosa-fab');
+            if (opts.triggerEl && (!dock || !dock.contains(opts.triggerEl))) {
                 setTimeout(() => opts.triggerEl.focus(), 50);
-            } else {
-                const fab = document.querySelector('.glosa-fab');
-                if (fab) setTimeout(() => fab.focus(), 50);
+            } else if (fab) {
+                setTimeout(() => fab.focus(), 50);
             }
         }
 

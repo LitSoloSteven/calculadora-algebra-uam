@@ -56,8 +56,8 @@ class HubUI:
                                                 ui.html(f'<div class="math-scroll-container math-label hub-row-formula">$$ {html.escape(tool.example_latex)} $$</div>')
                                                 
         self.ai_panel.build()
-        if self.glosa_open and not self.ai_panel.is_open:
-            self.ai_panel.toggle()
+        if self.glosa_open:
+            self.ai_panel.open()
             
         await client.connected()
         try:

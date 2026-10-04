@@ -148,7 +148,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
             label=f"A ({n}×{n})",
             input={"A": describe_matrix(data_sanitized)}
         )
-        ctx.stale = is_stale({"data": data_sanitized}, getattr(self, '_result_fp', None))
+        ctx.stale = is_stale({"data": data}, getattr(self, '_result_fp', None))
 
         if getattr(self, 'last_result', None):
             if ctx.stale:

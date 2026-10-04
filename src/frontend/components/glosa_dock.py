@@ -170,7 +170,7 @@ class GlosaDockMixin:
         self._scroll_to_bottom()
 
     def _scroll_to_bottom(self):
-        ui.run_javascript("setTimeout(() => { const el = document.getElementById('glosa-log'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+        ui.run_javascript("setTimeout(() => { const el = document.getElementById('glosa-log') || document.getElementById('ai-chat-area') || document.querySelector('.glosa-messages'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
 
     def _render_message_dock(self, msg, is_last=False):
         sent = msg.get('sent', False)

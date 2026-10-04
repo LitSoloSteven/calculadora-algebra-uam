@@ -43,11 +43,11 @@ class NumericSystemsRenderingMixin:
                 self._limpiar_resultados()
                 return False
 
-            if self.base_activa == 'hexadecimal':
-                val = val.upper()
+            val_raw = val
+            val_conv = val.upper() if self.base_activa == 'hexadecimal' else val
 
             metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
-            res = metodo(val, self.base_destino)
+            res = metodo(val_conv, self.base_destino)
 
             if "error" in res:
                 self._limpiar_resultados()
@@ -67,7 +67,7 @@ class NumericSystemsRenderingMixin:
             self._mostrar_procedimiento()
             
             from src.ai.context import fingerprint
-            entrada = {"valor": val, "base_origen": self.base_activa, "base_destino": self.base_destino}
+            entrada = {"valor": val_raw, "base_origen": self.base_activa, "base_destino": self.base_destino}
             self._result_fp = fingerprint(entrada)
             p = getattr(self, 'ai_panel', None)
             if p and hasattr(p, 'schedule_context_refresh'):

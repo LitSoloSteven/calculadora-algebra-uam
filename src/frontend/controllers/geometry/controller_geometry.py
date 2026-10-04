@@ -16,7 +16,6 @@ import json
 import logging
 import math
 from fractions import Fraction
-from typing import Any
 
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.linear_systems.gauss import GaussSolver
@@ -27,12 +26,9 @@ from src.frontend.controllers.linear_systems._shared import (
     validate_and_build_augmented,
 )
 from src.frontend.controllers.geometry._solution_set import (
-    SolutionSet,
     from_gauss_result,
-    has_solution_param,
 )
 from src.frontend.controllers.vector_ops.controller_vector_ops import build_vector_from_dict
-from src.frontend.helpers import to_float
 from src.backend.solvers.vector_ops.formatters import format_linear_expression, vector_to_latex
 from src.backend.utils.formatters import number_to_latex
 

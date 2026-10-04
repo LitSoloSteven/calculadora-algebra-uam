@@ -348,7 +348,7 @@ class LinearSystemsResultsMixin:
         if p and hasattr(p, 'schedule_context_refresh'):
             p.schedule_context_refresh()
 
-    def trigger_flip_animation(self):
+    def trigger_flip_animation(self, e=None):
         ui.run_javascript('''
             const panel = document.querySelector('.main-grid-panel');
             if(panel) {
@@ -357,4 +357,7 @@ class LinearSystemsResultsMixin:
                 panel.classList.add('animate-slide-bounce');
             }
         ''')
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 

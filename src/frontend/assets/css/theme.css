@@ -1891,6 +1891,7 @@ html[data-glosa-instant] .q-header {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
+    min-width: 0;
     margin-top: var(--space-2);
     margin-bottom: var(--space-2);
 }
@@ -1901,9 +1902,14 @@ html[data-glosa-instant] .q-header {
 }
 
 .glosa-chip {
+    -webkit-appearance: none;
+    appearance: none;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    min-height: 44px;
+    min-width: 0;
+    max-width: 100%;
     font-family: 'Space Grotesk', sans-serif;
     font-size: var(--fs-small);
     font-weight: 500;
@@ -1915,10 +1921,10 @@ html[data-glosa-instant] .q-header {
     box-shadow: var(--elev-1);
     cursor: pointer;
     transition: transform var(--dur-fast) var(--ease-std),
-        box-shadow var(--dur-fast) var(--ease-std),
         border-color var(--dur-fast) var(--ease-std),
         color var(--dur-fast) var(--ease-std);
     white-space: normal;
+    overflow-wrap: anywhere;
     text-align: left;
     line-height: 1.3;
 }
@@ -1933,9 +1939,14 @@ html[data-glosa-instant] .q-header {
 }
 
 .glosa-chip:active {
-    transform: translateY(0);
+    transform: scale(0.97);
     box-shadow: var(--elev-inset);
     transition-duration: 0ms !important;
+}
+
+.glosa-chip[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .glosa-chip-inline {
@@ -1950,8 +1961,13 @@ html[data-glosa-instant] .q-header {
 }
 
 .glosa-followup {
+    -webkit-appearance: none;
+    appearance: none;
     display: inline-flex;
     align-items: center;
+    min-height: 44px;
+    min-width: 0;
+    max-width: 100%;
     font-family: 'Space Grotesk', sans-serif;
     font-size: var(--fs-small);
     font-weight: 500;
@@ -1961,10 +1977,11 @@ html[data-glosa-instant] .q-header {
     color: var(--accent);
     border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent);
     cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-std),
-        border-color var(--dur-fast) var(--ease-std);
+    overflow-wrap: anywhere;
     text-align: left;
-    width: fit-content;
+    transition: transform var(--dur-fast) var(--ease-std),
+        background-color var(--dur-fast) var(--ease-std),
+        border-color var(--dur-fast) var(--ease-std);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1975,8 +1992,22 @@ html[data-glosa-instant] .q-header {
 }
 
 .glosa-followup:active {
+    transform: scale(0.97);
     background: color-mix(in srgb, var(--accent) 15%, transparent);
     transition-duration: 0ms !important;
+}
+
+.glosa-followup[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glosa-chip:hover,
+    .glosa-chip:active,
+    .glosa-followup:active {
+        transform: none;
+    }
 }
 
 /* === GLOSA EXPLAIN STEP (F7) === */

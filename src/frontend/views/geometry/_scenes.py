@@ -6,7 +6,6 @@ para que la vista pueda atrapar ImportError.
 """
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import Any
 
 from src.frontend.theme import (

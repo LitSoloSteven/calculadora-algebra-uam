@@ -143,6 +143,7 @@ window.updatePlotlyThemeWhenReady = function (maxWaitMs = 5000) {
 
 // === ANIMACIÓN DE RECOLECCIÓN DE BASURA ===
 function animateGarbageCollection() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const btn = document.getElementById('btn-limpiar-main');
   if (!btn) return;
 

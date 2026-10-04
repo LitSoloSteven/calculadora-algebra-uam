@@ -85,6 +85,8 @@ class RomanCalculatorUI:
                 ).classes('btn-primary w-full py-3 text-lg mt-2 font-bold')
 
             # --- CONTENEDOR DINÁMICO DE RESULTADOS ---
+            resultado_container = ui.column().classes('w-full gap-6 mt-6')
+
             def notify_change():
                 p = getattr(self, 'ai_panel', None)
                 if p and hasattr(p, 'schedule_context_refresh'):
@@ -380,14 +382,16 @@ class RomanCalculatorUI:
                         p.schedule_context_refresh()
 
         def classify_roman_error(exc: Exception) -> str | None:
+            by_code = {
+                "ZERO_NOT_REPRESENTABLE": "err_sub_zero",
+                "NEGATIVE_NOT_REPRESENTABLE": "err_sub_neg",
+                "INVALID_SYNTAX": "err_syntax",
+                "NOT_CANONICAL": "err_syntax",
+                "EMPTY_INPUT": "err_syntax",
+            }
             code = getattr(exc, "code", None)
-            if code:
-                if code == "SUB_ZERO":
-                    return "err_sub_zero"
-                if code == "SUB_NEG":
-                    return "err_sub_neg"
-                if code in ("SYNTAX", "NOT_CANONICAL"):
-                    return "err_syntax"
+            if code in by_code:
+                return by_code[code]
             msg = str(exc).lower()
             if "no existe el número cero" in msg:
                 return "err_sub_zero"
