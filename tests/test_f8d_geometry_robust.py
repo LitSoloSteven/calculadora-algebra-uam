@@ -15,9 +15,9 @@ def test_lines_planes_not_finite():
     }
     res = GeometryController.process_lines_planes(json.dumps(payload))
     assert res["status"] == "ERROR"
-    assert res.get("code") == "not_finite"
-    assert "demasiado grande" in res.get("message", "")
-    assert res.get("n") == 2
+    assert res.get("code") is None
+    assert "longitud máxima permitida" in res["message"]
+    assert res["error_cell"] is not None
 
 
 def test_lines_planes_not_finite_in_b():
@@ -31,8 +31,9 @@ def test_lines_planes_not_finite_in_b():
     }
     res = GeometryController.process_lines_planes(json.dumps(payload))
     assert res["status"] == "ERROR"
-    assert res.get("code") == "not_finite"
-    assert "demasiado grande" in res.get("message", "")
+    assert res.get("code") is None
+    assert "longitud máxima permitida" in res["message"]
+    assert res["error_cell"] is not None
 
 
 def test_combination_with_big_b_no_exception():
@@ -47,8 +48,9 @@ def test_combination_with_big_b_no_exception():
     # No debe lanzar excepción
     res = GeometryController.process_combination(json.dumps(payload))
     assert res["status"] == "ERROR"
-    assert res.get("code") == "not_finite"
-    assert "demasiado grande" in res.get("message", "")
+    assert res.get("code") is None
+    assert "longitud máxima permitida" in res["message"]
+    assert res["error_cell"] is not None
 
 
 def test_combination_with_big_vector_no_exception():
@@ -62,5 +64,6 @@ def test_combination_with_big_vector_no_exception():
     }
     res = GeometryController.process_combination(json.dumps(payload))
     assert res["status"] == "ERROR"
-    assert res.get("code") == "not_finite"
-    assert "demasiado grande" in res.get("message", "")
+    assert res.get("code") is None
+    assert "longitud máxima permitida" in res["message"]
+    assert res["error_cell"] is not None
