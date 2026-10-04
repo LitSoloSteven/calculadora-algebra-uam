@@ -170,7 +170,7 @@ class LinearSystemsUI(
             clean_handoff_url()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale, window_note_from
         empty = True
         label = "Sistema Lineal"
         input_data = {}
@@ -193,15 +193,19 @@ class LinearSystemsUI(
                 data_a = [[sanitize_user_string(c, 32) for c in r] for r in matrix_A_vals]
                 data_b = [[sanitize_user_string(v, 32)] for v in vector_b_vals]
                 
+                desc_a = describe_matrix(data_a)
+                desc_b = describe_matrix(data_b)
                 input_data = {
-                    "A": describe_matrix(data_a),
-                    "b": describe_matrix(data_b)
+                    "A": desc_a,
+                    "b": desc_b
                 }
                 
         if empty:
             return AIContext("sistemas", "Sistemas Lineales", label, {}, empty=True)
             
         ctx = AIContext("sistemas", "Sistemas Lineales", label, input_data)
+        if "A" in input_data and "b" in input_data:
+            ctx.window_note = window_note_from(input_data["A"], input_data["b"])
         
         method_val = getattr(getattr(self, 'method_select', None), 'value', getattr(self.method_tabs, 'value', 'gauss'))
         entrada_actual = {"mode": self.mode_tabs.value, "method": method_val}

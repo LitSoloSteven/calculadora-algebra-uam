@@ -12,6 +12,8 @@ from src.ai.context import serialize_context, AIContext
 
 logger = logging.getLogger(__name__)
 
+MAX_HISTORY = 60
+
 class AIPanel(GlosaDockMixin):
     @property
     def _storage(self):
@@ -64,6 +66,8 @@ class AIPanel(GlosaDockMixin):
                 hist = hist[1:]
             for msg in hist:
                 msg.pop('api_text', None)
+            if len(hist) > MAX_HISTORY:
+                hist = hist[-MAX_HISTORY:]
             storage['ai_chat_history'] = hist
                 
         if 'ai_panel_open' not in storage:
@@ -147,7 +151,7 @@ class AIPanel(GlosaDockMixin):
                     rows_before=foc.get('rows_before', {}),
                     rows_after=foc.get('rows_after', {}),
                     cols=tuple(foc['cols']) if foc.get('cols') else None,
-                    detail=None
+                    detail=foc.get('detail')
                 )
                 if hasattr(ctx_obj, 'focus') and ctx_obj.focus:
                     ctx_obj.focus = new_focus

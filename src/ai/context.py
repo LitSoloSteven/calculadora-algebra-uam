@@ -101,6 +101,20 @@ def describe_matrix(rows: Sequence[Sequence[Any]], *, full_max=FULL_MATRIX_MAX, 
         res["invalid"] = invalid
     return res
 
+def window_note_from(*descs: dict) -> str | None:
+    """Si algún dict de describe_matrix trae 'window', devuelve
+    'ventana {w}×{c} de {rows}×{cols}' para el de mayor tamaño; si no, None."""
+    windowed = [
+        d for d in descs
+        if isinstance(d, dict) and "window" in d and isinstance(d["window"], (list, tuple)) and len(d["window"]) >= 2
+    ]
+    if not windowed:
+        return None
+    largest = max(windowed, key=lambda d: d.get("rows", 0) * d.get("cols", 0))
+    w, c = largest["window"][0], largest["window"][1]
+    rows, cols = largest.get("rows", 0), largest.get("cols", 0)
+    return f"ventana {w}×{c} de {rows}×{cols}"
+
 def excerpt_rows(rows, row_indices, center_col, max_cols=12) -> Tuple[Dict[str, List[str]], Tuple[int, int] | None]:
     n_cols = len(rows[0]) if rows else 0
     start_col = 0

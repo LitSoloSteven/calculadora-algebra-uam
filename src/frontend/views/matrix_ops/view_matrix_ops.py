@@ -92,13 +92,16 @@ class MatrixOpsUI:
                                 
                                 if getattr(self, 'ai_panel', None):
                                     from src.frontend.components.glosa_chips import render_explain_button
+                                    from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixOpsController
+                                    tot = len(respuesta["segment_steps"])
+                                    foc_step = MatrixOpsController.build_step_focus(step, i + 1, tot)
                                     render_explain_button(
                                         i + 1,
-                                        len(respuesta["segment_steps"]),
-                                        step.get("description", "Operación con matrices"),
-                                        lambda idx, st=step: self.ai_panel.trigger_explain_step({
-                                            'index': idx, 'total': len(respuesta["segment_steps"]), 'kind': 'otro', 'op': st.get('description', 'Operación matricial')
-                                        }),
+                                        tot,
+                                        foc_step["op"],
+                                        lambda idx, st=step, t=tot: self.ai_panel.trigger_explain_step(
+                                            MatrixOpsController.build_step_focus(st, idx, t)
+                                        ),
                                         is_loading=getattr(self.ai_panel, '_is_sending', False)
                                     )
                                     
@@ -200,7 +203,7 @@ class MatrixOpsUI:
         self.ai_panel.build()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale, window_note_from
         
         try:
             mats = self.capture_panel.get_matrices_dict()
@@ -213,15 +216,19 @@ class MatrixOpsUI:
             return AIContext("matrix_ops", "Operaciones con Matrices", "Operaciones", {}, empty=True)
             
         input_data = {}
+        descs = []
         for k, v in mats.items():
             if "data" in v:
                 sanitized_data = [[sanitize_user_string(c, 32) for c in r] for r in v["data"]]
-                input_data[k] = describe_matrix(sanitized_data)
+                d = describe_matrix(sanitized_data)
+                input_data[k] = d
+                descs.append(d)
                 
         if expr_val:
             input_data["expresion"] = sanitize_user_string(expr_val, 200)
             
         ctx = AIContext("matrix_ops", "Operaciones con Matrices", "Matrices y Expresión", input_data)
+        ctx.window_note = window_note_from(*descs)
         
         entrada_actual = {
             "matrices": {name: dict(m.get('cache', {})) for name, m in self.capture_panel.matrices.items()},

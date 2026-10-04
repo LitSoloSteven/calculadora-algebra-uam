@@ -10,6 +10,8 @@ from src.frontend.suggestions import suggest, FOLLOW_UPS, chips_active
 
 logger = logging.getLogger(__name__)
 
+MAX_HISTORY = 60
+
 class GlosaDockMixin:
     def open(self):
         ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.open();')
@@ -52,7 +54,7 @@ class GlosaDockMixin:
                     ui.button(icon='send', on_click=self.send_message_dock, color=None).classes('btn-primary w-10 h-10 p-0 mb-1 flex-shrink-0').props('ripple=false').style('border-radius: 12px;').tooltip('Enviar')
                     
         # FAB
-        with ui.button(color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-label="Abrir Glosa"') as fab:
+        with ui.button(color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-controls="glosa-dock" aria-expanded="false" aria-label="Abrir Glosa"') as fab:
             ui.html(icon_svg('glosa')).classes('text-accent')
         fab.tooltip('Abrir Glosa')
 
@@ -294,6 +296,8 @@ class GlosaDockMixin:
         if not is_retry:
             msg = {"text": full_text, "sent": True, "cacheable": cacheable, "simpler": simpler}
             self.chat_history.append(msg)
+            if len(self.chat_history) > MAX_HISTORY:
+                self.chat_history = self.chat_history[-MAX_HISTORY:]
             
         self._is_sending = True
         self._last_send_time = time.monotonic()
@@ -331,7 +335,7 @@ class GlosaDockMixin:
         
         async def show_cancel():
             await asyncio.sleep(5)
-            if self._request_counter == current_req and getattr(self, '_is_sending', False):
+            if self._request_counter == current_req and getattr(self, '_is_sending', False) and not cancel_event.is_set():
                 with self.chat_area:
                     nonlocal cancel_btn_row
                     cancel_btn_row = ui.row().classes('w-full justify-center mt-2')
@@ -340,8 +344,11 @@ class GlosaDockMixin:
                 self._scroll_to_bottom()
                         
         def cancel_req(req_id):
-            if self._request_counter == req_id:
+            if self._request_counter == req_id and getattr(self, '_is_sending', False):
                 cancel_event.set()
+                self._request_counter += 1
+                self._finish_send(typing_row, cancel_btn_row)
+                self._last_send_time = 0.0
                 
         ui.timer(0, show_cancel, once=True)
             
@@ -373,6 +380,8 @@ class GlosaDockMixin:
                 msg = {"text": result.text, "sent": False, "error": False}
                 
             self.chat_history.append(msg)
+            if len(self.chat_history) > MAX_HISTORY:
+                self.chat_history = self.chat_history[-MAX_HISTORY:]
             with self.chat_area:
                 from src.frontend import flags
                 if flags.dock_enabled():

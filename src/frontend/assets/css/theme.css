@@ -1589,8 +1589,10 @@ html[data-theme="medianoche"] {
     cursor: pointer;
     border: none;
     view-transition-name: glosa-fab;
+    visibility: visible;
     transition: transform var(--dur-med) var(--ease-std),
-        opacity 120ms var(--ease-std);
+        opacity 120ms var(--ease-std),
+        visibility 0s linear 0s;
 }
 
 @media (max-width: 767px) {
@@ -1625,6 +1627,10 @@ html[data-glosa="open"] .glosa-fab {
     opacity: 0;
     transform: scale(0.95);
     pointer-events: none;
+    visibility: hidden;
+    transition: transform var(--dur-med) var(--ease-std),
+        opacity 120ms var(--ease-std),
+        visibility 0s linear 120ms;
 }
 
 /* Modos específicos */
@@ -1637,7 +1643,7 @@ html[data-glosa="open"] .glosa-fab {
         transform: translateX(calc(100% + 32px));
         opacity: 0;
         visibility: hidden;
-        transition: transform 240ms var(--ease-std), opacity 200ms var(--ease-std), visibility 0s linear 200ms;
+        transition: transform 200ms var(--ease-std), opacity 200ms var(--ease-std), visibility 0s linear 200ms;
     }
 
     html[data-glosa="open"] .glosa-dock {
@@ -1657,7 +1663,7 @@ html[data-glosa="open"] .glosa-fab {
         transform: translateX(calc(100% + 32px));
         opacity: 0;
         visibility: hidden;
-        transition: transform 240ms var(--ease-std), opacity 200ms var(--ease-std), visibility 0s linear 200ms;
+        transition: transform 200ms var(--ease-std), opacity 200ms var(--ease-std), visibility 0s linear 200ms;
     }
 
     html[data-glosa="open"] .glosa-dock {
@@ -1678,7 +1684,7 @@ html[data-glosa="open"] .glosa-fab {
         transform: translateY(100%);
         opacity: 0;
         visibility: hidden;
-        transition: transform 240ms var(--ease-std), opacity 200ms var(--ease-std), visibility 0s linear 200ms;
+        transition: transform 200ms var(--ease-std), opacity 200ms var(--ease-std), visibility 0s linear 200ms;
     }
 
     html[data-glosa="open"] .glosa-dock {

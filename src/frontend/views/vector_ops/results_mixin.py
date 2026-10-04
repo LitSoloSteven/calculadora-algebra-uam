@@ -57,7 +57,7 @@ class VectorOpsResultsMixin:
             # A4: Ver en el visualizador
             if self.active_op in ['add_sub', 'lin_comb'] and res.get('status') != 'ERROR':
                 show_visualizer = False
-                handoff_token = None
+                payload_vectors = []
                 scene_name = ''
 
                 from src.frontend.components.handoff import put_vectors, handoff_url
@@ -78,7 +78,7 @@ class VectorOpsResultsMixin:
                             if dim in (2, 3) and len(v2_data) == dim:
                                 show_visualizer = True
                                 scene_name = 'vectores'
-                                handoff_token = put_vectors('vectores', 'vectores', [v1_data, v2_data])
+                                payload_vectors = [v1_data, v2_data]
                     elif self.active_op == 'lin_comb':
                         if 2 <= len(vecs) <= 5 and 'b' in vecs:
                             b_data = vecs['b']['data']
@@ -87,13 +87,17 @@ class VectorOpsResultsMixin:
                             if dim in (2, 3) and all(len(o) == dim for o in others):
                                 show_visualizer = True
                                 scene_name = 'combinacion'
-                                handoff_token = put_vectors('vectores', 'combinacion', [b_data] + others)
+                                payload_vectors = [b_data] + others
 
-                if show_visualizer and handoff_token:
-                    url = handoff_url(route_of('visualizador'), handoff_token) + f"&escena={scene_name}"
+                if show_visualizer:
+                    def _go_to_visualizador(scene=scene_name, vecs_data=payload_vectors):
+                        token = put_vectors('vectores', scene, vecs_data)
+                        url = handoff_url(route_of('visualizador'), token) + f"&escena={scene}"
+                        ui.navigate.to(url)
+
                     with ui.row().classes('mt-6'):
                         ui.button('Ver en el Visualizador', icon='explore', color=None,
-                                  on_click=lambda u=url: ui.navigate.to(u)).classes('btn-ghost').props('ripple=false')
+                                  on_click=_go_to_visualizador).classes('btn-ghost').props('ripple=false')
 
     def render_steps_and_result(self, res: dict):
         final_latex = res.get('result_vector_latex')

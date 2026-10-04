@@ -319,6 +319,9 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                         frames_json = json.dumps(result["frames"])
                         wrap_id = f"geo-fig-{id(self)}"
                         ui.run_javascript(f'scalarisGeo.register("{wrap_id}", {frames_json});')
+                else:
+                    self._render_error({"code": "render_failed", "message": "No pudimos dibujar la figura. Revisa los valores e inténtalo de nuevo."})
+                    return
                 # En el camino de reutilización restaura la opacidad atenuada (.geo-figure vuelve a opacity 1) al terminar
                 ui.run_javascript("""
                     var c = document.querySelector('.geo-figure');
@@ -357,11 +360,8 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         except Exception:
             self.last_payload_hash = None
             self.last_result = None
-            ui.run_javascript("""
-                var c = document.querySelector('.geo-figure');
-                if (c) c.style.opacity = '1';
-            """)
             logger.exception("Error al actualizar figura geométrica")
+            self._render_error({"code": "render_failed", "message": "No pudimos dibujar la figura. Revisa los valores e inténtalo de nuevo."})
 
     def _build_payload(self) -> dict | None:
         """Extract payload from current inputs."""
@@ -412,6 +412,11 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         if self.summary_container:
             self.summary_container.clear()
 
+        ui.run_javascript("""
+            var c = document.querySelector('.geo-figure');
+            if (c) c.style.opacity = '1';
+        """)
+
         error_cell = result.get("error_cell")
         code = result.get("code", "")
         message = result.get("message", "Error desconocido.")
@@ -419,7 +424,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         if self.figure_container:
             with self.figure_container:
                 with ui.column().classes('w-full py-8 items-center'):
-                    if code == "bad_dimension":
+                    if code in ("bad_dimension", "not_finite"):
                         with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning w-fit'):
                             ui.icon('info', size='sm')
                             ui.label(message).classes('font-bold')

@@ -281,7 +281,7 @@ class RomanCalculatorUI:
                                                     ui.label(res_rom if i == dec_b else str(acum)).classes(
                                                         'font-black px-4 py-1.5 rounded-lg text-base border tracking-wider'
                                                     ).style(
-                                                        'background: var(--elev-2); color: var(--accent); border-color: var(--border-input);'
+                                                        'background: var(--bg-elevated); box-shadow: var(--elev-1); color: var(--accent); border-color: var(--border-input);'
                                                     )
                                 else:
                                     with ui.column().classes('w-full p-6 rounded-2xl border gap-4').style(
@@ -346,7 +346,7 @@ class RomanCalculatorUI:
                                                 ui.label(p_can['simbolo']).classes(
                                                     'font-black px-6 py-2 rounded-xl text-xl border tracking-widest'
                                                 ).style(
-                                                    'background: var(--elev-2); color: var(--accent); border-color: var(--border-input);'
+                                                    'background: var(--bg-elevated); box-shadow: var(--elev-1); color: var(--accent); border-color: var(--border-input);'
                                                 )
                                             ui.label(f'= {p_can["restante"]}').classes('w-1/3 text-center text-sec font-bold')
 

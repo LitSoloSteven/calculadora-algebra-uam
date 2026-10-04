@@ -128,7 +128,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
             clean_handoff_url()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale, window_note_from
         n = self.square_panel.n
         if self.square_panel.is_empty():
             return AIContext(tool="inversa", view="Matriz Inversa", label="Matriz A", input={}, empty=True)
@@ -142,12 +142,14 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                 row.append(sanitize_user_string(val, 32))
             data_sanitized.append(row)
                     
+        desc_a = describe_matrix(data_sanitized)
         ctx = AIContext(
             tool="inversa",
             view="Matriz Inversa",
             label=f"A ({n}×{n})",
-            input={"A": describe_matrix(data_sanitized)}
+            input={"A": desc_a}
         )
+        ctx.window_note = window_note_from(desc_a)
         ctx.stale = is_stale({"data": data}, getattr(self, '_result_fp', None))
 
         if getattr(self, 'last_result', None):

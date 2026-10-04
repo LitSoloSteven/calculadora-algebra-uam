@@ -13,7 +13,7 @@
         const html = document.documentElement;
         const mode = window.scalarisGlosa.mode();
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const instant = opts.instant || prefersReducedMotion;
+        const instant = opts.instant || prefersReducedMotion || html.hasAttribute('data-glosa-instant');
 
         performance.mark('glosa:toggle:start');
 
@@ -69,7 +69,7 @@
         const dock = document.getElementById('glosa-dock');
         if (dock) {
             dock.inert = newState === 'closed';
-            dock.setAttribute('aria-expanded', newState === 'open');
+            dock.removeAttribute('aria-expanded');
             if (mode !== 'push') {
                 dock.setAttribute('role', 'dialog');
                 dock.setAttribute('aria-modal', 'true');
@@ -77,34 +77,13 @@
                 dock.setAttribute('role', 'complementary');
                 dock.removeAttribute('aria-modal');
             }
-        }
-
-        function inertOthers(elTarget) {
-            if (!elTarget) return;
-            let curr = elTarget;
-            while (curr && curr !== document.body && curr !== document.documentElement) {
-                const parent = curr.parentElement;
-                if (!parent) break;
-                Array.from(parent.children).forEach(sibling => {
-                    if (sibling === curr) return;
-                    if (sibling.hasAttribute('data-glosa-keep')) return;
-                    if (sibling.classList.contains('glosa-scrim') || sibling.classList.contains('glosa-dock')) return;
-                    const tag = sibling.tagName;
-                    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK') return;
-                    if (!sibling.inert) {
-                        sibling.setAttribute('data-glosa-inert', '');
-                        sibling.inert = true;
-                    }
-                });
-                curr = parent;
+            if (newState === 'closed') {
+                dock.style.setProperty('--glosa-kb', '0px');
             }
         }
-
-        function restoreInert() {
-            document.querySelectorAll('[data-glosa-inert]').forEach(el => {
-                el.removeAttribute('data-glosa-inert');
-                el.inert = false;
-            });
+        const fab = document.querySelector('.glosa-fab');
+        if (fab) {
+            fab.setAttribute('aria-expanded', newState === 'open' ? 'true' : 'false');
         }
 
         // Manage traps
@@ -201,20 +180,47 @@
         }
     });
 
+    function inertOthers(elTarget) {
+        if (!elTarget) return;
+        let curr = elTarget;
+        while (curr && curr !== document.body && curr !== document.documentElement) {
+            const parent = curr.parentElement;
+            if (!parent) break;
+            Array.from(parent.children).forEach(sibling => {
+                if (sibling === curr) return;
+                if (sibling.hasAttribute('data-glosa-keep')) return;
+                if (sibling.classList.contains('glosa-scrim') || sibling.classList.contains('glosa-dock')) return;
+                const tag = sibling.tagName;
+                if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK') return;
+                if (!sibling.inert) {
+                    sibling.setAttribute('data-glosa-inert', '');
+                    sibling.inert = true;
+                }
+            });
+            curr = parent;
+        }
+    }
+
+    function restoreInert() {
+        document.querySelectorAll('[data-glosa-inert]').forEach(el => {
+            el.removeAttribute('data-glosa-inert');
+            el.inert = false;
+        });
+    }
+
     // visualViewport resize for sheet mode keyboard avoidance
     if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => {
+        const updateKb = () => {
             if (window.scalarisGlosa.isOpen() && window.scalarisGlosa.mode() === 'sheet') {
                 const kbHeight = window.innerHeight - window.visualViewport.height;
-                document.documentElement.style.setProperty('--glosa-kb', Math.max(0, kbHeight) + 'px');
+                const dock = document.getElementById('glosa-dock');
+                if (dock) {
+                    dock.style.setProperty('--glosa-kb', Math.max(0, kbHeight) + 'px');
+                }
             }
-        });
-        window.visualViewport.addEventListener('scroll', () => {
-            if (window.scalarisGlosa.isOpen() && window.scalarisGlosa.mode() === 'sheet') {
-                const kbHeight = window.innerHeight - window.visualViewport.height;
-                document.documentElement.style.setProperty('--glosa-kb', Math.max(0, kbHeight) + 'px');
-            }
-        });
+        };
+        window.visualViewport.addEventListener('resize', updateKb);
+        window.visualViewport.addEventListener('scroll', updateKb);
     }
     
     // mode change
@@ -225,6 +231,15 @@
             if (window.scalarisGlosa.isOpen()) {
                 if (newMode !== 'push') {
                     window.scalarisGlosa.close({instant: true});
+                } else {
+                    restoreInert();
+                    const dock = document.getElementById('glosa-dock');
+                    if (dock) {
+                        dock.setAttribute('role', 'complementary');
+                        dock.removeAttribute('aria-modal');
+                        dock.style.removeProperty('--glosa-kb');
+                    }
+                    document.documentElement.style.removeProperty('--glosa-kb');
                 }
             }
             lastMode = newMode;
@@ -234,10 +249,14 @@
     // Mount observer
     function initDock() {
         const dock = document.getElementById('glosa-dock');
+        const fab = document.querySelector('.glosa-fab');
         if (dock) {
             document.documentElement.setAttribute('data-glosa-ready', '');
             dock.inert = !window.scalarisGlosa.isOpen();
-            dock.setAttribute('aria-expanded', window.scalarisGlosa.isOpen());
+            dock.removeAttribute('aria-expanded');
+            if (fab) {
+                fab.setAttribute('aria-expanded', window.scalarisGlosa.isOpen() ? 'true' : 'false');
+            }
             return true;
         }
         return false;

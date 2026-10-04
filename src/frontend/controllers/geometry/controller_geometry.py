@@ -253,12 +253,23 @@ class GeometryController:
             lhs = format_linear_expression(coeffs, var_names)
             rhs = number_to_latex(bi)
 
+            coeffs_floats = [_safe_float(c) for c in coeffs]
+            b_float = _safe_float(bi)
+            if any(cf is None for cf in coeffs_floats) or b_float is None:
+                return {
+                    "status": "ERROR",
+                    "code": "not_finite",
+                    "message": "Algún valor es demasiado grande para graficarlo. Usa números más pequeños.",
+                    "error_cell": None,
+                    "n": n,
+                }
+
             eq_data = {
                 "index": i,
                 "kind": kind,
-                "coeffs": [_safe_float(c) for c in coeffs],
+                "coeffs": coeffs_floats,
                 "coeffs_exact": c_exact,
-                "b": _safe_float(bi),
+                "b": b_float,
                 "b_exact": b_ex,
                 "latex": f"{lhs} = {rhs}",
             }
@@ -288,9 +299,7 @@ class GeometryController:
                 if pf is not None:
                     range_values.append(pf)
 
-        non_finite = any(v is None for v in range_values)
-        if non_finite:
-            range_values = [v for v in range_values if v is not None]
+        range_values = [v for v in range_values if v is not None]
 
         axis_range = auto_range(range_values)
         h = axis_range[1]
@@ -436,7 +445,7 @@ class GeometryController:
                 if "parallel" in flags_list:
                     break
 
-        out_of_range = non_finite or any(abs(v) > h for v in range_values)
+        out_of_range = any(abs(v) > h for v in range_values)
 
         return {
             "status": "OK",
@@ -671,6 +680,15 @@ class GeometryController:
             vecs_float.append(vf)
             vecs_exact.append(ve)
 
+        if any(x is None for x in b_float) or any(any(x is None for x in vf) for vf in vecs_float):
+            return {
+                "status": "ERROR",
+                "code": "not_finite",
+                "message": "Algún valor es demasiado grande para graficarlo. Usa números más pequeños.",
+                "error_cell": None,
+                "n": n,
+            }
+
         # Compute range values
         range_values = []
         for v in b_float:
@@ -687,7 +705,7 @@ class GeometryController:
 
         if sol_status == "UNIQUE":
             # Build chain of cumulative partial sums
-            coeffs_exact = result.get("solution_exact", [])
+            coeffs_exact = result.get("coeficientes") or []
             if not coeffs_exact:
                 coeffs_str = result.get("coeficientes_str", [])
                 coeffs_exact = []

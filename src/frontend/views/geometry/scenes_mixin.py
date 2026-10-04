@@ -45,6 +45,12 @@ class GeometryScenesMixin:
         try:
             fig = await self._get_figure_only(result, scene)
             if fig is None:
+                if hasattr(self, '_render_error'):
+                    self._render_error({"code": "render_failed", "message": "No pudimos dibujar la figura. Revisa los valores e inténtalo de nuevo."})
+                ui.run_javascript("""
+                    var c = document.querySelector('.geo-figure');
+                    if (c) c.style.opacity = '1';
+                """)
                 return
         except ImportError:
             if self.figure_container:
