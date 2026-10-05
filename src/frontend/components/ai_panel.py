@@ -1,3 +1,6 @@
+import asyncio
+import html
+import json
 import logging
 from nicegui import ui, app
 from src.ai.openrouter_ai import OpenRouterIA
@@ -121,10 +124,11 @@ class AIPanel(GlosaDockMixin):
             except Exception as e:
                 logger.debug(f"Context refresh cancelado o abortado: {e}")
                 
+        coro = _debounced()
         try:
-            self._refresh_task = self._spawn(_debounced())
+            self._refresh_task = self._spawn(coro)
         except RuntimeError:
-            pass
+            coro.close()
 
     def _collect_context(self) -> str:
         if not self._storage.get('ai_ctx_enabled', True):
@@ -257,7 +261,7 @@ class AIPanel(GlosaDockMixin):
         self.overlay.on('click', self.toggle)
         
         self.panel_container = ui.column().classes('no-wrap ai-panel-card').style('''
-            position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: 100dvh;
+            position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: calc(100dvh - 104px);
             background: var(--bg-elevated); z-index: var(--z-dock);
             border: 1px solid var(--border-input); border-radius: var(--radius-card);
             box-shadow: var(--elev-3); overflow: hidden;

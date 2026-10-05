@@ -127,7 +127,7 @@ class InverseOpsStepsMixin:
                             list(AUTOPLAY_SPEEDS.keys()),
                             value='Normal',
                             on_change=self._on_speed_change,
-                        ).classes('neo-select w-28 text-xs').props('dense popup-content-class="neo-select-menu"')
+                        ).classes('neo-select w-28 text-xs').props('dense popup-content-class="neo-select-menu" aria-label="Velocidad de reproducción"')
 
                     self.step_slider = ui.slider(
                         min=0,

@@ -140,8 +140,10 @@ class VectorOpsUI(VectorOpsResultsMixin):
             ui.notify('No hay datos para limpiar', type='warning')
             return
 
-        ui.run_javascript("if(window.animateGarbageCollection) window.animateGarbageCollection();")
-        await asyncio.sleep(0.8)
+        try:
+            await ui.run_javascript('return window.animateGarbageCollection()', timeout=2.0)
+        except Exception:
+            pass
         self.vector_panel.clear()
         if self.active_op == 'scalar':
             self.scalar_value = "2"

@@ -1,9 +1,12 @@
 import json
+import logging
 from fractions import Fraction
 
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.matrix_ops.evaluator import MatrixExpressionEvaluator
 from src.backend.utils.validators import MatrixValidator
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixEncoder(json.JSONEncoder):
@@ -123,19 +126,26 @@ class MatrixOpsController:
         try:
             evaluator = MatrixExpressionEvaluator()
             resultado = evaluator.evaluate(expresion_str, matrices)
-        except (ValueError, ZeroDivisionError, TypeError) as e:
+        except ValueError as e:
             return json.dumps({
                 "status": "ERROR",
-                "message": f"Error al evaluar la expresión ({type(e).__name__}): {e}"
+                "message": str(e)
+            }, ensure_ascii=False)
+        except (ZeroDivisionError, TypeError):
+            logger.exception("Error al evaluar la expresión matricial")
+            return json.dumps({
+                "status": "ERROR",
+                "message": "No se pudo evaluar la expresión. Revisa la sintaxis y las dimensiones."
             }, ensure_ascii=False)
 
         # --- 4. Serialización ---
         try:
             return json.dumps(resultado, ensure_ascii=False, cls=MatrixEncoder)
-        except (TypeError, ValueError) as e:
+        except (TypeError, ValueError):
+            logger.exception("Error al serializar el resultado matricial")
             return json.dumps({
                 "status": "ERROR",
-                "message": f"Error al serializar el resultado: {e}"
+                "message": "No se pudo serializar el resultado de la expresión."
             }, ensure_ascii=False)
 
     @staticmethod

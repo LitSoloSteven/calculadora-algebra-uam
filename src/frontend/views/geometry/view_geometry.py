@@ -66,7 +66,15 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                     return await coro
             return await coro
 
-        return asyncio.create_task(runner())
+        r = runner()
+        try:
+            task = asyncio.create_task(r)
+            task.add_done_callback(lambda t: coro.close())
+            return task
+        except Exception:
+            r.close()
+            coro.close()
+            raise
 
     def build(self, escena: str = 'rectas-planos', handoff_token: str = ''):
         try:

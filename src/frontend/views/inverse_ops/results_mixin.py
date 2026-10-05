@@ -147,8 +147,10 @@ class InverseOpsResultsMixin:
     async def ejecutar_animacion_limpieza(self, dialog):
         """Ejecuta la animación de recolección de basura y limpia la matriz."""
         dialog.close()
-        ui.run_javascript('animateGarbageCollection()')
-        await asyncio.sleep(0.8)
+        try:
+            await ui.run_javascript('return window.animateGarbageCollection()', timeout=2.0)
+        except Exception:
+            pass
         self.limpiar_todo()
 
     def limpiar_todo(self):

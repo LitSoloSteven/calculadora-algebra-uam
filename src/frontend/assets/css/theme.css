@@ -990,7 +990,6 @@ html[data-theme="medianoche"] .brand-logo-dark {
     white-space: nowrap;
     background: var(--bg-elevated);
     border-bottom: 1px solid var(--border-input);
-    transition: background var(--dur-med) var(--ease-std);
 }
 
 .inv-table thead th {

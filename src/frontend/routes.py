@@ -22,7 +22,7 @@ def register_legacy_redirects(target_app) -> None:
 
     Acepta una instancia de FastAPI o el objeto `app` de NiceGUI.
     Cada ruta calcula la redirección con preservación de parámetros query
-    y devuelve un estado HTTP 302 explícito.
+    y devuelve un estado HTTP 301 o 302 explícito según LegacyRedirect.permanent.
     """
     for rule in legacy_redirects():
         def _make_handler(current_rule):

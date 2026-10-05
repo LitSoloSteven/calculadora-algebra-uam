@@ -162,83 +162,102 @@ window.updatePlotlyThemeWhenReady = function (maxWaitMs = 5000) {
 
 // === ANIMACIÓN DE RECOLECCIÓN DE BASURA ===
 function animateGarbageCollection() {
-  if (!window.scalarisMotionOK()) return;
-  const btn = document.getElementById('btn-limpiar-main');
-  if (!btn) return;
-
-  const iconElem = btn.querySelector('.q-icon');
-  if (iconElem) {
-    iconElem.textContent = 'delete_sweep';
-    iconElem.classList.add('text-err');
-  }
-
-  const btnRect = btn.getBoundingClientRect();
-  const inputs = document.querySelectorAll('.matrix-input input');
-
-  let delay = 0;
-  let animatedCount = 0;
-
-  Array.from(inputs).filter(i => {
-    const r = i.getBoundingClientRect();
-    return i.value && i.value !== '0' && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
-  }).slice(0, 40).forEach((input) => {
-    if (!input.value || input.value === '0' || input.value.trim() === '') return;
-    animatedCount++;
-
-    const rect = input.getBoundingClientRect();
-    const clone = document.createElement('div');
-
-    // Igualar estilos del input clonado
-    clone.textContent = input.value;
-    clone.style.position = 'fixed';
-    clone.style.left = rect.left + 'px';
-    clone.style.top = rect.top + 'px';
-    clone.style.width = rect.width + 'px';
-    clone.style.height = rect.height + 'px';
-    clone.style.margin = '0';
-    clone.style.zIndex = 'var(--z-modal)';
-    clone.style.display = 'flex';
-    clone.style.alignItems = 'center';
-    clone.style.justifyContent = 'center';
-
-    // Copiar diseño del contenedor padre (caja neumórfica)
-    const container = input.closest('.q-field__control');
-    if (container) {
-      const style = window.getComputedStyle(container);
-      clone.style.background = style.background;
-      clone.style.borderRadius = style.borderRadius;
-      clone.style.boxShadow = style.boxShadow;
+  return new Promise((resolve) => {
+    if (!window.scalarisMotionOK || !window.scalarisMotionOK()) {
+      resolve();
+      return;
+    }
+    const btn = document.getElementById('btn-limpiar-main');
+    if (!btn) {
+      resolve();
+      return;
     }
 
-    const inputStyle = window.getComputedStyle(input);
-    clone.style.fontFamily = inputStyle.fontFamily;
-    clone.style.fontSize = inputStyle.fontSize;
-    clone.style.color = inputStyle.color;
+    const iconElem = btn.querySelector('.q-icon');
+    if (iconElem) {
+      iconElem.textContent = 'delete_sweep';
+      iconElem.classList.add('text-err');
+    }
 
-    clone.style.transition = 'transform 240ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms cubic-bezier(0.32, 0.72, 0, 1)';
-    clone.style.pointerEvents = 'none';
+    const btnRect = btn.getBoundingClientRect();
+    const allInputs = document.querySelectorAll('.matrix-input input');
 
-    // Ocultar texto original
-    input.style.color = 'transparent';
+    const targetInputs = Array.from(allInputs).filter(i => {
+      const r = i.getBoundingClientRect();
+      return i.value && i.value !== '0' && i.value.trim() !== '' && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+    }).slice(0, 40);
 
-    document.body.appendChild(clone);
+    const n = targetInputs.length;
+    if (n === 0) {
+      if (iconElem) {
+        iconElem.textContent = 'delete';
+        iconElem.classList.remove('text-err');
+      }
+      allInputs.forEach(i => i.style.color = '');
+      resolve();
+      return;
+    }
 
-    setTimeout(() => {
-      input.value = ''; // Vaciar la celda visualmente
+    const step = Math.max(1, Math.floor(90 / n));
+    let delay = 0;
 
-      const targetX = btnRect.left + btnRect.width / 2 - rect.width / 2;
-      const targetY = btnRect.top + btnRect.height / 2 - rect.height / 2;
-      clone.style.transform = `translate(${targetX - rect.left}px, ${targetY - rect.top}px) scale(0.1)`;
-      clone.style.opacity = '0';
-    }, delay);
+    targetInputs.forEach((input) => {
+      const rect = input.getBoundingClientRect();
+      const clone = document.createElement('div');
 
-    setTimeout(() => clone.remove(), delay + 240);
+      // Igualar estilos del input clonado
+      clone.textContent = input.value;
+      clone.style.position = 'fixed';
+      clone.style.left = rect.left + 'px';
+      clone.style.top = rect.top + 'px';
+      clone.style.width = rect.width + 'px';
+      clone.style.height = rect.height + 'px';
+      clone.style.margin = '0';
+      clone.style.zIndex = 'var(--z-modal)';
+      clone.style.display = 'flex';
+      clone.style.alignItems = 'center';
+      clone.style.justifyContent = 'center';
 
-    delay += 30; // Stagger effect
-  });
+      // Copiar diseño del contenedor padre (caja neumórfica)
+      const container = input.closest('.q-field__control');
+      if (container) {
+        const style = window.getComputedStyle(container);
+        clone.style.background = style.background;
+        clone.style.borderRadius = style.borderRadius;
+        clone.style.boxShadow = style.boxShadow;
+      }
 
-  // Efecto de Squash & Bounce al final
-  if (animatedCount > 0) {
+      const inputStyle = window.getComputedStyle(input);
+      clone.style.fontFamily = inputStyle.fontFamily;
+      clone.style.fontSize = inputStyle.fontSize;
+      clone.style.color = inputStyle.color;
+
+      // Duración 160 ms con --ease-std (F9b). Referencia previa: transform 240ms cubic-bezier(0.32, 0.72, 0, 1), opacity 240ms cubic-bezier(0.32, 0.72, 0, 1)
+      clone.style.transition = 'transform 160ms cubic-bezier(0.32, 0.72, 0, 1), opacity 160ms cubic-bezier(0.32, 0.72, 0, 1)';
+      clone.style.pointerEvents = 'none';
+
+      // Ocultar texto original
+      input.style.color = 'transparent';
+
+      document.body.appendChild(clone);
+
+      setTimeout(() => {
+        input.value = ''; // Vaciar la celda visualmente
+
+        const targetX = btnRect.left + btnRect.width / 2 - rect.width / 2;
+        const targetY = btnRect.top + btnRect.height / 2 - rect.height / 2;
+        clone.style.transform = `translate(${targetX - rect.left}px, ${targetY - rect.top}px) scale(0.1)`;
+        clone.style.opacity = '0';
+      }, delay);
+
+      setTimeout(() => clone.remove(), delay + 160);
+
+      delay += step;
+    });
+
+    const motionMed = (window.MOTION && window.MOTION.med) ? window.MOTION.med : 240;
+
+    // Efecto de Squash & Bounce al final
     setTimeout(() => {
       btn.classList.add('squash-bounce');
       setTimeout(() => {
@@ -248,14 +267,11 @@ function animateGarbageCollection() {
           iconElem.classList.remove('text-err');
         }
         // Restaurar colores transparentes
-        inputs.forEach(i => i.style.color = '');
-      }, MOTION.slow);
-    }, delay + MOTION.med);
-  } else {
-    if (iconElem) {
-      iconElem.textContent = 'delete';
-      iconElem.classList.remove('text-err');
-    }
-    inputs.forEach(i => i.style.color = '');
-  }
+        allInputs.forEach(i => i.style.color = '');
+        resolve();
+      }, motionMed);
+    }, delay + 160);
+  });
 }
+window.animateGarbageCollection = animateGarbageCollection;
+

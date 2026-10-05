@@ -73,7 +73,7 @@ class MatrixCapturePanel:
             
             js_salida = f'''
                 return new Promise(resolve => {{
-                    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {{
+                    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {{
                         return resolve();
                     }}
                     let cells = document.querySelectorAll(`input[data-matrix-id='{name}']{target_attr}`);

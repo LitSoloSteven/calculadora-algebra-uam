@@ -23,7 +23,15 @@ class GlosaDockMixin:
                     return await coro
             return await coro
 
-        return asyncio.create_task(runner())
+        r = runner()
+        try:
+            task = asyncio.create_task(r)
+            task.add_done_callback(lambda t: coro.close())
+            return task
+        except Exception:
+            r.close()
+            coro.close()
+            raise
 
     def open(self):
         ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.open();')
@@ -63,7 +71,7 @@ class GlosaDockMixin:
                     self.input_field = ui.textarea(placeholder='Pregunta algo sobre tu ejercicio...').classes('flex-1 glosa-input').props('borderless autogrow').style('max-height: 120px; min-width: 0;')
                     self.input_field.on('keydown.enter.prevent.exact', self.send_message_dock)
                     
-                    ui.button(icon='send', on_click=self.send_message_dock, color=None).classes('btn-primary w-10 h-10 p-0 mb-1 flex-shrink-0').props('ripple=false').style('border-radius: 12px;').tooltip('Enviar')
+                    ui.button(icon='send', on_click=self.send_message_dock, color=None).classes('btn-primary w-10 h-10 p-0 mb-1 flex-shrink-0').props('ripple=false aria-label="Enviar"').style('border-radius: 12px;').tooltip('Enviar')
                     
         # FAB
         with ui.button(color=None).classes('glosa-fab').props('ripple=false data-glosa-toggle aria-controls="glosa-dock" aria-expanded="false" aria-label="Abrir Glosa"') as fab:
@@ -109,7 +117,7 @@ class GlosaDockMixin:
                 ui.label(lbl).classes('glosa-ctx-label truncate text-xs font-semibold').tooltip(lbl)
                 
             with ui.row().classes('items-center gap-3 flex-shrink-0'):
-                ui.switch(value=enabled, on_change=self._toggle_ctx).props('dense size=sm').tooltip('Activar/desactivar contexto')
+                ui.switch(value=enabled, on_change=self._toggle_ctx).props('dense size=sm aria-label="Incluir el contexto del ejercicio"').tooltip('Activar/desactivar contexto')
 
     def notify_context_changed(self):
         if hasattr(self, '_ctx_version'):

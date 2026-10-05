@@ -1,8 +1,11 @@
 """Mixin de gestión de historial de cálculos para la vista de Matriz Inversa."""
 from __future__ import annotations
 
+import logging
 import time
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 
 
 class InverseOpsHistoryMixin:
@@ -62,5 +65,6 @@ class InverseOpsHistoryMixin:
         try:
             self.square_panel.set_data(item['data'])
             ui.notify('Matriz restaurada', type='positive')
-        except Exception as e:
-            ui.notify(f'Error al restaurar: {e}', type='negative')
+        except Exception:
+            logger.exception("Error al restaurar la matriz del historial")
+            ui.notify('No se pudo restaurar la matriz. Inténtalo de nuevo.', type='negative')
