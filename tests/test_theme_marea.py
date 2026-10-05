@@ -6,18 +6,18 @@ from tests.test_f9_contrast import parse_tokens, hex_to_rgb, contrast_ratio
 CSS_PATH = Path("src/frontend/assets/css/theme.css")
 
 EXPECTED_MAREA_HEX = {
-    "--bg-page": "#DEF7FF",
-    "--bg-panel": "#CDF2FF",
-    "--bg-elevated": "#EEFBFF",
-    "--bg-calc-btn": "#E6F9FF",
-    "--input-bg": "#BCEEFF",
-    "--accent-soft": "#B9E5E5",
-    "--btn-primary-text": "#EEFBFF",
+    "--bg-page": "#D8FFFF",
+    "--bg-panel": "#C7EEEE",
+    "--bg-elevated": "#EBFFFF",
+    "--bg-calc-btn": "#DDF7F7",
+    "--input-bg": "#B4E0E0",
+    "--accent-soft": "#BCE8E8",
+    "--btn-primary-text": "#EBFFFF",
 }
 
 EXPECTED_MAREA_SHADOWS = {
-    "--shadow-dark": "rgba(10, 70, 100, 0.16)",
-    "--shadow-light": "rgba(255, 255, 255, 0.85)",
+    "--shadow-dark": "rgba(6, 62, 74, 0.24)",
+    "--shadow-light": "rgba(255, 255, 255, 0.95)",
 }
 
 EXPECTED_PAPEL = {

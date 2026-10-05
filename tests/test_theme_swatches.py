@@ -9,7 +9,7 @@ CSS_PATH = Path("src/frontend/assets/css/theme.css")
 
 EXPECTED_SWATCHES = {
     "--swatch-papel": "#F2F0EB",
-    "--swatch-marea": "#DEF7FF",
+    "--swatch-marea": "#D8FFFF",
     "--swatch-medianoche": "#082338",
 }
 

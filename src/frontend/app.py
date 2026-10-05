@@ -30,7 +30,9 @@ def init_app():
     global _initialized
     if _initialized:
         return
-    app.add_static_files('/assets', 'src/frontend/assets')
+    env_name = os.environ.get("SCALARIS_ENV", "").strip().lower()
+    max_cache_age = 3600 if env_name == "production" else 0
+    app.add_static_files('/assets', 'src/frontend/assets', max_cache_age=max_cache_age)
     register_routes()
     _initialized = True
 

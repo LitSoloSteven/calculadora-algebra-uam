@@ -23,7 +23,7 @@ Jerarquía si hay conflicto: 1) estas REGLAS, 2) la sección ENMIENDAS de abajo,
 - Si te acercas al límite de salida, detente en un punto estructural limpio con: [PAUSADO: X de Y completado. Continuar desde: <siguiente archivo o sección>]. Espera "continuar".
 
 ## 4. Identidad visual
-- "Neumorfismo editorial de precisión". Temas: Papel #F2F0EB, Marea #EDF2F8, Medianoche #082338.
+- "Neumorfismo editorial de precisión". Temas: Papel #F2F0EB, Marea #A2C3E0, Medianoche #082338.
 - Usa los tokens existentes (--elev-1/2/3, --elev-inset, --accent, --bg-*, --text-*, --radius-*, --dur-*, --ease-std). Tokens nuevos: se definen en :root y en los tres temas.
 - Sin colores literales en CSS nuevo. Contraste AA verificado en los tres temas.
 - Space Grotesk. Números con font-variant-numeric: tabular-nums.
@@ -92,3 +92,7 @@ E19. Edición de aserciones (extiende §1 solo para esto): si un cambio delibera
 E20. La selección de pilar del Hub la posee assets/js/hub.js (is-active, aria-selected, tabindex, inert). El servidor solo invoca window.scalarisHubSelect(id, {instant}). Nunca alternar esos atributos desde Python tras el render inicial.
 E21. Se conservan sin cambio de firma: navigation.breadcrumb(), NAV_FLAT_ORDER, legacy_redirects, HubUI.__init__/build(client), routes.py. create_navbar y create_app_shell solo ganan active_key=None.
 E22. No se modifica app.js ni theme.py ni glosa_dock.js en este plan.
+E23 (solo H1). H1 retira la metáfora de matriz [I | b] del Hub. Se permite editar o eliminar ÚNICAMENTE aserciones o tests que verifiquen hub-matrix, hub-row, hub-cells, hub-cell, hub-bar, hub-aug, el uso de matrix_cells en la vista o el tablist vertical. Cada cambio se lista con antes/después y motivo. Se conservan matrix_cells, hub_pillars e initial_selection en _model.py, y las ids hub-tab-<id> y hub-panel-<id>.
+E24 (N1 y H1). El layout crítico de navbar y Hub vive en CSS semántico (.nav-*, .hub-*), no en utilidades Tailwind. Se permite tocar app.py solo en add_static_files (max_cache_age). Siguen vigentes E19 a E22.
+E25 (solo H2). H2 corrige el Hub. Se permite tocar views/hub/view_hub.py, assets/js/hub.js y los bloques .hub-* de theme.css (incluido el bloque prefers-reduced-motion que los menciona). Aserciones de tests existentes: solo bajo E19/E23, listando antes/después. Siguen vigentes E15, E20, E21 y E22.
+E26 (solo C1). C1 cambia la base de Marea a #A2C3E0. Se permite editar ÚNICAMENTE aserciones o literales que fijen los hex anteriores de Marea, listando antes/después. Papel y Medianoche no se tocan. app.js y theme.py siguen prohibidos (E22): si contienen literales de Marea, se reportan. Los tokens derivados se verifican con un test nuevo de contraste AA.

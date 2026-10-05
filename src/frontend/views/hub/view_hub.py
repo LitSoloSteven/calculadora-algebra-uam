@@ -9,12 +9,15 @@ from src.frontend.components.app_shell import create_app_shell
 from src.frontend.components.icons import icon_svg
 from src.frontend.components.theme_switcher import render_theme_button
 from src.frontend.navigation import HUB_ROUTE
-from ._model import TileModel, hub_pillars, initial_selection, matrix_cells
+from ._model import TileModel, format_item_count, hub_pillars, initial_selection
 
 
-def _text_element(tag: str, text: str, classes: str) -> ui.html:
+def _text_element(tag: str, text: str, classes: str, title: str | None = None) -> ui.html:
     """Crea un elemento semantico con texto escapado para prevenir inyecciones."""
-    return ui.html(html.escape(text), tag=tag, sanitize=False).classes(classes)
+    el = ui.html(html.escape(text), tag=tag, sanitize=False).classes(classes)
+    if title:
+        el.props(f'title="{html.escape(title)}"')
+    return el
 
 
 class HubUI:
@@ -77,19 +80,19 @@ class HubUI:
 
     async def build(self, client):
         """Construye el arbol de componentes del Hub y activa Glosa si corresponde."""
+        ui.query('body').classes('hub-page')
         self.ai_panel = AIPanel(self)
         create_app_shell(self, active_route=HUB_ROUTE)
 
         pillars = hub_pillars()
-        cells = matrix_cells(len(pillars))
 
-        with ui.element('main').classes('w-full max-w-7xl mx-auto p-6 mt-4 hub-root view-root'):
+        with ui.element('main').classes('hub-root view-root'):
             with ui.element('header').classes('hub-head'):
                 with ui.element('div').classes('hub-brand'):
                     ui.html('''
-                        <div class="brand-logo-container flex items-center justify-center" style="width: 48px; height: 48px;">
-                            <img src="/assets/LogoOscuro.png" alt="" class="brand-logo brand-logo-dark" style="height: 48px; width: 48px; object-fit: contain;" />
-                            <img src="/assets/LogoClaro.png" alt="" class="brand-logo brand-logo-light" style="height: 48px; width: 48px; object-fit: contain;" />
+                        <div class="brand-logo-container flex items-center justify-center" style="width: 40px; height: 40px;">
+                            <img src="/assets/LogoOscuro.png" alt="" class="brand-logo brand-logo-dark" style="height: 40px; width: 40px; object-fit: contain;" />
+                            <img src="/assets/LogoClaro.png" alt="" class="brand-logo brand-logo-light" style="height: 40px; width: 40px; object-fit: contain;" />
                         </div>
                     ''')
                     _text_element('h1', 'Scalaris', 'hub-title')
@@ -98,27 +101,39 @@ class HubUI:
                     render_theme_button()
 
             with ui.element('div').classes('hub-stage'):
-                with ui.element('div').classes('hub-matrix').props('role="tablist" aria-orientation="vertical" aria-label="Áreas de Scalaris"'):
-                    for row_idx, pillar in enumerate(pillars):
-                        is_first = (row_idx == 0)
-                        tab_cls = 'hub-row' + (' is-active' if is_first else '')
-                        tab_props = (
-                            f'role="tab" id="hub-tab-{pillar.id}" '
-                            f'aria-selected="{"true" if is_first else "false"}" '
-                            f'aria-controls="hub-panel-{pillar.id}" '
-                            f'aria-label="{html.escape(pillar.short_name)}" '
-                            f'tabindex="{"0" if is_first else "-1"}"'
-                        )
-                        with ui.element('button').classes(tab_cls).props(tab_props):
-                            with ui.element('span').classes('hub-cells').props('aria-hidden="true"'):
-                                for col_idx, val in enumerate(cells[row_idx]):
-                                    cell_cls = 'hub-cell' + (' is-pivot' if val == '1' else '')
-                                    _text_element('span', val, cell_cls)
-                            _text_element('span', pillar.short_name, 'hub-row-name')
+                with ui.element('div').classes('hub-carousel'):
+                    with ui.element('div').classes('hub-viewport'):
+                        with ui.element('div').classes('hub-track').props('id="hub-track" role="tablist" aria-orientation="horizontal" aria-label="Áreas de Scalaris"'):
+                            for row_idx, pillar in enumerate(pillars):
+                                is_first = (row_idx == 0)
+                                card_cls = 'hub-card' + (' is-active' if is_first else '')
+                                card_props = (
+                                    f'role="tab" id="hub-tab-{pillar.id}" '
+                                    f'aria-selected="{"true" if is_first else "false"}" '
+                                    f'aria-controls="hub-panel-{pillar.id}" '
+                                    f'aria-label="{html.escape(pillar.short_name)}" '
+                                    f'tabindex="{"0" if is_first else "-1"}"'
+                                )
+                                with ui.element('button').classes(card_cls).props(card_props):
+                                    with ui.element('div').classes('hub-card-body'):
+                                        with ui.element('div').classes('hub-card-icon').props('aria-hidden="true"'):
+                                            ui.html(icon_svg(pillar.icon))
+                                        with ui.element('div').classes('hub-card-content'):
+                                            _text_element('h2', pillar.short_name, 'hub-card-title', title=pillar.short_name)
+                                            _text_element('p', pillar.blurb, 'hub-card-blurb', title=pillar.blurb)
+                                            count_str = format_item_count(len(pillar.tiles), pillar.unit_singular, pillar.unit_plural)
+                                            _text_element('span', count_str, 'hub-card-count')
 
-                ui.element('div').classes('hub-bar').props('aria-hidden="true"')
+                    with ui.element('div').classes('hub-carousel-nav'):
+                        with ui.element('button').classes('hub-nav-btn hub-prev').props('type="button" aria-label="Área anterior" aria-controls="hub-track" aria-disabled="true"'):
+                            ui.html('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polyline points="15 18 9 12 15 6"></polyline></svg>''')
+                        next_props = 'type="button" aria-label="Área siguiente" aria-controls="hub-track"'
+                        if len(pillars) <= 1:
+                            next_props += ' aria-disabled="true" disabled'
+                        with ui.element('button').classes('hub-nav-btn hub-next').props(next_props):
+                            ui.html('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><polyline points="9 18 15 12 9 6"></polyline></svg>''')
 
-                with ui.element('div').classes('hub-aug'):
+                with ui.element('div').classes('hub-panels hub-aug'):
                     for row_idx, pillar in enumerate(pillars):
                         is_first = (row_idx == 0)
                         panel_cls = 'hub-panel' + (' is-active' if is_first else '')
@@ -126,13 +141,16 @@ class HubUI:
                         if not is_first:
                             panel_props += ' inert'
                         with ui.element('section').classes(panel_cls).props(panel_props):
-                            with ui.element('ul').classes('hub-tool-list'):
-                                for tile_model in pillar.tiles:
-                                    with ui.element('li'):
-                                        self._build_tile(tile_model)
+                            if len(pillar.tiles) == 0:
+                                with ui.element('div').classes('hub-empty-area'):
+                                    _text_element('p', 'Esta área aún no tiene herramientas.', 'hub-empty-msg')
+                            else:
+                                with ui.element('ul').classes('hub-tool-list'):
+                                    for tile_model in pillar.tiles:
+                                        with ui.element('li'):
+                                            self._build_tile(tile_model)
 
         self.ai_panel.build()
-        if self.glosa_open:
-            self.ai_panel.open()
+        # En H3, el Hub no abre Glosa bajo ninguna circunstancia
 
         await self._apply_featured(client)

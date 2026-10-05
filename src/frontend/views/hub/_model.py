@@ -30,6 +30,10 @@ class PillarModel:
     id: str
     short_name: str
     tiles: tuple[TileModel, ...]
+    icon: str = ""
+    blurb: str = ""
+    unit_singular: str = "herramienta"
+    unit_plural: str = "herramientas"
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,31 @@ class InitialSelection:
     pillar_id: str
     tile_key: str
     has_history: bool
+
+
+PILLAR_METADATA: dict[str, dict[str, str]] = {
+    "algebra": {
+        "blurb": "Sistemas, vectores, matrices e inversa, con cada paso a la vista.",
+        "unit_singular": "herramienta",
+        "unit_plural": "herramientas",
+    },
+    "visualizador": {
+        "blurb": "Mira rectas, planos y vectores en 2D y 3D.",
+        "unit_singular": "escena",
+        "unit_plural": "escenas",
+    },
+    "utilidades": {
+        "blurb": "Convierte bases y opera con números romanos.",
+        "unit_singular": "herramienta",
+        "unit_plural": "herramientas",
+    },
+}
+
+
+def format_item_count(count: int, singular: str = "herramienta", plural: str = "herramientas") -> str:
+    """Devuelve el conteo con el plural correcto (probada con 0, 1 y N)."""
+    unit = singular if count == 1 else plural
+    return f"{count} {unit}"
 
 
 def hub_pillars() -> tuple[PillarModel, ...]:
@@ -56,7 +85,18 @@ def hub_pillars() -> tuple[PillarModel, ...]:
             )
             for item in items
         )
-        pillars.append(PillarModel(id=pillar.id, short_name=pillar.short_name, tiles=tiles))
+        meta = PILLAR_METADATA.get(pillar.id, {})
+        pillars.append(
+            PillarModel(
+                id=pillar.id,
+                short_name=pillar.short_name,
+                tiles=tiles,
+                icon=pillar.icon,
+                blurb=meta.get("blurb", ""),
+                unit_singular=meta.get("unit_singular", "herramienta"),
+                unit_plural=meta.get("unit_plural", "herramientas"),
+            )
+        )
     return tuple(pillars)
 
 

@@ -21,11 +21,9 @@ def create_navbar(active_ui=None, active_route='/', active_key=None):
     if active_key is None:
         active_key = default_item_key(active_route)
 
-    with ui.header().classes(
-        'nav-header px-4 sm:px-8 py-2 sm:py-4 flex items-center justify-center w-full bg-transparent relative pointer-events-none'
-    ).style('view-transition-name: navbar;').props('reveal'):
+    with ui.header().classes('nav-header').style('view-transition-name: navbar;').props('reveal'):
         with ui.link(target='/').classes(
-            'brand-logo-link brand-corner-link pointer-events-auto absolute left-6 sm:left-10 top-1/2 -translate-y-1/2 flex items-center justify-center select-none no-underline z-10'
+            'brand-logo-link brand-corner-link pointer-events-auto select-none no-underline'
         ).props('aria-label="Scalaris - Inicio"').tooltip('Scalaris: Inicio'):
             ui.html('''
                 <div class="brand-logo-container flex items-center justify-center" style="width: 72px; height: 72px;">
@@ -56,30 +54,31 @@ def create_navbar(active_ui=None, active_route='/', active_key=None):
                     ui.element('div').classes('nav-sep')
                     render_theme_button()
             else:
-                with ui.element('a').classes('nav-trigger nav-home').props(f'href="{HUB_ROUTE}" aria-label="Inicio"').tooltip('Inicio'):
+                with ui.element('a').classes('nav-trigger nav-home').props(f'href="{HUB_ROUTE}" aria-label="Inicio" title="Inicio"').tooltip('Inicio'):
                     ui.html(icon_svg('inicio'))
 
                 pillar = pillar_for_route(active_route)
-                if pillar is not None:
-                    ui.element('div').classes('nav-sep')
-                    with ui.element('span').classes('nav-pillar'):
-                        ui.html(icon_svg(pillar.icon))
-                        ui.html(html.escape(pillar.short_name), tag='span').classes('nav-pillar-name')
+                items = nav_items(pillar.id) if pillar is not None else ()
+                with ui.element('div').classes('nav-center'):
+                    if pillar is not None and len(items) > 0:
+                        with ui.element('span').classes('nav-pillar'):
+                            ui.html(icon_svg(pillar.icon))
+                            ui.html(html.escape(pillar.short_name), tag='span').classes('nav-pillar-name')
 
-                    with ui.element('nav').classes('nav-items').props(f'aria-label="Herramientas de {pillar.short_name}"'):
-                        for item in nav_items(pillar.id):
-                            is_active = (item.key == active_key)
-                            item_classes = 'nav-trigger nav-item' + (' nav-active' if is_active else '')
-                            item_props = f'href="{nav_item_href(item)}" aria-label="{item.label}"'
-                            if is_active:
-                                item_props += ' aria-current="page"'
-                            with ui.element('a').classes(item_classes).props(item_props).tooltip(item.label):
-                                ui.html(icon_svg(item.icon))
-                                ui.html(html.escape(item.label), tag='span').classes('nav-label-full')
-                                ui.html(html.escape(item.short_label), tag='span').classes('nav-label-short')
+                        with ui.element('nav').classes('nav-items').props(f'aria-label="Herramientas de {pillar.short_name}"'):
+                            for item in items:
+                                is_active = (item.key == active_key)
+                                item_classes = 'nav-trigger nav-item' + (' nav-active' if is_active else '')
+                                item_props = f'href="{nav_item_href(item)}" aria-label="{item.label}" title="{item.label}"'
+                                if is_active:
+                                    item_props += ' aria-current="page"'
+                                with ui.element('a').classes(item_classes).props(item_props).tooltip(item.label):
+                                    ui.html(icon_svg(item.icon))
+                                    ui.html(html.escape(item.label), tag='span').classes('nav-label-full')
+                                    ui.html(html.escape(item.short_label), tag='span').classes('nav-label-short')
 
-                ui.element('div').classes('nav-sep')
-                render_theme_button()
+                with ui.element('div').classes('theme-switcher-btn nav-theme'):
+                    render_theme_button()
 
     if flags.nav_v2():
         active_tool = tool_by_route(active_route)
