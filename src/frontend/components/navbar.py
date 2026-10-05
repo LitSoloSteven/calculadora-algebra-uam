@@ -43,7 +43,9 @@ def create_navbar(active_ui=None, active_route='/'):
                         ui.element('div').classes('nav-sep')
                     
                     active_pillar = pillar_for_route(active_route)
-                    for pillar, tools in nav_groups():
+                    for index, (pillar, tools) in enumerate(nav_groups()):
+                        if index > 0:
+                            ui.element('div').classes('nav-sep')
                         btn = ui.button(color=None).classes('nav-trigger' + (' nav-active' if active_pillar and active_pillar.id == pillar.id else '')).props(f'flat ripple=false no-caps aria-haspopup="menu" aria-expanded="false" aria-label="{pillar.name}"')
                         with btn:
                             ui.html(icon_svg(pillar.icon))
@@ -59,8 +61,6 @@ def create_navbar(active_ui=None, active_route='/'):
                                         with ui.element('div').classes('nav-menu-text'):
                                             ui.label(tool.name).classes('nav-menu-name')
                                             ui.label(tool.descriptor).classes('nav-menu-desc')
-                                            
-                        ui.element('div').classes('nav-sep')
                     
                 if not flags.dock_enabled():
                     def toggle_ai_panel():
