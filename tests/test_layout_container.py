@@ -13,7 +13,7 @@ def test_theme_css_container_queries():
     # Ningún otro selector lo tiene
     # Contamos cuántas veces aparece "container-type: inline-size"
     count = content.count("container-type: inline-size")
-    assert count == 2, f"Expected 2 container-type declarations, found {count}"
+    assert count == 3, f"Expected 3 container-type declarations, found {count}"
     
     # Existen reglas @container para .layout-split y .layout-grid-2
     assert "@container" in content

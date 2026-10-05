@@ -110,6 +110,24 @@ def icon_svg(nombre: str) -> str:
             <path d="M12 13v4"></path>
         </svg>'''
     
+    elif nombre == 'escena_rectas_planos':
+        return base + '''
+            <polygon points="3 17 9 7 21 7 15 17"></polygon>
+            <line x1="4" y1="18" x2="18" y2="6"></line>
+            <line x1="6" y1="6" x2="16" y2="18"></line>
+        </svg>'''
+    
+    elif nombre == 'escena_combinacion':
+        return base + '''
+            <line x1="4" y1="19" x2="13" y2="19"></line>
+            <polyline points="10 17 13 19 10 21"></polyline>
+            <line x1="4" y1="19" x2="9" y2="10"></line>
+            <polyline points="6 11 9 10 10 13"></polyline>
+            <path d="M9 10h9l-5 9" stroke-dasharray="2 2"></path>
+            <line x1="4" y1="19" x2="18" y2="10"></line>
+            <polyline points="14 10 18 10 18 14"></polyline>
+        </svg>'''
+    
     return ''
 
 

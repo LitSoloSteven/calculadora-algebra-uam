@@ -42,6 +42,35 @@ class LegacyRedirect:
     permanent: bool = True
 
 
+@dataclass(frozen=True)
+class NavItem:
+    """Elemento interactivo de navegación contextual para pilares y escenas."""
+    key: str
+    label: str
+    short_label: str
+    descriptor: str
+    icon: str
+    route: str
+    query: tuple[tuple[str, str], ...]
+    tool_id: str
+
+
+VISUALIZER_SCENES: tuple[tuple[str, str, str, str, str], ...] = (
+    ("rectas-planos", "Rectas y planos", "Rectas", "Sistemas de 2 y 3 variables", "escena_rectas_planos"),
+    ("vectores", "Vectores", "Vectores", "Suma y escalamiento de u y v", "vectores"),
+    ("combinacion", "Combinación lineal", "Combinación", "Cómo se forma b con tus vectores", "escena_combinacion"),
+)
+
+_SHORT_LABELS: dict[str, str] = {
+    "sistemas": "Sistemas",
+    "vectores": "Vectores",
+    "matrices": "Matrices",
+    "inversa": "Inversa",
+    "bases": "Bases",
+    "romanos": "Romanos",
+}
+
+
 # --- Constantes y Taxonomía Base ---
 
 HUB_ENABLED: bool = True
@@ -279,3 +308,80 @@ def redirect_location(redirect: LegacyRedirect, incoming_items: list[tuple[str, 
         encoded_query = urllib.parse.urlencode(fixed_pairs)
         return f"{redirect.target_route}?{encoded_query}"
     return redirect.target_route
+
+
+def nav_items(pillar_id: str) -> tuple[NavItem, ...]:
+    """Devuelve los items de navegacion contextual asociados a un pilar."""
+    if pillar_id in ("algebra", "algebra-lineal"):
+        order = ("sistemas", "vectores", "matrices", "inversa")
+        items = []
+        for tid in order:
+            t = tool_by_id(tid)
+            items.append(
+                NavItem(
+                    key=t.id,
+                    label=t.name,
+                    short_label=_SHORT_LABELS[t.id],
+                    descriptor=t.descriptor,
+                    icon=t.icon,
+                    route=t.route,
+                    query=(),
+                    tool_id=t.id,
+                )
+            )
+        return tuple(items)
+
+    if pillar_id in ("visualizador", "geometria"):
+        items = []
+        for escena, label, short_label, descriptor, icon in VISUALIZER_SCENES:
+            items.append(
+                NavItem(
+                    key=f"vis:{escena}",
+                    label=label,
+                    short_label=short_label,
+                    descriptor=descriptor,
+                    icon=icon,
+                    route="/visualizador",
+                    query=(("escena", escena),),
+                    tool_id="visualizador",
+                )
+            )
+        return tuple(items)
+
+    if pillar_id in ("utilidades", "utilidades-numericas"):
+        order = ("bases", "romanos")
+        items = []
+        for tid in order:
+            t = tool_by_id(tid)
+            items.append(
+                NavItem(
+                    key=t.id,
+                    label=t.name,
+                    short_label=_SHORT_LABELS[t.id],
+                    descriptor=t.descriptor,
+                    icon=t.icon,
+                    route=t.route,
+                    query=(),
+                    tool_id=t.id,
+                )
+            )
+        return tuple(items)
+
+    return ()
+
+
+def nav_item_href(item: NavItem) -> str:
+    """Calcula la URL de destino del item con query string codificada si existe."""
+    if item.query:
+        return f"{item.route}?{urllib.parse.urlencode(item.query)}"
+    return item.route
+
+
+def default_item_key(route: str) -> str | None:
+    """Obtiene la clave del item de navegacion predeterminado para una ruta."""
+    tool = tool_by_route(route)
+    if tool is None:
+        return None
+    if tool.id == "visualizador":
+        return "vis:rectas-planos"
+    return tool.id

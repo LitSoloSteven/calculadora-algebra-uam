@@ -65,5 +65,5 @@ def test_theme_css_dock_and_layout_contract():
 
     # Layout tokens
     assert "100vh" not in content
-    assert content.count("container-type: inline-size") == 2
+    assert content.count("container-type: inline-size") == 3
     assert content.count("--fab-reserve:") >= 4

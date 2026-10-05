@@ -82,25 +82,19 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
         except Exception:
             self._client = None
 
-        if escena not in VALID_SCENES:
-            escena = 'rectas-planos'
-        self.scene = escena
+        self.scene = self.normalize_scene(escena)
 
         self.ai_panel = AIPanel(self)
-        create_app_shell(self, active_route=route_of('visualizador'))
+        create_app_shell(
+            self,
+            active_route=route_of('visualizador'),
+            active_key=f"vis:{self.scene}",
+        )
 
         ui.add_head_html('<script src="/assets/js/geometry.js"></script>')
 
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
-            # Scene tabs
-            with ui.tabs().classes('neo-tabs method-tabs tabs-wide w-full').props('dense no-caps mobile-arrows') as self.scene_tabs:
-                ui.tab('rectas-planos', label='Rectas y planos')
-                ui.tab('vectores', label='Vectores')
-                ui.tab('combinacion', label='Combinación lineal')
-            self.scene_tabs.value = self.scene
-            self.scene_tabs.on_value_change(self._on_scene_change)
-
-            with ui.element('div').classes('layout-split mt-4'):
+            with ui.element('div').classes('layout-split'):
                 # Left pane: controls
                 with ui.column().classes('layout-pane p-6 bg-[var(--bg-page)]').style('min-width: 0;') as left:
                     self.controls_container = ui.column().classes('w-full')
@@ -120,6 +114,13 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
 
         # Process handoff AFTER empty state
         self._process_handoff(handoff_token)
+
+    @staticmethod
+    def normalize_scene(escena: str) -> str:
+        """Valida y normaliza el parametro de escena contra VALID_SCENES."""
+        if escena not in VALID_SCENES:
+            return 'rectas-planos'
+        return escena
 
     def _process_handoff(self, token: str):
         """Process handoff token on page load."""
@@ -169,27 +170,35 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             if result is None:
                 return
             clean_handoff_url()
-            
+
             if result.status == 'ok' and result.data:
-                scene_from_data = result.data.get("scene", self.scene)
-                if scene_from_data not in VALID_SCENES:
-                    scene_from_data = self.scene
+                scene_from_data = result.data.get("scene")
+                if scene_from_data != self.scene:
+                    from src.frontend.components.handoff import HandoffResult
+                    result = HandoffResult(
+                        status='invalid',
+                        data=None,
+                        source_name=result.source_name,
+                        message="Los datos recibidos no son válidos, así que empezamos con la herramienta vacía.",
+                    )
+                    with self.status_container:
+                        render_handoff_notice(result, "")
+                    return
+
                 vectors_data = result.data.get("data", [])
-                
+
                 from src.frontend.components.handoff import HandoffResult
                 is_valid = True
-                if scene_from_data == 'vectores':
+                if self.scene == 'vectores':
                     if len(vectors_data) != 2:
                         result = HandoffResult(status='invalid', data=None, source_name=result.source_name, message="La escena de Vectores requiere exactamente 2 vectores.")
                         is_valid = False
-                elif scene_from_data == 'combinacion':
+                elif self.scene == 'combinacion':
                     if not (2 <= len(vectors_data) <= 5):
                         result = HandoffResult(status='invalid', data=None, source_name=result.source_name, message="La escena de Combinación lineal requiere entre 2 y 5 vectores (b + v1...v4).")
                         is_valid = False
-                
+
                 if is_valid:
-                    self.scene = scene_from_data
-                    self.scene_tabs.value = self.scene
                     self._build_controls(self.scene)
 
                     panel = self.vec_panel if self.scene == 'vectores' else self.comb_panel
@@ -198,7 +207,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
                         panel.dim = n
                         while len(panel.vectors) < len(vectors_data):
                             panel.add_vector()
-                            
+
                         for vi, vec in enumerate(vectors_data):
                             name = list(panel.vectors.keys())[vi] if vi < len(panel.vectors) else None
                             if name:
@@ -214,29 +223,6 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
             else:
                 with self.status_container:
                     render_handoff_notice(result, "")
-
-    def _on_scene_change(self, e):
-        """Handle scene tab change."""
-        new_scene = e.value
-        if new_scene not in VALID_SCENES:
-            new_scene = 'rectas-planos'
-        self.scene = new_scene
-        self.last_result = None
-        self.last_payload_hash = None
-        self._first_draw = True
-        self._fig_key = None
-        self._plotly_element = None
-
-        # Update URL without reload
-        self._js(f"""
-            const u = new URL(location.href);
-            u.searchParams.set('escena', '{new_scene}');
-            history.replaceState(null, '', u.pathname + u.search + u.hash);
-        """)
-
-        # Rebuild controls and reset
-        self._build_controls(new_scene)
-        self._render_empty_state()
 
     def _render_empty_state(self):
         """Show empty orientational state."""

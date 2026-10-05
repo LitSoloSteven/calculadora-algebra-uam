@@ -10,7 +10,7 @@ def test_theme_css_motion_and_break_ui_tokens():
     content = css_path.read_text(encoding="utf-8")
 
     # Layout container constraints
-    assert content.count("container-type: inline-size") == 2
+    assert content.count("container-type: inline-size") == 3
     assert "100vh" not in content
     assert content.count("--fab-reserve:") >= 4
 
