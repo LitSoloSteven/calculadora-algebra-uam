@@ -39,7 +39,7 @@ class LinearSystemsGraphicsMixin:
                 import plotly.graph_objects as go
             except ImportError as e:
                 logger.warning("No se pudo cargar el módulo de gráficos (plotly)", exc_info=e)
-                ui.label('No se pudo cargar el módulo de gráficos (plotly). Contacta al administrador o instala la dependencia con "pip install plotly".').classes('text-warning')
+                ui.label('No se pudo cargar el módulo de gráficos (plotly). Contacta al administrador o instala la dependencia con "pip install plotly".').classes('text-warn')
                 return
 
             def _linspace(start, stop, num):
@@ -149,5 +149,5 @@ class LinearSystemsGraphicsMixin:
 
             ui.plotly(fig).classes('w-full h-[400px]')
             if omitidas > 0:
-                ui.label(f'{omitidas} ecuación(es) no se pudieron graficar por tener valores no numéricos.').classes('text-warning text-sm')
+                ui.label(f'{omitidas} ecuación(es) no se pudieron graficar por tener valores no numéricos.').classes('text-warn text-sm')
             ui.run_javascript("window.updatePlotlyThemeWhenReady(5000);")

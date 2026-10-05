@@ -38,7 +38,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
         with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6 view-root'):
             # --- HERO SECTION (Entrada) ---
             with ui.column().classes('w-full panel-card p-6 gap-6'):
-                ui.label('Conversor de Bases').classes('text-2xl font-bold text-main')
+                ui.label('Conversor de bases').classes('text-2xl font-bold text-main')
 
                 # Selector de sistemas numéricos
                 with ui.row().classes('w-full items-center gap-3 flex-nowrap'):
@@ -75,7 +75,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
                         with ui.row().classes('absolute right-6 top-1/2 -translate-y-1/2'):
                             ui.button(
                                 icon='content_paste', on_click=self._pegar_portapapeles, color=None
-                            ).classes('btn-neo-icon w-10 h-10 p-0 text-sec').props('ripple=false').tooltip('Pegar')
+                            ).classes('btn-neo-icon w-10 h-10 p-0 text-sec').props('ripple=false aria-label="Pegar"').tooltip('Pegar')
 
                     self.lbl_error = ui.label('').classes('fs-small').style(
                         'color: var(--error); margin-left: 8px; min-height: 20px;'
@@ -115,14 +115,14 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
         from src.ai.context import AIContext, sanitize_user_string, is_stale
         val = getattr(getattr(self, 'input_valor', None), 'value', None)
         if not val:
-            return AIContext("bases", "Conversor de Bases", "Conversión", {}, empty=True)
+            return AIContext("bases", "Conversor de bases", "Conversión", {}, empty=True)
             
         base_orig = getattr(getattr(self, 'tabs_origen', None), 'value', self.base_activa)
         base_dest = getattr(getattr(self, 'tabs_destino', None), 'value', self.base_destino)
         
         ctx = AIContext(
             "bases", 
-            "Conversor de Bases", 
+            "Conversor de bases", 
             f"{base_orig} a {base_dest}", 
             {
                 "valor_entrada": sanitize_user_string(val, 64),

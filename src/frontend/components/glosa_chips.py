@@ -119,5 +119,5 @@ def render_focus_chip(text: str, on_remove) -> ui.element:
     with chip:
         ui.icon('center_focus_strong').classes('glosa-explain-focus-icon')
         ui.label(text).classes('glosa-explain-focus-text')
-        ui.button(icon='close', color=None, on_click=on_remove).classes('glosa-explain-focus-close').props('round flat size=xs ripple=false').tooltip("Quitar foco")
+        ui.button(icon='close', color=None, on_click=on_remove).classes('glosa-explain-focus-close').props('round flat size=xs ripple=false aria-label="Quitar foco"').tooltip("Quitar foco")
     return chip

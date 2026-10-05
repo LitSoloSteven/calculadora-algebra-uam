@@ -44,10 +44,14 @@ def create_navbar(active_ui=None, active_route='/'):
                     
                     active_pillar = pillar_for_route(active_route)
                     for pillar, tools in nav_groups():
-                        with ui.button(color=None).classes('nav-trigger' + (' nav-active' if active_pillar and active_pillar.id == pillar.id else '')).props(f'flat ripple=false no-caps aria-haspopup="menu" aria-label="{pillar.name}"'):
+                        btn = ui.button(color=None).classes('nav-trigger' + (' nav-active' if active_pillar and active_pillar.id == pillar.id else '')).props(f'flat ripple=false no-caps aria-haspopup="menu" aria-expanded="false" aria-label="{pillar.name}"')
+                        with btn:
                             ui.html(icon_svg(pillar.icon))
                             ui.label(pillar.short_name).classes('nav-label')
-                            with ui.menu().classes('nav-menu'):
+                            m = ui.menu().classes('nav-menu')
+                            m.on('show', lambda _, b=btn: b.props('aria-expanded="true"'))
+                            m.on('hide', lambda _, b=btn: b.props('aria-expanded="false"'))
+                            with m:
                                 for tool in tools:
                                     current_tool = (tool.route == active_route)
                                     with ui.menu_item().classes('nav-menu-item').props(f'href="{tool.route}"' + (' aria-current="page"' if current_tool else '')):
@@ -63,15 +67,19 @@ def create_navbar(active_ui=None, active_route='/'):
                         if active_ui and hasattr(active_ui, 'ai_panel'):
                             active_ui.ai_panel.toggle()
                             
-                    with ui.button(on_click=toggle_ai_panel, color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false aria-label="Tutor IA"').tooltip('Tutor IA'):
+                    with ui.button(on_click=toggle_ai_panel, color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false aria-label="Glosa"').tooltip('Glosa'):
                         ui.html(icon_svg('tutor_ia'))
                 
             ui.element('div').classes('nav-sep')
             
             with ui.row().classes('items-center'):
-                with ui.button(color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false').tooltip('Seleccionar Tema'):
+                theme_btn = ui.button(color=None).classes('btn-neo-icon p-0 text-main').props('flat ripple=false aria-label="Seleccionar Tema" aria-haspopup="menu" aria-expanded="false"').tooltip('Seleccionar Tema')
+                with theme_btn:
                     ui.html(icon_svg('temas'))
-                    with ui.menu().classes('p-2 min-w-[150px]'):
+                    theme_menu = ui.menu().classes('p-2 min-w-[150px]')
+                    theme_menu.on('show', lambda _, b=theme_btn: b.props('aria-expanded="true"'))
+                    theme_menu.on('hide', lambda _, b=theme_btn: b.props('aria-expanded="false"'))
+                    with theme_menu:
                         def menu_item(label, theme_id, bg_color):
                             with ui.menu_item(on_click=lambda t=theme_id: ui.run_javascript(f"setTheme('{t}')")).classes('rounded-lg mb-1 flex items-center gap-3 w-full'):
                                 ui.html(f'<div style="width: 14px; height: 14px; border-radius: 50%; background-color: {bg_color}; border: 1px solid var(--border-input);"></div>')

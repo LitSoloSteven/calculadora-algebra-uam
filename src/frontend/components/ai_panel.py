@@ -1,14 +1,9 @@
-import json
-import html
 import logging
-import asyncio
-import time
-import threading
-from nicegui import ui, app, run
+from nicegui import ui, app
 from src.ai.openrouter_ai import OpenRouterIA
 from src.frontend import flags
 from src.frontend.components.glosa_dock import GlosaDockMixin, MAX_HISTORY
-from src.ai.context import serialize_context, AIContext
+from src.ai.context import serialize_context
 
 logger = logging.getLogger(__name__)
 
@@ -258,12 +253,12 @@ class AIPanel(GlosaDockMixin):
             self.build_dock()
             return
             
-        self.overlay = ui.element('div').style('position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); z-index: 2999; transition: opacity 240ms var(--ease-std); pointer-events: none;')
+        self.overlay = ui.element('div').style('position: fixed; inset: 0; background: var(--scrim); z-index: calc(var(--z-dock) - 1); transition: opacity 240ms var(--ease-std); pointer-events: none;')
         self.overlay.on('click', self.toggle)
         
         self.panel_container = ui.column().classes('no-wrap ai-panel-card').style('''
-            position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: calc(100vh - 104px);
-            background: var(--bg-elevated); z-index: 3000;
+            position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: 100dvh;
+            background: var(--bg-elevated); z-index: var(--z-dock);
             border: 1px solid var(--border-input); border-radius: var(--radius-card);
             box-shadow: var(--elev-3); overflow: hidden;
             transition: transform 240ms var(--ease-std), opacity 240ms var(--ease-std);
@@ -273,12 +268,12 @@ class AIPanel(GlosaDockMixin):
             with ui.row().classes('w-full items-center justify-between p-4 border-b border-[var(--border-input)]'):
                 with ui.row().classes('items-center gap-2'):
                     ui.icon('smart_toy', size='sm').classes('text-accent')
-                    ui.label('Tutor IA').classes('font-bold text-lg text-main')
+                    ui.label('Glosa').classes('font-bold text-lg text-main')
                     
                 with ui.row().classes('gap-2'):
-                    ui.button(icon='attach_file', on_click=self.attach_context, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Adjuntar sistema actual')
-                    ui.button(icon='delete_sweep', on_click=self.clear_chat, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Limpiar conversación')
-                    ui.button(icon='close', on_click=self.toggle, color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false')
+                    ui.button(icon='attach_file', on_click=self.attach_context, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Adjuntar sistema actual"').tooltip('Adjuntar sistema actual')
+                    ui.button(icon='delete_sweep', on_click=self.clear_chat, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Limpiar conversación"').tooltip('Limpiar conversación')
+                    ui.button(icon='close', on_click=self.toggle, color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false aria-label="Cerrar Glosa"').tooltip('Cerrar')
                     
             self.chat_area = ui.column().classes('w-full flex-1 p-4 overflow-y-auto gap-2').props('id="ai-chat-area"')
             self.render_chat()
@@ -293,6 +288,6 @@ class AIPanel(GlosaDockMixin):
                     self.input_field = ui.textarea(placeholder='Pregunta algo...').classes('flex-1 matrix-input text-sm').props('borderless autogrow').style('max-height: 120px; overflow-y: auto;')
                     self.input_field.on('keydown.enter.prevent.exact', self.send_message)
                     
-                    ui.button(icon='send', on_click=self.send_message, color=None).classes('btn-primary w-10 h-10 p-0 mb-1').props('ripple=false').style('border-radius: 12px;')
+                    ui.button(icon='send', on_click=self.send_message, color=None).classes('btn-primary w-10 h-10 p-0 mb-1').props('ripple=false aria-label="Enviar mensaje"').tooltip('Enviar').style('border-radius: 12px;')
                     
         self._update_visibility()

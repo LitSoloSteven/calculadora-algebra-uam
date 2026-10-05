@@ -2,6 +2,25 @@
  * Scalaris — Global App Interactions, Animations & Utilities
  */
 
+// Detección de método de entrada para accesibilidad de movimiento
+document.addEventListener('keydown', () => {
+  document.documentElement.setAttribute('data-input', 'keyboard');
+}, { capture: true, passive: true });
+
+document.addEventListener('pointerdown', () => {
+  document.documentElement.setAttribute('data-input', 'pointer');
+}, { capture: true, passive: true });
+
+window.scalarisMotionOK = function () {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return false;
+  }
+  if (document.documentElement.getAttribute('data-input') === 'keyboard') {
+    return false;
+  }
+  return true;
+};
+
 // Constantes de movimiento (espejo de los tokens CSS para uso en JS)
 window.MOTION = { fast: 120, med: 240, slow: 500 };
 
@@ -143,14 +162,14 @@ window.updatePlotlyThemeWhenReady = function (maxWaitMs = 5000) {
 
 // === ANIMACIÓN DE RECOLECCIÓN DE BASURA ===
 function animateGarbageCollection() {
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!window.scalarisMotionOK()) return;
   const btn = document.getElementById('btn-limpiar-main');
   if (!btn) return;
 
   const iconElem = btn.querySelector('.q-icon');
   if (iconElem) {
     iconElem.textContent = 'delete_sweep';
-    iconElem.classList.add('text-negative');
+    iconElem.classList.add('text-err');
   }
 
   const btnRect = btn.getBoundingClientRect();
@@ -177,7 +196,7 @@ function animateGarbageCollection() {
     clone.style.width = rect.width + 'px';
     clone.style.height = rect.height + 'px';
     clone.style.margin = '0';
-    clone.style.zIndex = '9999';
+    clone.style.zIndex = 'var(--z-modal)';
     clone.style.display = 'flex';
     clone.style.alignItems = 'center';
     clone.style.justifyContent = 'center';
@@ -226,7 +245,7 @@ function animateGarbageCollection() {
         btn.classList.remove('squash-bounce');
         if (iconElem) {
           iconElem.textContent = 'delete';
-          iconElem.classList.remove('text-negative');
+          iconElem.classList.remove('text-err');
         }
         // Restaurar colores transparentes
         inputs.forEach(i => i.style.color = '');
@@ -235,7 +254,7 @@ function animateGarbageCollection() {
   } else {
     if (iconElem) {
       iconElem.textContent = 'delete';
-      iconElem.classList.remove('text-negative');
+      iconElem.classList.remove('text-err');
     }
     inputs.forEach(i => i.style.color = '');
   }

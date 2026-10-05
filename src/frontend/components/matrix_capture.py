@@ -116,7 +116,7 @@ class MatrixCapturePanel:
             
             js_entrada = f'''
                 return new Promise(resolve => {{
-                    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {{
+                    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {{
                         return resolve();
                     }}
                     let cells = document.querySelectorAll(`input[data-matrix-id='{name}']{target_attr}`);
@@ -198,18 +198,18 @@ class MatrixCapturePanel:
                         with ui.row().classes('gap-4 items-center flex-wrap'):
                             with ui.row().classes('gap-1 items-center'):
                                 ui.label('Filas:').classes('text-sm text-sec mr-1')
-                                mat['btn_m_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_m=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
+                                mat['btn_m_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_m=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Quitar fila"').tooltip('Quitar fila')
                                 mat['lbl_m'] = ui.label(str(mat['m'])).classes('font-bold w-4 text-center')
-                                mat['btn_m_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_m=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
+                                mat['btn_m_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_m=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Añadir fila"').tooltip('Añadir fila')
                             
                             with ui.row().classes('gap-1 items-center'):
                                 ui.label('Cols:').classes('text-sm text-sec mr-1')
-                                mat['btn_n_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_n=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
+                                mat['btn_n_dec'] = ui.button(icon='remove', on_click=partial(self.adjust_size, name, delta_n=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Quitar columna"').tooltip('Quitar columna')
                                 mat['lbl_n'] = ui.label(str(mat['n'])).classes('font-bold w-4 text-center')
-                                mat['btn_n_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_n=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
+                                mat['btn_n_inc'] = ui.button(icon='add', on_click=partial(self.adjust_size, name, delta_n=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Añadir columna"').tooltip('Añadir columna')
 
-                            mat['btn_inv'] = ui.button(icon='arrow_forward', on_click=partial(self._handle_invert, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2 text-sec').props('ripple=false').tooltip('Ver Inversa')
-                            ui.button(icon='delete', on_click=partial(self.remove_matrix, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-1').style('color: var(--error)').props('ripple=false').tooltip('Eliminar Matriz')
+                            mat['btn_inv'] = ui.button(icon='arrow_forward', on_click=partial(self._handle_invert, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2 text-sec').props('ripple=false aria-label="Ver Inversa"').tooltip('Ver Inversa')
+                            ui.button(icon='delete', on_click=partial(self.remove_matrix, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-1').style('color: var(--error)').props('ripple=false aria-label="Eliminar Matriz"').tooltip('Eliminar Matriz')
 
                     # Configurar estado inicial deshabilitado si corresponde
                     if mat['m'] <= 1: mat['btn_m_dec'].disable()

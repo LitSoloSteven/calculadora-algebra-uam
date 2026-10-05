@@ -115,11 +115,11 @@ class InverseOpsController:
                 elapsed_s=time.perf_counter() - t0,
                 matrix_a=matrix_a,
             )
-        except Exception as e:
+        except Exception:
             logger.exception("Error inesperado en MatrixInverseSolver")
             return cls._empty_result(
                 "ERROR",
-                f"Error al calcular la inversa: {e}",
+                "Ocurrió un error inesperado al calcular la inversa. Inténtalo de nuevo.",
                 n=n,
                 elapsed_s=time.perf_counter() - t0,
                 matrix_a=matrix_a,

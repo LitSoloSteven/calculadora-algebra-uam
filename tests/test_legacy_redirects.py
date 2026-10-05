@@ -31,7 +31,7 @@ def test_legacy_routes_with_hub_status_and_location(client):
 
     for path, expected_location in expected_redirects.items():
         response = client.get(path)
-        assert response.status_code == 302, f"Ruta {path} devolvió código {response.status_code}, se esperaba 302"
+        assert response.status_code == 301, f"Ruta {path} devolvió código {response.status_code}, se esperaba 301"
         assert response.headers["location"] == expected_location, (
             f"Ruta {path} redirigió a {response.headers['location']}, se esperaba {expected_location}"
         )
@@ -54,17 +54,17 @@ def test_query_preservation_and_precedence(client):
     """Verifica la preservación de parámetros query y la precedencia de queries fijas."""
     # 1. Conservar query normal
     r1 = client.get("/sistemas-lineales?method=gauss-jordan")
-    assert r1.status_code == 302
+    assert r1.status_code == 301
     assert r1.headers["location"] == "/algebra-lineal/sistemas?method=gauss-jordan"
 
     # 2. Agregar query entrante a query fija (/gauss?x=1 -> ?method=gauss&x=1)
     r2 = client.get("/gauss?x=1")
-    assert r2.status_code == 302
+    assert r2.status_code == 301
     assert r2.headers["location"] == "/algebra-lineal/sistemas?method=gauss&x=1"
 
     # 3. Precedencia: query fija prevalece sobre entrante (/gauss?method=gauss-jordan -> ?method=gauss)
     r3 = client.get("/gauss?method=gauss-jordan")
-    assert r3.status_code == 302
+    assert r3.status_code == 301
     assert r3.headers["location"] == "/algebra-lineal/sistemas?method=gauss"
 
 
@@ -94,5 +94,5 @@ def test_hub_enabled_redirects(monkeypatch):
 
     # '/ia' debe redirigir a '/?glosa=1'
     r_ia = hub_client.get("/ia")
-    assert r_ia.status_code == 302
+    assert r_ia.status_code == 301
     assert r_ia.headers["location"] == "/?glosa=1"

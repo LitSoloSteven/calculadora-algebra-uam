@@ -157,7 +157,7 @@ class MatrixOpsUI:
         
         with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
             with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
-                ui.label('Operaciones con Matrices').classes('text-2xl font-bold text-main')
+                ui.label('Matrices').classes('text-2xl font-bold text-main')
 
             with ui.element('div').classes('layout-split mb-8'):
                 # Panel izquierdo (Matrices y expresión)
@@ -213,7 +213,7 @@ class MatrixOpsUI:
         expr_val = self.input_expresion.value if hasattr(self, 'input_expresion') and self.input_expresion else ""
         empty = not bool(mats) and not bool(expr_val)
         if empty:
-            return AIContext("matrix_ops", "Operaciones con Matrices", "Operaciones", {}, empty=True)
+            return AIContext("matrix_ops", "Matrices", "Operaciones", {}, empty=True)
             
         input_data = {}
         descs = []
@@ -227,7 +227,7 @@ class MatrixOpsUI:
         if expr_val:
             input_data["expresion"] = sanitize_user_string(expr_val, 200)
             
-        ctx = AIContext("matrix_ops", "Operaciones con Matrices", "Matrices y Expresión", input_data)
+        ctx = AIContext("matrix_ops", "Matrices", "Matrices y Expresión", input_data)
         ctx.window_note = window_note_from(*descs)
         
         entrada_actual = {

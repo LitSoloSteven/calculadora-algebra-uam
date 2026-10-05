@@ -7,6 +7,7 @@ from src.frontend.components.icons import icon_svg
 from src.frontend.components.glosa_render import render_glosa_text
 from src.frontend.components.glosa_chips import render_chip_row, render_followups
 from src.frontend.suggestions import suggest, FOLLOW_UPS, chips_active
+from src.ai.openrouter_ai import AIResult, AIErrorKind
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class GlosaDockMixin:
             if not self.chat_history:
                 with ui.column().classes('w-full items-center justify-center h-full gap-4 text-center mt-8 text-sec'):
                     ui.html(icon_svg('glosa')).style('width: 48px; height: 48px; opacity: 0.5;')
-                    ui.label('¡Hola! Soy Glosa.').classes('font-bold text-lg text-main')
+                    ui.label('Hola, soy Glosa.').classes('font-bold text-lg text-main')
                     ui.label('Explicar un paso').classes('fs-small')
                     ui.label('Revisar una operación').classes('fs-small')
                     ui.label('Aclarar un concepto').classes('fs-small')
@@ -375,7 +376,6 @@ class GlosaDockMixin:
             ui.timer(0, show_cancel, once=True)
             
         try:
-            from src.ai.openrouter_ai import AIResult, AIErrorKind
             result = await run.io_bound(
                 self.motor_ia.ask, 
                 full_text, 
@@ -385,9 +385,9 @@ class GlosaDockMixin:
                 cacheable=cacheable,
                 simpler=simpler
             )
-        except Exception as e:
-            logger.exception("Error en _submit")
-            result = AIResult(False, str(e), kind=AIErrorKind.SERVICE)
+        except Exception:
+            logger.exception("Error inesperado en _submit de Glosa")
+            result = AIResult(False, "Glosa no pudo responder ahora. Vuelve a intentarlo en un momento.", kind=AIErrorKind.SERVICE)
             
         if self._request_counter == current_req:
             self._finish_send(typing_row, cancel_btn_row)

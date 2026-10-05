@@ -79,7 +79,7 @@
 
 window.animateGridCellRemoval = function (target, isM, idxRow) {
   return new Promise(resolve => {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       return resolve();
     }
     let cells = document.querySelectorAll(`input${target}`);
@@ -90,7 +90,7 @@ window.animateGridCellRemoval = function (target, isM, idxRow) {
         anims.push(ctrl.animate(
           [{ opacity: 1, transform: 'scale(1)' },
           { opacity: 0, transform: 'scale(0.85) translateY(-8px)' }],
-          { duration: 240, delay: i * 25, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          { duration: 120, delay: Math.min(i * 12, 120), easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });
@@ -104,7 +104,7 @@ window.animateGridCellRemoval = function (target, isM, idxRow) {
 
 window.animateGridCellAddition = function (target) {
   return new Promise(resolve => {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       return resolve();
     }
     let cells = document.querySelectorAll(`input${target}`);
@@ -115,7 +115,7 @@ window.animateGridCellAddition = function (target) {
         anims.push(ctrl.animate(
           [{ opacity: 0, transform: 'scale(0.85) translateY(8px)' },
           { opacity: 1, transform: 'scale(1)' }],
-          { duration: 240, delay: i * 25, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          { duration: 120, delay: Math.min(i * 12, 120), easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });

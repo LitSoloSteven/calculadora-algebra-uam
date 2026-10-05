@@ -54,7 +54,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
             self.handoff_slot = ui.column().classes('w-full')
             # Encabezado
             with ui.column().classes('mb-8'):
-                ui.label('Matriz Inversa').classes('text-2xl font-bold text-main')
+                ui.label('Matriz inversa').classes('text-2xl font-bold text-main')
                 ui.label('Gauss-Jordan sobre [A | I]').classes(
                     'fs-small text-sec uppercase'
                 ).style('letter-spacing: 0.08em;')
@@ -71,7 +71,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                             on_click=self.confirmar_limpieza,
                             color=None,
                         ).classes('btn-ghost flex-1 py-3').props(
-                            'ripple=false id="btn-limpiar-main"'
+                            'ripple=false id="btn-limpiar-main" aria-label="Limpiar"'
                         ).tooltip('Limpiar')
 
                         ui.button(
@@ -131,7 +131,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
         from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale, window_note_from
         n = self.square_panel.n
         if self.square_panel.is_empty():
-            return AIContext(tool="inversa", view="Matriz Inversa", label="Matriz A", input={}, empty=True)
+            return AIContext(tool="inversa", view="Matriz inversa", label="Matriz A", input={}, empty=True)
             
         data = self.square_panel.get_matrix_data()
         data_sanitized = []
@@ -145,7 +145,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
         desc_a = describe_matrix(data_sanitized)
         ctx = AIContext(
             tool="inversa",
-            view="Matriz Inversa",
+            view="Matriz inversa",
             label=f"A ({n}×{n})",
             input={"A": desc_a}
         )

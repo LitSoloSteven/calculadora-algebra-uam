@@ -1,6 +1,8 @@
-"""Vista dedicada para la Calculadora de Números Romanos en Scalaris."""
+import logging
 from collections import Counter
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
@@ -20,7 +22,7 @@ class RomanCalculatorUI:
         with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6 view-root'):
             # --- PANEL DE ENTRADA ---
             with ui.column().classes('w-full panel-card p-6 gap-6'):
-                ui.label('Calculadora de Números Romanos').classes('text-2xl font-bold text-main')
+                ui.label('Números romanos').classes('text-2xl font-bold text-main')
 
                 # Selector de operación con neo-tabs
                 with ui.row().classes('w-full items-center gap-3'):
@@ -182,7 +184,7 @@ class RomanCalculatorUI:
                                     ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
                                 ui.button(icon='content_copy', on_click=lambda: copiar(res_rom), color=None).classes(
                                     'btn-neo-icon w-9 h-9 p-0 text-sec'
-                                ).props('flat round').tooltip('Copiar resultado romano')
+                                ).props('flat round aria-label="Copiar resultado romano"').tooltip('Copiar resultado romano')
 
                             # Ecuación en display grande
                             with ui.row().classes('w-full items-center justify-center gap-4 py-4 flex-wrap text-center'):
@@ -370,9 +372,10 @@ class RomanCalculatorUI:
                         with self.chips_container:
                             self.ai_panel.render_inline_chips()
                 except Exception as err:
+                    logger.exception("Error inesperado en la calculadora de números romanos")
                     self.last_result = None
                     self.last_error = err
-                    lbl_error.text = str(err)
+                    lbl_error.text = "Ocurrió un error inesperado al procesar la operación. Inténtalo de nuevo."
                 finally:
                     from src.ai.context import fingerprint
                     entrada = {"a": val_a, "b": val_b, "operacion": op}
@@ -408,11 +411,11 @@ class RomanCalculatorUI:
             val_a = input_a.value
             val_b = input_b.value
             if not val_a and not val_b:
-                return AIContext("romanos", "Números Romanos", "Calculadora Romana", {}, empty=True)
+                return AIContext("romanos", "Números romanos", "Calculadora Romana", {}, empty=True)
             
             ctx = AIContext(
                 "romanos",
-                "Números Romanos",
+                "Números romanos",
                 f"Operación: {tabs_op.value}",
                 {
                     "operando_a": sanitize_user_string(val_a, 32) if val_a else "",

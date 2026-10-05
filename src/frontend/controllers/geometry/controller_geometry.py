@@ -17,6 +17,7 @@ import logging
 import math
 from fractions import Fraction
 
+from src.backend.exceptions import AlgebraLinealError
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
@@ -661,9 +662,11 @@ class GeometryController:
         try:
             solver = LinearCombinationSolver()
             result = solver.solve(b_mat, col_mats)
-        except Exception as e:
-            logger.exception("Error en LinearCombinationSolver")
-            return {"status": "ERROR", "message": f"Error al resolver: {e}", "error_cell": None}
+        except (AlgebraLinealError, ValueError) as e:
+            return {"status": "ERROR", "message": str(e), "error_cell": None}
+        except Exception:
+            logger.exception("Error inesperado en LinearCombinationSolver")
+            return {"status": "ERROR", "message": "Ocurrió un error inesperado al resolver la combinación. Inténtalo de nuevo.", "error_cell": None}
 
         sol_status = result.get("status", "ERROR")
 

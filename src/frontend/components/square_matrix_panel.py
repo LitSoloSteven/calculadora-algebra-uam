@@ -69,7 +69,7 @@ class SquareMatrixPanel:
                         ui.label("Tamaño:").classes("text-sm text-sec mr-1")
                         self.btn_dec = (
                             ui.button(icon="remove", color=None, on_click=lambda: self.resize(-1))
-                            .props("ripple=false")
+                            .props('ripple=false aria-label="Quitar fila y columna"')
                             .classes("btn-neo-icon w-8 h-8 p-0 flex-shrink-0")
                             .tooltip("Quitar fila y columna")
                         )
@@ -78,7 +78,7 @@ class SquareMatrixPanel:
                         )
                         self.btn_inc = (
                             ui.button(icon="add", color=None, on_click=lambda: self.resize(+1))
-                            .props("ripple=false")
+                            .props('ripple=false aria-label="Añadir fila y columna"')
                             .classes("btn-neo-icon w-8 h-8 p-0 flex-shrink-0")
                             .tooltip("Añadir fila y columna")
                         )
@@ -375,5 +375,8 @@ class SquareMatrixPanel:
         try:
             self.set_data(matrix_rows)
             ui.notify(f"Matriz {rows_count}×{rows_count} pegada correctamente.", type="positive")
-        except Exception as e:
-            ui.notify(f"Error al cargar la matriz: {e}", type="negative")
+        except ValueError as e:
+            ui.notify(str(e), type="negative")
+        except Exception:
+            logger.exception("Error inesperado al cargar la matriz")
+            ui.notify("No se pudo cargar la matriz. Revisa los datos e inténtalo de nuevo.", type="negative")

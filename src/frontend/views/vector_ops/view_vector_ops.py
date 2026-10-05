@@ -1,7 +1,10 @@
 """Vista principal de Operaciones con Vectores en Scalaris."""
 import json
 import asyncio
+import logging
 from nicegui import ui
+
+logger = logging.getLogger(__name__)
 from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
@@ -205,8 +208,9 @@ class VectorOpsUI(VectorOpsResultsMixin):
 
             ui.run_javascript("setTimeout(() => { if(window.typesetMathWhenReady) window.typesetMathWhenReady(); }, 100);")
 
-        except Exception as e:
-            ui.notify(f"Error inesperado: {str(e)}", type='negative')
+        except Exception:
+            logger.exception("Error inesperado al calcular operaciones con vectores")
+            ui.notify("Ocurrió un error inesperado al procesar el cálculo. Inténtalo de nuevo.", type='negative')
         finally:
             self.btn_calculate.enable()
             self.btn_calculate.props(remove='loading')

@@ -1,7 +1,12 @@
 """Feature flags del frontend de Scalaris.
 
-Evalúa variables de entorno en tiempo de llamada para controlar
-la activación progresiva de capacidades en fases posteriores.
+Controla la activación progresiva y el rollback de componentes principales:
+- SCALARIS_NAV: Barra de navegación y taxonomía v2 (por defecto: True).
+- SCALARIS_DOCK: Dock lateral de Glosa (por defecto: True).
+- SCALARIS_PROACTIVE: Sugerencias proactivas y follow-ups de Glosa (por defecto: True).
+
+Valores '0', 'false', 'off' o 'no' (insensibles a mayúsculas/minúsculas) las desactivan,
+sirviendo como mecanismo de rollback ante incidencias.
 """
 from __future__ import annotations
 
@@ -34,10 +39,10 @@ def nav_v2() -> bool:
 
 
 def dock_enabled() -> bool:
-    """Indica si el dock de Glosa está habilitado (por defecto: False)."""
-    return _parse_bool_env("SCALARIS_DOCK", default=False)
+    """Indica si el dock de Glosa está habilitado (por defecto: True)."""
+    return _parse_bool_env("SCALARIS_DOCK", default=True)
 
 
 def proactive_enabled() -> bool:
-    """Indica si el modo proactivo de sugerencias está habilitado (por defecto: False)."""
-    return _parse_bool_env("SCALARIS_PROACTIVE", default=False)
+    """Indica si el modo proactivo de sugerencias está habilitado (por defecto: True)."""
+    return _parse_bool_env("SCALARIS_PROACTIVE", default=True)

@@ -73,6 +73,9 @@ class OpenRouterIA:
     def ask(self, question: str, history: list = None, *, context_block: str = None, 
             cancel: threading.Event = None, cacheable: bool = False, simpler: bool = False) -> AIResult:
         
+        if cancel and cancel.is_set():
+            return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED)
+
         if not self.api_key:
             return AIResult(False, "Glosa no está configurada en este servidor. Avisa a quien administra Scalaris.", AIErrorKind.NO_KEY)
 

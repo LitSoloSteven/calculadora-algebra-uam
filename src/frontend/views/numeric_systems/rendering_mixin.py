@@ -24,12 +24,12 @@ class NumericSystemsRenderingMixin:
                         icon='swap_vert',
                         on_click=lambda e, b=id_base: self._swap_base(b),
                         color=None
-                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Usar como entrada')
+                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Usar como entrada"').tooltip('Usar como entrada')
                     ui.button(
                         icon='content_copy',
                         on_click=lambda e, b=id_base: self._copiar_resultado(b, e.sender),
                         color=None
-                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Copiar')
+                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Copiar"').tooltip('Copiar')
 
             self.ui_valores[id_base] = ui.label('0').classes(
                 'text-2xl font-mono text-main break-all tracking-wide transition-opacity duration-300'

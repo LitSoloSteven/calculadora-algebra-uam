@@ -173,12 +173,12 @@ class VectorCapturePanel:
                     
                     from functools import partial
                     with ui.row().classes('gap-2 items-center'):
-                        self.btn_dim_dec = ui.button(icon='remove', on_click=partial(self.adjust_dimension, delta=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
+                        self.btn_dim_dec = ui.button(icon='remove', on_click=partial(self.adjust_dimension, delta=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Reducir dimensión"').tooltip('Reducir dimensión')
                         if self.dim <= 1: self.btn_dim_dec.disable()
                         
                         self.lbl_dim = ui.label(str(self.dim)).classes('font-bold w-4 text-center')
                         
-                        self.btn_dim_inc = ui.button(icon='add', on_click=partial(self.adjust_dimension, delta=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false')
+                        self.btn_dim_inc = ui.button(icon='add', on_click=partial(self.adjust_dimension, delta=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Aumentar dimensión"').tooltip('Aumentar dimensión')
                         if self.dim >= 10: self.btn_dim_inc.disable()
                         
                     if len(self.vectors) < self.max_vectors:
@@ -207,10 +207,10 @@ class VectorCapturePanel:
                             if self.allow_orientation_toggle:
                                 icon = "swap_vert" if v["orientation"] == "column" else "swap_horiz"
                                 tooltip = "Fila/Columna"
-                                v['btn_toggle'] = ui.button(icon=icon, on_click=partial(self.toggle_orientation, name), color=None).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip(tooltip)
+                                v['btn_toggle'] = ui.button(icon=icon, on_click=partial(self.toggle_orientation, name), color=None).classes('btn-ghost w-8 h-8 p-0 text-sec').props(f'ripple=false aria-label="{tooltip}"').tooltip(tooltip)
 
                             if len(self.vectors) > self.min_vectors and name != self.first_vector_fixed_label:
-                                ui.button(icon='delete', on_click=partial(self.remove_vector, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2').style('color: var(--error)').props('ripple=false').tooltip('Eliminar Vector')
+                                ui.button(icon='delete', on_click=partial(self.remove_vector, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2').style('color: var(--error)').props('ripple=false aria-label="Eliminar Vector"').tooltip('Eliminar Vector')
 
                     v['ui_container'] = ui.column().classes('w-full')
                     self.render_vector_grid(name)

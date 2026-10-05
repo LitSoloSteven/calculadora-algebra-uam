@@ -72,13 +72,13 @@ class EquationGrid:
             # Controles inline de filas (Se añade color=None)
             from functools import partial
             with ui.column().classes('gap-2 mt-12 items-center justify-center mr-2'):
-                self.btn_m_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_m=1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Añadir Ecuación')
-                self.btn_m_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_m=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Quitar Ecuación')
+                self.btn_m_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_m=1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false aria-label="Añadir Ecuación"').tooltip('Añadir Ecuación')
+                self.btn_m_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_m=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false aria-label="Quitar Ecuación"').tooltip('Quitar Ecuación')
 
         # Controles inline de columnas (Se añade color=None)
         with ui.row().classes('w-full justify-center gap-2 mt-4'):
-            self.btn_n_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_n=1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Añadir Variable')
-            self.btn_n_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_n=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false').tooltip('Quitar Variable')
+            self.btn_n_inc = ui.button(icon='add', on_click=partial(self.adjust_size, delta_n=1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false aria-label="Añadir Variable"').tooltip('Añadir Variable')
+            self.btn_n_dec = ui.button(icon='remove', on_click=partial(self.adjust_size, delta_n=-1), color=None).classes('btn-neo-icon w-8 h-8 p-0 flex-shrink-0').props('ripple=false aria-label="Quitar Variable"').tooltip('Quitar Variable')
             
         self.generar_cuadricula()
 

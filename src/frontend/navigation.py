@@ -39,6 +39,7 @@ class LegacyRedirect:
     path: str
     target_route: str
     fixed_query: tuple[tuple[str, str], ...] = ()
+    permanent: bool = True
 
 
 # --- Constantes y Taxonomía Base ---
@@ -238,11 +239,11 @@ def legacy_redirects() -> tuple[LegacyRedirect, ...]:
     redirects: list[LegacyRedirect] = []
 
     if not hub_active:
-        redirects.append(LegacyRedirect(path="/", target_route="/algebra-lineal/sistemas"))
-        redirects.append(LegacyRedirect(path="/ia", target_route="/algebra-lineal/sistemas"))
+        redirects.append(LegacyRedirect(path="/", target_route="/algebra-lineal/sistemas", permanent=False))
+        redirects.append(LegacyRedirect(path="/ia", target_route="/algebra-lineal/sistemas", permanent=False))
     else:
         # En F2 con Hub activado: '/' es la página Hub y '/ia' va a '/?glosa=1'
-        redirects.append(LegacyRedirect(path="/ia", target_route="/", fixed_query=(("glosa", "1"),)))
+        redirects.append(LegacyRedirect(path="/ia", target_route="/", fixed_query=(("glosa", "1"),), permanent=True))
 
     redirects.extend([
         LegacyRedirect(path="/sistemas-lineales", target_route="/algebra-lineal/sistemas"),

@@ -29,7 +29,8 @@ def register_legacy_redirects(target_app) -> None:
             async def _handler(request: Request) -> RedirectResponse:
                 incoming_items = request.query_params.multi_items()
                 target_url = redirect_location(current_rule, incoming_items)
-                return RedirectResponse(target_url, status_code=302)
+                status_code = 301 if current_rule.permanent else 302
+                return RedirectResponse(target_url, status_code=status_code)
             return _handler
 
         target_app.get(rule.path)(_make_handler(rule))

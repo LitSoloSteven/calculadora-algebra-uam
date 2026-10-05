@@ -1,9 +1,13 @@
 import json
+import logging
+from src.backend.exceptions import AlgebraLinealError
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
 from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.vector_ops._shared import parse_payload
+
+logger = logging.getLogger(__name__)
 
 def build_vector_from_dict(vec_dict: dict) -> Matrix:
     orientation = vec_dict.get("orientation", "column")
@@ -45,8 +49,11 @@ class VectorOpsController:
             res.pop("result_matrix", None)
                 
             return json.dumps(res, cls=MatrixEncoder)
-        except Exception as e:
+        except (AlgebraLinealError, ValueError) as e:
             return json.dumps({"status": "ERROR", "message": str(e)})
+        except Exception:
+            logger.exception("Error inesperado en process_add_subtract")
+            return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la operación. Inténtalo de nuevo."})
 
     @staticmethod
     def process_scalar_multiply(payload_str: str) -> str:
@@ -70,8 +77,11 @@ class VectorOpsController:
             res.pop("result_matrix", None)
             
             return json.dumps(res, cls=MatrixEncoder)
-        except Exception as e:
+        except (AlgebraLinealError, ValueError) as e:
             return json.dumps({"status": "ERROR", "message": str(e)})
+        except Exception:
+            logger.exception("Error inesperado en process_scalar_multiply")
+            return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la multiplicación por escalar. Inténtalo de nuevo."})
 
     @staticmethod
     def process_linear_combination(payload_str: str) -> str:
@@ -112,5 +122,8 @@ class VectorOpsController:
                         step.pop("matrix", None)
             
             return json.dumps(res, cls=MatrixEncoder)
-        except Exception as e:
+        except (AlgebraLinealError, ValueError) as e:
             return json.dumps({"status": "ERROR", "message": str(e)})
+        except Exception:
+            logger.exception("Error inesperado en process_linear_combination")
+            return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al resolver la combinación lineal. Inténtalo de nuevo."})

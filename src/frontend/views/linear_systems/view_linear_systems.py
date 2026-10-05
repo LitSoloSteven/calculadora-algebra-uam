@@ -101,10 +101,10 @@ class LinearSystemsUI(
                                 with ui.row().classes('gap-2 ml-auto'):
                                     ui.button(icon='remove', on_click=self.remove_eq, color=None).classes(
                                         'btn-neo-icon w-8 h-8 p-0'
-                                    ).props('ripple=false')
+                                    ).props('ripple=false aria-label="Quitar ecuación"').tooltip('Quitar ecuación')
                                     ui.button(icon='add', on_click=self.add_eq, color=None).classes(
                                         'btn-neo-icon w-8 h-8 p-0'
-                                    ).props('ripple=false')
+                                    ).props('ripple=false aria-label="Añadir ecuación"').tooltip('Añadir ecuación')
 
                             self.contenedor_ecuaciones_lista = ui.column().classes('w-full')
                             self.render_ecuaciones()
@@ -112,7 +112,7 @@ class LinearSystemsUI(
                     with ui.row().classes('w-full mt-6 gap-4'):
                         ui.button(
                             icon='delete', on_click=self.confirmar_limpieza, color=None
-                        ).classes('btn-ghost flex-1 py-3').props('ripple=false id="btn-limpiar-main"').tooltip('Limpiar')
+                        ).classes('btn-ghost flex-1 py-3').props('ripple=false id="btn-limpiar-main" aria-label="Limpiar"').tooltip('Limpiar')
                         ui.button(
                             'Resolver', on_click=lambda e: self.resolver_sistema(e.sender), color=None
                         ).classes('btn-primary flex-[2] py-3').props('ripple=false')
@@ -201,9 +201,9 @@ class LinearSystemsUI(
                 }
                 
         if empty:
-            return AIContext("sistemas", "Sistemas Lineales", label, {}, empty=True)
+            return AIContext("sistemas", "Sistemas de ecuaciones", label, {}, empty=True)
             
-        ctx = AIContext("sistemas", "Sistemas Lineales", label, input_data)
+        ctx = AIContext("sistemas", "Sistemas de ecuaciones", label, input_data)
         if "A" in input_data and "b" in input_data:
             ctx.window_note = window_note_from(input_data["A"], input_data["b"])
         

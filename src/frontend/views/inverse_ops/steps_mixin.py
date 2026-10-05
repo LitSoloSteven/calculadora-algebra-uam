@@ -97,31 +97,31 @@ class InverseOpsStepsMixin:
                             icon='first_page',
                             color=None,
                             on_click=lambda: self._goto_step(0),
-                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false').tooltip('Primer paso')
+                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false aria-label="Primer paso"').tooltip('Primer paso')
 
                         ui.button(
                             icon='chevron_left',
                             color=None,
                             on_click=lambda: self._goto_step(self.current_step - 1),
-                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false').tooltip('Paso anterior')
+                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false aria-label="Paso anterior"').tooltip('Paso anterior')
 
                         self.btn_play = ui.button(
                             icon='play_arrow',
                             color=None,
                             on_click=self._toggle_play,
-                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false').tooltip('Reproducción automática')
+                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false aria-label="Reproducción automática"').tooltip('Reproducción automática')
 
                         ui.button(
                             icon='chevron_right',
                             color=None,
                             on_click=lambda: self._goto_step(self.current_step + 1),
-                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false').tooltip('Paso siguiente')
+                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false aria-label="Paso siguiente"').tooltip('Paso siguiente')
 
                         ui.button(
                             icon='last_page',
                             color=None,
                             on_click=lambda: self._goto_step(n_steps - 1),
-                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false').tooltip('Último paso')
+                        ).classes('btn-neo-icon w-9 h-9 p-0').props('ripple=false aria-label="Último paso"').tooltip('Último paso')
 
                         ui.select(
                             list(AUTOPLAY_SPEEDS.keys()),

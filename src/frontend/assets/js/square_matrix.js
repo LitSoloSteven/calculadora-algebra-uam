@@ -1,17 +1,17 @@
 /** Scalaris — SquareMatrixPanel: animaciones de redimensionado y utilidades de la vista Matriz Inversa */
 window.animateSquareResize = function (matrixId, idx, mode) {
   return new Promise(resolve => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { resolve(); return; }
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : matchMedia('(prefers-reduced-motion: reduce)').matches) { resolve(); return; }
     const sel = `input[data-matrix-id="${matrixId}"][data-matrix-row="${idx}"], input[data-matrix-id="${matrixId}"][data-matrix-col="${idx}"]`;
     const frames = mode === 'remove'
       ? [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.85) translateY(-8px)' }]
       : [{ opacity: 0, transform: 'scale(0.85) translateY(8px)' }, { opacity: 1, transform: 'scale(1)' }];
     const inputs = document.querySelectorAll(sel);
-    const step = Math.min(25, 300 / Math.max(inputs.length, 1)); // tope: el stagger total nunca supera ~300 ms
+    const step = Math.min(15, 120 / Math.max(inputs.length, 1)); // stagger con delay+duración <= 250 ms
     const anims = [];
     inputs.forEach((input, i) => {
       const ctrl = input.closest('.q-field__control');
-      if (ctrl) anims.push(ctrl.animate(frames, { duration: 240, delay: i * step, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }).finished);
+      if (ctrl) anims.push(ctrl.animate(frames, { duration: 120, delay: i * step, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }).finished);
     });
     Promise.all(anims).then(resolve).catch(resolve);
   });
@@ -19,9 +19,9 @@ window.animateSquareResize = function (matrixId, idx, mode) {
 
 window.flashStepCard = function (elId) {
   const el = document.getElementById(elId);
-  if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!el || (window.scalarisMotionOK ? !window.scalarisMotionOK() : matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
   el.animate([{ opacity: 0.55, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }],
-             { duration: 180, easing: 'cubic-bezier(0.32,0.72,0,1)' });
+             { duration: 180, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
 };
 
 window.shakeMatrixCell = function (matrixId, r, c) {

@@ -256,7 +256,8 @@ class LinearSystemsResultsMixin:
 
                     if respuesta.get("solution"):
                         for idx, val in enumerate(respuesta["solution"]):
-                            var_name = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
+                            raw_var = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
+                            var_name = html.escape(str(raw_var))
                             m = re.match(r'^([a-zA-Z]+)(\d+)$', var_name)
                             if m:
                                 html_var = f"<i>{m.group(1)}</i><sub>{m.group(2)}</sub>"

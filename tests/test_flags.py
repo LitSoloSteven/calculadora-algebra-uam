@@ -11,8 +11,8 @@ def test_flags_defaults(monkeypatch):
     monkeypatch.delenv("SCALARIS_PROACTIVE", raising=False)
 
     assert nav_v2() is True
-    assert dock_enabled() is False
-    assert proactive_enabled() is False
+    assert dock_enabled() is True
+    assert proactive_enabled() is True
 
 
 @pytest.mark.parametrize("truthy", ["1", "true", "True", "TRUE", "on", "ON", "yes", "YES"])
@@ -47,5 +47,5 @@ def test_flags_invalid_values_fallback_to_defaults(monkeypatch, invalid):
     monkeypatch.setenv("SCALARIS_PROACTIVE", invalid)
 
     assert nav_v2() is True  # default True
-    assert dock_enabled() is False  # default False
-    assert proactive_enabled() is False  # default False
+    assert dock_enabled() is True  # default True
+    assert proactive_enabled() is True  # default True

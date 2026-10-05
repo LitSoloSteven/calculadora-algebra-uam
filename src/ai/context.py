@@ -162,7 +162,27 @@ def is_stale(current_input: Any, result_fp: str | None) -> bool:
         return False
     return fingerprint(current_input) != result_fp
 
-def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
+def _build_minimal_fallback(tool: str, view: str, max_chars: int) -> str:
+    t = clip_text(str(tool or ""), 60)
+    v = clip_text(str(view or ""), 60)
+    min_dict = {
+        "v": 1,
+        "tool": t,
+        "view": v,
+        "meta": {"truncated": True}
+    }
+    min_json = json.dumps(min_dict, ensure_ascii=False, separators=(',', ':'))
+    if len(min_json) > max_chars:
+        base_len = len('{"v":1,"tool":"","view":"","meta":{"truncated":true}}')
+        avail = max(0, max_chars - base_len)
+        t_len = min(len(t), avail // 2)
+        v_len = min(len(v), avail - t_len)
+        min_dict["tool"] = t[:t_len]
+        min_dict["view"] = v[:v_len]
+        min_json = json.dumps(min_dict, ensure_ascii=False, separators=(',', ':'))
+    return f"[CONTEXTO]\n{min_json}\n[/CONTEXTO]"
+
+def _serialize_context_core(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
     import copy
     working_ctx = copy.deepcopy(ctx)
     
@@ -192,6 +212,10 @@ def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
         meta = {}
         if c.window_note:
             meta["window"] = c.window_note
+        elif isinstance(c.input, dict):
+            wn = window_note_from(*c.input.values())
+            if wn:
+                meta["window"] = wn
         if c.stale:
             meta["stale"] = True
         if truncated:
@@ -288,6 +312,20 @@ def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
             for k in d:
                 d[k] = d[k][:4]
         
-        working_ctx.focus.cols = None
+        import dataclasses
+        working_ctx.focus = dataclasses.replace(working_ctx.focus, cols=None)
+        res_str = get_str(working_ctx, is_truncated)
+        if len(res_str) <= max_chars:
+            return res_str
                 
-    return get_str(working_ctx, is_truncated)
+    res_str = get_str(working_ctx, is_truncated)
+    if len(res_str) <= max_chars:
+        return res_str
+
+    return _build_minimal_fallback(working_ctx.tool, working_ctx.view, max_chars)
+
+def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
+    try:
+        return _serialize_context_core(ctx, max_chars=max_chars)
+    except Exception:
+        return _build_minimal_fallback(getattr(ctx, 'tool', ''), getattr(ctx, 'view', ''), max_chars)

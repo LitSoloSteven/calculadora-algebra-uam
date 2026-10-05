@@ -83,7 +83,7 @@
 
 window.animateVectorDimensionRemoval = function (idxRemove) {
   return new Promise(resolve => {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       return resolve();
     }
     let cells = document.querySelectorAll(`input[data-vec-idx='${idxRemove}']`);
@@ -94,7 +94,7 @@ window.animateVectorDimensionRemoval = function (idxRemove) {
         anims.push(control.animate(
           [{ opacity: 1, transform: 'scale(1)' },
           { opacity: 0, transform: 'scale(0.85) translateY(-8px)' }],
-          { duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          { duration: 120, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });
@@ -108,7 +108,7 @@ window.animateVectorDimensionRemoval = function (idxRemove) {
 
 window.animateVectorDimensionAddition = function (idxAdd) {
   return new Promise(resolve => {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       return resolve();
     }
     let cells = document.querySelectorAll(`input[data-vec-idx='${idxAdd}']`);
@@ -119,7 +119,7 @@ window.animateVectorDimensionAddition = function (idxAdd) {
         anims.push(control.animate(
           [{ opacity: 0, transform: 'scale(0.85) translateY(8px)' },
           { opacity: 1, transform: 'scale(1)' }],
-          { duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          { duration: 120, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });
