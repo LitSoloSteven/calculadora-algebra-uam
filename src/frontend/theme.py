@@ -7,6 +7,7 @@ CHART_MARKER_BORDER = '#23262E'
 CHART_GRID_COLOR = 'rgba(128,128,128,0.2)'
 CHART_ZERO_COLOR = 'rgba(128,128,128,0.5)'
 CHART_FONT_COLOR = {'papel': '#23262E', 'marea': '#0B1F33', 'medianoche': '#EAF6FF'}
+CHART_SOLUTION_COLOR = '#E11D48'
 
 _HEAD_HTML = """
     <!-- Prevenir FOUC (Flash of Unstyled Content) de tema claro -->
@@ -39,8 +40,33 @@ _HEAD_HTML = """
     <!-- Scripts de interactividad y tema -->
     <script src="/assets/js/theme.js"></script>
     <script src="/assets/js/app.js"></script>
+    <script src="/assets/js/hub.js"></script>
+"""
+
+from src.frontend import flags
+
+_DOCK_HEAD_HTML = """
+    <!-- Pre-paint de Glosa -->
+    <script>
+    try {
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+            const state = localStorage.getItem('scalaris:glosa');
+            if (state === 'open') {
+                document.documentElement.setAttribute('data-glosa', 'open');
+            } else {
+                document.documentElement.setAttribute('data-glosa', 'closed');
+            }
+        } else {
+            document.documentElement.setAttribute('data-glosa', 'closed');
+        }
+    } catch(e) {}
+    </script>
+    <script src="/assets/js/glosa_dock.js"></script>
+    <script src="/assets/js/layout_sync.js"></script>
 """
 
 def setup_theme():
     """Configura fuentes, hojas de estilo, MathJax y scripts globales."""
     ui.add_head_html(_HEAD_HTML)
+    if flags.dock_enabled():
+        ui.add_head_html(_DOCK_HEAD_HTML)

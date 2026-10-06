@@ -6,6 +6,7 @@ from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.linear_systems._shared import (
     parse_payload,
     validate_and_build_augmented,
+    build_steps_meta,
 )
 
 
@@ -27,8 +28,10 @@ class MatrixController:
         result = solver.solve()
 
         # --- Formateo de la respuesta ---
+        raw_steps = result.get("steps", [])
+        steps_meta = build_steps_meta(raw_steps)
         intermediate_steps_latex = []
-        for step in result.get("steps", []):
+        for step in raw_steps:
             intermediate_steps_latex.append({
                 "descripcion": step["description"],
                 "matriz": matrix_to_latex(step["matrix"])
@@ -50,6 +53,7 @@ class MatrixController:
             "message": result.get("message"),
             "solution": solution,
             "intermediate_steps_latex": intermediate_steps_latex,
+            "steps_meta": steps_meta,
             "back_substitution_steps": result.get("back_substitution_steps", []),
             "verification_steps_latex": verification_steps_latex
         }

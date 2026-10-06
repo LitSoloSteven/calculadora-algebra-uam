@@ -11,6 +11,7 @@ from fractions import Fraction
 from src.backend.models.matrix import Matrix
 from src.backend.utils.validators import MatrixValidator
 from src.backend.solvers.linear_systems.gauss import GaussSolver
+from src.backend.solvers.matrix_ops.inverse import MatrixInverseSolver
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
 from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
 
@@ -291,6 +292,56 @@ def test_vector_ops_add_subtract_scalar_full_vector():
     print(">>> ¡Validación de vector completo en Suma, Resta y Escalar exitosa!")
 
 
+def test_matrix_inverse_solver():
+    print("\n==================================================")
+    print(" PRUEBA DEL MÓDULO BACKEND: MATRIZ INVERSA        ")
+    print("==================================================")
+
+    solver = MatrixInverseSolver()
+
+    # 1. Caso invertible 2x2
+    mat_2x2 = Matrix(2, 2, [[1, 2], [3, 4]])
+    res_2x2 = solver.solve(mat_2x2)
+    assert res_2x2["status"] == "SUCCESS"
+    assert res_2x2["determinant"] == Fraction(-2)
+    assert res_2x2["inverse"].data == [
+        [Fraction(-2), Fraction(1)],
+        [Fraction(3, 2), Fraction(-1, 2)],
+    ]
+    assert res_2x2["verification_step"]["coincide"] is True
+    assert res_2x2["verification_reverse_step"]["coincide"] is True
+    assert res_2x2["transpose_property_step"]["coincide"] is True
+    assert len(res_2x2["steps"]) > 0
+    assert all(s["detail_latex"] is not None for s in res_2x2["steps"])
+
+    # 2. Caso singular 2x2
+    mat_sing = Matrix(2, 2, [[1, 2], [2, 4]])
+    res_sing = solver.solve(mat_sing)
+    assert res_sing["status"] == "SINGULAR"
+    assert res_sing["determinant"] == 0
+    assert res_sing["inverse"] is None
+
+    # 3. Caso 1x1
+    mat_1x1 = Matrix(1, 1, [[5]])
+    res_1x1 = solver.solve(mat_1x1)
+    assert res_1x1["status"] == "SUCCESS"
+    assert res_1x1["inverse"].data == [[Fraction(1, 5)]]
+
+    # 4. Caso no cuadrada 2x3
+    mat_2x3 = Matrix(2, 3, [[1, 2, 3], [4, 5, 6]])
+    res_2x3 = solver.solve(mat_2x3)
+    assert res_2x3["status"] == "ERROR"
+
+    # 5. build_step_latex=False
+    res_no_latex = solver.solve(mat_2x2, build_step_latex=False)
+    assert res_no_latex["status"] == "SUCCESS"
+    assert res_no_latex["inverse"].data == res_2x2["inverse"].data
+    assert len(res_no_latex["steps"]) > 0
+    assert all(s["detail_latex"] is None for s in res_no_latex["steps"])
+
+    print(">>> ¡Validación de MatrixInverseSolver exitosa!")
+
+
 if __name__ == "__main__":
     test_gauss_module()
     run_fraction_test()
@@ -298,3 +349,4 @@ if __name__ == "__main__":
     test_linear_combination_fraction_coefficients()
     test_linear_combination_single_vector()
     test_vector_ops_add_subtract_scalar_full_vector()
+    test_matrix_inverse_solver()

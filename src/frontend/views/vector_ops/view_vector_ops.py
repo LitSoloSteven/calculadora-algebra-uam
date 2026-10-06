@@ -1,8 +1,12 @@
 """Vista principal de Operaciones con Vectores en Scalaris."""
 import json
 import asyncio
+import logging
 from nicegui import ui
-from src.frontend.components.navbar import create_navbar
+
+logger = logging.getLogger(__name__)
+from src.frontend.components.app_shell import create_app_shell
+from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.components.vector_capture import VectorCapturePanel
 from src.frontend.controllers.vector_ops.controller_vector_ops import VectorOpsController
@@ -39,11 +43,19 @@ class VectorOpsUI(VectorOpsResultsMixin):
             'scalar': self.panel_scalar,
             'lin_comb': self.panel_lin_comb
         }
+        self.panel_add_sub.on_data_change = self._on_vectors_change
+        self.panel_scalar.on_data_change = self._on_vectors_change
+        self.panel_lin_comb.on_data_change = self._on_vectors_change
 
         # Estado de pestañas específicas
         self.add_sub_operation = 'add'
         self.add_sub_strict = False
         self.scalar_value = "2"
+
+    def _on_vectors_change(self):
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     @property
     def vector_panel(self):
@@ -51,17 +63,17 @@ class VectorOpsUI(VectorOpsResultsMixin):
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/vectores')
+        create_app_shell(self, active_route=route_of('vectores'))
         ui.add_head_html('<script>if(window.typesetMathWhenReady){window.typesetMathWhenReady();}</script>')
 
         self.panel_add_sub.inject_scripts()
 
-        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4'):
-            with ui.row().classes('w-full flex-col lg:flex-row items-stretch gap-8 mb-8'):
+        with ui.column().classes('w-full max-w-7xl mx-auto p-6 mt-4 view-root'):
+            with ui.element('div').classes('layout-split mb-8'):
                 # --- PANEL IZQUIERDO (Entrada) ---
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1 p-8 bg-[var(--bg-page)]').style('scroll-behavior: smooth;') as self.left_panel:
+                with ui.column().classes('layout-pane p-8 bg-[var(--bg-page)]').style('scroll-behavior: smooth;') as self.left_panel:
                     with ui.row().classes('w-full justify-between items-center mb-8 gap-4 flex-wrap'):
-                        with ui.tabs().classes('neo-tabs method-tabs').props('dense no-caps').style('max-width: 560px !important') as self.method_tabs:
+                        with ui.tabs().classes('neo-tabs method-tabs').props('dense no-caps mobile-arrows').style('max-width: 560px !important') as self.method_tabs:
                             ui.tab('add_sub', label='Suma / Resta')
                             ui.tab('scalar', label='Escalar × Vector')
                             ui.tab('lin_comb', label='Combinación Lineal')
@@ -78,12 +90,12 @@ class VectorOpsUI(VectorOpsResultsMixin):
                                     self.op_select = ui.select(
                                         {'add': 'Suma', 'subtract': 'Resta'},
                                         value=self.add_sub_operation,
-                                        on_change=lambda e: setattr(self, 'add_sub_operation', e.value)
+                                        on_change=lambda e: (setattr(self, 'add_sub_operation', e.value), self._on_vectors_change())
                                     ).classes('neo-select w-44').props('popup-content-class="neo-select-menu"')
                                 self.strict_check = ui.checkbox(
                                     'Estricto (No auto-transponer)',
                                     value=self.add_sub_strict,
-                                    on_change=lambda e: setattr(self, 'add_sub_strict', e.value)
+                                    on_change=lambda e: (setattr(self, 'add_sub_strict', e.value), self._on_vectors_change())
                                 ).classes('neo-checkbox')
 
                             self.panel_add_sub.build_container()
@@ -94,7 +106,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
                                 ui.label('Escalar (k):').classes('font-bold')
                                 self.scalar_input = ui.input(
                                     value=self.scalar_value,
-                                    on_change=lambda e: setattr(self, 'scalar_value', e.value)
+                                    on_change=lambda e: (setattr(self, 'scalar_value', e.value), self._on_vectors_change())
                                 ).classes('w-32 matrix-input').props('borderless')
 
                             self.panel_scalar.build_container()
@@ -110,7 +122,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
                         self.btn_calculate = ui.button('Calcular', icon='calculate', on_click=self.calculate, color=None).classes('btn-primary px-8 py-2 font-bold')
 
                 # --- PANEL DERECHO (Resultados) ---
-                with ui.column().classes('w-full lg:w-1/2 lg:flex-1 p-8 bg-[var(--bg-page)]') as self.right_panel:
+                with ui.column().classes('layout-pane p-8 bg-[var(--bg-page)]') as self.right_panel:
                     self.render_empty_state()
 
         self.ai_panel.build()
@@ -120,6 +132,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
             return
         self.active_op = e.value
         self.render_empty_state()
+        self._on_vectors_change()
 
     async def clear_all(self):
         is_empty = all(not any(str(val).strip() for val in v['cache'].values()) for v in self.vector_panel.vectors.values())
@@ -127,8 +140,10 @@ class VectorOpsUI(VectorOpsResultsMixin):
             ui.notify('No hay datos para limpiar', type='warning')
             return
 
-        ui.run_javascript("if(window.animateGarbageCollection) window.animateGarbageCollection();")
-        await asyncio.sleep(0.8)
+        try:
+            await ui.run_javascript('return window.animateGarbageCollection()', timeout=2.0)
+        except Exception:
+            pass
         self.vector_panel.clear()
         if self.active_op == 'scalar':
             self.scalar_value = "2"
@@ -182,10 +197,104 @@ class VectorOpsUI(VectorOpsResultsMixin):
             self.current_result = res
             self.render_result(res)
 
+            from src.ai.context import fingerprint
+            entrada = {
+                "op": self.active_op,
+                "vectors": {k: dict(v.get('cache', {})) for k, v in self.vector_panel.vectors.items()},
+                "scalar": self.scalar_value,
+                "add_sub_op": self.add_sub_operation,
+                "strict": self.add_sub_strict
+            }
+            self._result_fp = fingerprint(entrada)
+            self._on_vectors_change()
+
             ui.run_javascript("setTimeout(() => { if(window.typesetMathWhenReady) window.typesetMathWhenReady(); }, 100);")
 
-        except Exception as e:
-            ui.notify(f"Error inesperado: {str(e)}", type='negative')
+        except Exception:
+            logger.exception("Error inesperado al calcular operaciones con vectores")
+            ui.notify("Ocurrió un error inesperado al procesar el cálculo. Inténtalo de nuevo.", type='negative')
         finally:
             self.btn_calculate.enable()
             self.btn_calculate.props(remove='loading')
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
+        try:
+            vecs = self.vector_panel.get_vectors_dict()
+        except Exception:
+            vecs = {}
+            
+        empty = not bool(vecs)
+        if empty:
+            return AIContext("vector_ops", "Vectores", "Operaciones Vectoriales", {}, empty=True)
+            
+        input_data = {}
+        for k, v in vecs.items():
+            if "data" in v:
+                sanitized_data = [[sanitize_user_string(str(x), 32)] for x in v["data"]]
+                input_data[k] = describe_matrix(sanitized_data)
+                input_data[k]["orientation"] = v.get("orientation", "column")
+                
+        ctx = AIContext("vector_ops", "Vectores", f"Operación: {self.active_op}", input_data)
+        
+        entrada_actual = {
+            "op": self.active_op,
+            "vectors": {k: dict(v.get('cache', {})) for k, v in self.vector_panel.vectors.items()},
+            "scalar": self.scalar_value,
+            "add_sub_op": self.add_sub_operation,
+            "strict": self.add_sub_strict
+        }
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        
+        if getattr(self, 'current_result', None):
+            if ctx.stale:
+                ctx.result = None
+            else:
+                res = self.current_result
+                ctx.result = {
+                    "status": res.get("status", "ERROR"),
+                    "message": res.get("message", "")
+                }
+                if res.get("result_vector"):
+                    ctx.result["result_vector"] = res["result_vector"]
+                if res.get("is_linear_combination") is not None:
+                    ctx.result["is_linear_combination"] = res["is_linear_combination"]
+                    
+        return ctx
+
+    def focus_cell(self, focus):
+        if hasattr(self.vector_panel, 'flash_cell'):
+            self.vector_panel.flash_cell(focus[0], focus[1])
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, first_invalid_cell
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            orients = set()
+            items = []
+            for idx, (name, vec) in enumerate(self.vector_panel.vectors.items()):
+                orients.add(vec['orientation'])
+                for r in range(self.vector_panel.dim):
+                    val = vec['cache'].get(r, '')
+                    items.append((f"{name}[{r+1}]", val, (idx, r)))
+            invalid = first_invalid_cell(items)
+                
+            if 'row' in orients and 'column' in orients:
+                flags.add("orient_mix")
+                
+            if self.active_op == 'scalar' and self.scalar_value.strip().startswith('-'):
+                flags.add("neg_scalar")
+                
+            res = getattr(self, 'current_result', None)
+            if res and not getattr(self.get_ai_context(), 'stale', True):
+                st = res.get("status")
+                if st == "UNIQUE": state = "unique"
+                elif st == "INFINITE": state = "infinite"
+                elif st == "NO_SOLUTION": state = "no_solution"
+                
+            return Signals(tool="vectores", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None

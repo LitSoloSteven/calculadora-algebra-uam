@@ -1,7 +1,11 @@
 /**
- * Scalaris — Splash Screen Animation Overlay
+ * Scalaris: Splash Screen Animation Overlay
  */
 (function () {
+  if (location.pathname !== '/' || (location.search && location.search !== '')) {
+    sessionStorage.setItem('splash-shown', '1');
+    return;
+  }
   if (sessionStorage.getItem('splash-shown')) return;
   sessionStorage.setItem('splash-shown', '1');
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;

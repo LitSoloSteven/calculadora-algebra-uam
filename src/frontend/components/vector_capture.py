@@ -17,6 +17,7 @@ class VectorCapturePanel:
         self.dim = 3 # Shared dimension 'n' for all vectors
         self.container = None
         self.header_container = None
+        self.on_data_change = None
         
         self.default_orientation = default_orientation
         if not allow_orientation_toggle:
@@ -24,6 +25,7 @@ class VectorCapturePanel:
 
     def inject_scripts(self):
         ui.add_head_html('<script src="/assets/js/vector_capture.js"></script>')
+        ui.add_head_html('<script src="/assets/js/square_matrix.js"></script>')
 
     def get_next_available_name(self):
         if self.first_vector_fixed_label and self.first_vector_fixed_label not in self.vectors:
@@ -57,6 +59,8 @@ class VectorCapturePanel:
             'btn_toggle': None
         }
         self.render_all_vectors()
+        if self.on_data_change:
+            self.on_data_change()
 
     def remove_vector(self, name):
         if len(self.vectors) <= self.min_vectors:
@@ -68,6 +72,8 @@ class VectorCapturePanel:
         if name in self.vectors:
             del self.vectors[name]
             self.render_all_vectors()
+            if self.on_data_change:
+                self.on_data_change()
 
     async def adjust_dimension(self, delta=0):
         new_dim = self.dim + delta
@@ -105,6 +111,9 @@ class VectorCapturePanel:
             await asyncio.sleep(0.05)
             await ui.run_javascript(f'return window.animateVectorDimensionAddition({idx_add});')
 
+        if self.on_data_change:
+            self.on_data_change()
+
     def toggle_orientation(self, name):
         if name not in self.vectors or not self.allow_orientation_toggle:
             return
@@ -134,7 +143,7 @@ class VectorCapturePanel:
         v['ui_container'].clear()
         
         with v['ui_container']:
-            container_classes = 'items-center gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-2' if v['orientation'] == 'row' else 'items-center gap-2 overflow-y-auto max-h-[300px]'
+            container_classes = 'items-center gap-2 overflow-x-auto overflow-y-hidden max-w-full pb-2 grid-scroll' if v['orientation'] == 'row' else 'items-center gap-2 overflow-y-auto max-h-[300px] grid-scroll'
             layout = ui.row() if v['orientation'] == 'row' else ui.column()
             
             with layout.classes(container_classes).style('flex-wrap: nowrap;' if v['orientation'] == 'row' else ''):
@@ -143,8 +152,10 @@ class VectorCapturePanel:
                     
                     def update_cache(e, idx=i, vec_name=name):
                         self.vectors[vec_name]['cache'][idx] = e.value
+                        if self.on_data_change:
+                            self.on_data_change()
                         
-                    ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input w-20').style('min-width: 80px; flex-shrink: 0;').props(f'data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
+                    ui.input(value=val, placeholder='', on_change=update_cache).classes('matrix-input grid-cell flex-shrink-0').props(f'id="{self.panel_id}_{name}_idx{i}" data-vec-id="{self.panel_id}_{name}" data-vec-idx="{i}" data-vec-orientation="{v["orientation"]}" borderless autocomplete="new-password" name="{self.panel_id}_{name}_idx{i}"')
 
     def _update_all_grids(self):
         for name in self.vectors:
@@ -162,12 +173,12 @@ class VectorCapturePanel:
                     
                     from functools import partial
                     with ui.row().classes('gap-2 items-center'):
-                        self.btn_dim_dec = ui.button(icon='remove', on_click=partial(self.adjust_dimension, delta=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                        self.btn_dim_dec = ui.button(icon='remove', on_click=partial(self.adjust_dimension, delta=-1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Reducir dimensión"').tooltip('Reducir dimensión')
                         if self.dim <= 1: self.btn_dim_dec.disable()
                         
                         self.lbl_dim = ui.label(str(self.dim)).classes('font-bold w-4 text-center')
                         
-                        self.btn_dim_inc = ui.button(icon='add', on_click=partial(self.adjust_dimension, delta=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs').props('ripple=false')
+                        self.btn_dim_inc = ui.button(icon='add', on_click=partial(self.adjust_dimension, delta=1), color=None).classes('btn-neo-icon w-6 h-6 p-0 min-h-0 text-xs flex-shrink-0').props('ripple=false aria-label="Aumentar dimensión"').tooltip('Aumentar dimensión')
                         if self.dim >= 10: self.btn_dim_inc.disable()
                         
                     if len(self.vectors) < self.max_vectors:
@@ -196,10 +207,10 @@ class VectorCapturePanel:
                             if self.allow_orientation_toggle:
                                 icon = "swap_vert" if v["orientation"] == "column" else "swap_horiz"
                                 tooltip = "Fila/Columna"
-                                v['btn_toggle'] = ui.button(icon=icon, on_click=partial(self.toggle_orientation, name), color=None).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip(tooltip)
+                                v['btn_toggle'] = ui.button(icon=icon, on_click=partial(self.toggle_orientation, name), color=None).classes('btn-ghost w-8 h-8 p-0 text-sec').props(f'ripple=false aria-label="{tooltip}"').tooltip(tooltip)
 
                             if len(self.vectors) > self.min_vectors and name != self.first_vector_fixed_label:
-                                ui.button(icon='delete', on_click=partial(self.remove_vector, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2').style('color: var(--error)').props('ripple=false').tooltip('Eliminar Vector')
+                                ui.button(icon='delete', on_click=partial(self.remove_vector, name), color=None).classes('btn-ghost w-8 h-8 p-0 ml-2').style('color: var(--error)').props('ripple=false aria-label="Eliminar Vector"').tooltip('Eliminar Vector')
 
                     v['ui_container'] = ui.column().classes('w-full')
                     self.render_vector_grid(name)
@@ -240,3 +251,13 @@ class VectorCapturePanel:
         for v in self.vectors.values():
             v['cache'].clear()
         self._update_all_grids()
+        if self.on_data_change:
+            self.on_data_change()
+
+    def flash_cell(self, idx: int, r: int):
+        if idx < 0 or idx >= len(self.vectors):
+            return
+        name = list(self.vectors.keys())[idx]
+        if r < 0 or r >= self.dim:
+            return
+        ui.run_javascript(f"if(window.flashElement) flashElement('{self.panel_id}_{name}_idx{r}');")

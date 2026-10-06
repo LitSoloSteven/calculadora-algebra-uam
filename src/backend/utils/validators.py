@@ -1,10 +1,34 @@
 from src.backend.models.matrix import Matrix
 from fractions import Fraction
 from typing import Any
-from src.backend.constants import SOLUTION_VERIFICATION_TOLERANCE
+from src.backend.constants import (
+    SOLUTION_VERIFICATION_TOLERANCE,
+    MAX_NUMBER_STRING_LENGTH,
+    MSG_SCI_NOTATION_NOT_SUPPORTED,
+    MSG_NUMBER_TOO_LONG,
+)
 from src.backend.exceptions import DimensionMismatchError
 
 class MatrixValidator:
+    @staticmethod
+    def _reject_unsupported_string(val_clean: str) -> str | None:
+        """Devuelve el mensaje de rechazo si el string crudo del usuario
+        debe bloquearse antes de tocar Fraction, o None si es seguro
+        parsearlo.
+
+        Razón (DoS): Fraction("1e999999999") materializa 10^999999999 y
+        bloquea el hilo. Un string de >MAX_NUMBER_STRING_LENGTH puede
+        generar enteros igual de costosos. Ambos se rechazan en O(1).
+
+        Orden de precedencia: notación científica primero (más específica),
+        longitud después. `val_clean` debe venir ya con .strip() aplicado.
+        """
+        if "e" in val_clean or "E" in val_clean:
+            return MSG_SCI_NOTATION_NOT_SUPPORTED
+        if len(val_clean) > MAX_NUMBER_STRING_LENGTH:
+            return MSG_NUMBER_TOO_LONG
+        return None
+    
     @staticmethod
     def parse_number_exact(val: Any) -> tuple[bool, Fraction, str]:
         """Parsea un valor numérico y lo devuelve como Fraction exacto.
@@ -28,14 +52,17 @@ class MatrixValidator:
             val_clean = val.strip()
             if not val_clean:
                 return False, Fraction(0), "El campo está vacío."
+
+            rejection = MatrixValidator._reject_unsupported_string(val_clean)
+            if rejection is not None:
+                return False, Fraction(0), rejection
+
             try:
                 return True, Fraction(val_clean), ""
             except ZeroDivisionError:
                 return False, Fraction(0), "División por cero en la fracción ingresada."
             except ValueError:
                 return False, Fraction(0), "El valor ingresado no es un número o fracción válida."
-
-        return False, Fraction(0), "Tipo de dato no soportado."
 
     @staticmethod
     def parse_number(val: Any) -> tuple[bool, float, str]:
@@ -130,13 +157,17 @@ class MatrixValidator:
             val_clean = val.strip()
             if not val_clean:
                 return False, Fraction(0), "El campo está vacío."
+
+            rejection = MatrixValidator._reject_unsupported_string(val_clean)
+            if rejection is not None:
+                return False, Fraction(0), rejection
+
             try:
                 return True, Fraction(val_clean), ""
             except ZeroDivisionError:
                 return False, Fraction(0), "División por cero."
             except ValueError:
                 return False, Fraction(0), f"'{val}' no es un número o fracción válida."
-        return False, Fraction(0), f"Tipo no soportado: {type(val).__name__}"
 
     @staticmethod
     def _to_fraction(val: Any) -> Fraction:

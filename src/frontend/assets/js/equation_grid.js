@@ -56,8 +56,9 @@
     container.querySelectorAll('input[data-row]').forEach(inp => {
       let isSame = (inp.dataset.row === r || inp.dataset.col === c);
       let control = inp.closest('.q-field__control');
-      if (control && isSame) {
-        control.style.background = 'color-mix(in srgb, var(--accent) 15%, var(--input-bg))';
+      if (control) {
+        if (isSame) control.classList.add('cross-hl');
+        else control.classList.remove('cross-hl');
       }
     });
   });
@@ -71,51 +72,50 @@
 
     container.querySelectorAll('input[data-row]').forEach(inp => {
       let control = inp.closest('.q-field__control');
-      if (control) control.style.background = '';
+      if (control) control.classList.remove('cross-hl');
     });
   });
 })();
 
 window.animateGridCellRemoval = function (target, isM, idxRow) {
   return new Promise(resolve => {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input${target}`);
     const anims = [];
     cells.forEach((input, i) => {
       let ctrl = input.closest('.q-field__control');
       if (ctrl) {
         anims.push(ctrl.animate(
-          [{ opacity: 1, transform: 'scale(1)', filter: 'blur(0)' },
-          { opacity: 0, transform: 'scale(0.85) translateY(-8px)', filter: 'blur(2px)' }],
-          { duration: 240, delay: i * 25, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          [{ opacity: 1, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(0.85) translateY(-8px)' }],
+          { duration: 120, delay: Math.min(i * 12, 120), easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });
-    if (isM) {
-      let rowContainer = document.querySelector(`[data-grid-row="${idxRow}"]`);
-      if (rowContainer) {
-        rowContainer.style.overflow = 'hidden';
-        anims.push(rowContainer.animate(
-          [{ height: rowContainer.offsetHeight + 'px', opacity: 1, marginTop: '0px', marginBottom: '8px' },
-          { height: '0px', opacity: 0, marginTop: '0px', marginBottom: '0px' }],
-          { duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
-        ).finished);
-      }
+    if (anims.length > 0) {
+      Promise.all(anims).then(resolve);
+    } else {
+      resolve();
     }
-    Promise.all(anims).then(resolve);
   });
 };
 
 window.animateGridCellAddition = function (target) {
   return new Promise(resolve => {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input${target}`);
     const anims = [];
     cells.forEach((input, i) => {
       let ctrl = input.closest('.q-field__control');
       if (ctrl) {
         anims.push(ctrl.animate(
-          [{ opacity: 0, transform: 'scale(0.85) translateY(8px)', filter: 'blur(2px)' },
-          { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }],
-          { duration: 240, delay: i * 25, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          [{ opacity: 0, transform: 'scale(0.85) translateY(8px)' },
+          { opacity: 1, transform: 'scale(1)' }],
+          { duration: 120, delay: Math.min(i * 12, 120), easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });

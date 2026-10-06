@@ -1,13 +1,16 @@
-import json
+import asyncio
 import html
+import json
 import logging
-from nicegui import ui, app, run
+from nicegui import ui, app
 from src.ai.openrouter_ai import OpenRouterIA
+from src.frontend import flags
+from src.frontend.components.glosa_dock import GlosaDockMixin, MAX_HISTORY
+from src.ai.context import serialize_context
 
 logger = logging.getLogger(__name__)
 
-
-class AIPanel:
+class AIPanel(GlosaDockMixin):
     @property
     def _storage(self):
         try:
@@ -22,6 +25,7 @@ class AIPanel:
 
     @property
     def is_open(self):
+        """Devuelve True si el panel legacy está abierto. En dock, la verdad vive en html[data-glosa]."""
         return self._storage.get('ai_panel_open', False)
 
     @is_open.setter
@@ -30,13 +34,20 @@ class AIPanel:
 
     @property
     def chat_history(self):
-        return self._storage.get('ai_chat_history', [])
+        if 'ai_chat_history' not in self._storage:
+            self._storage['ai_chat_history'] = []
+        return self._storage['ai_chat_history']
 
     @chat_history.setter
     def chat_history(self, value):
         self._storage['ai_chat_history'] = value
 
     def __init__(self, active_ui):
+        try:
+            self._client = ui.context.client
+        except Exception:
+            self._client = None
+
         self.active_ui = active_ui
         self.motor_ia = OpenRouterIA()
         self.panel_container = None
@@ -48,13 +59,40 @@ class AIPanel:
         
         storage = self._storage
         if 'ai_chat_history' not in storage:
-            storage['ai_chat_history'] = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
+            storage['ai_chat_history'] = []
+        else:
+            # Migrar historial antiguo: eliminar api_text y saludos viejos
+            hist = storage['ai_chat_history']
+            if hist and hist[0].get('text', '').startswith('¡Hola! Estoy aquí'):
+                hist = hist[1:]
+            for msg in hist:
+                msg.pop('api_text', None)
+            if len(hist) > MAX_HISTORY:
+                hist = hist[-MAX_HISTORY:]
+            storage['ai_chat_history'] = hist
+                
         if 'ai_panel_open' not in storage:
             storage['ai_panel_open'] = False
+            
+        if 'ai_ctx_enabled' not in storage:
+            storage['ai_ctx_enabled'] = True
+            
+        self._last_send_time = 0.0
+        self._ctx_version = 0
 
     def toggle(self):
+        if flags.dock_enabled():
+            ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.toggle();')
+            return
         self.is_open = not self.is_open
         self._update_visibility()
+        
+    def open(self):
+        if flags.dock_enabled():
+            ui.run_javascript('if(window.scalarisGlosa) window.scalarisGlosa.open();')
+            return
+        if not self.is_open:
+            self.toggle()
 
     def _update_visibility(self):
         if not self.panel_container: return
@@ -65,49 +103,72 @@ class AIPanel:
             self.panel_container.style('transform: translateX(calc(100% + 32px)); opacity: 0; visibility: hidden; pointer-events: none;')
             self.overlay.style('opacity: 0; pointer-events: none;')
             
-    def attach_context(self):
-        ctx_text = ""
-        if hasattr(self.active_ui, 'grid') and hasattr(self.active_ui, 'mode_tabs'):
-            # LinearSystemsUI
-            if self.active_ui.mode_tabs.value == 'Ecuaciones':
-                lineas = [inp.value for inp in self.active_ui.ecuaciones_inputs if inp.value]
-                if lineas:
-                    ctx_text = "Sistema de ecuaciones:\n" + "\n".join(lineas)
-            else:
-                eqs = self.active_ui.grid.export_to_equations()
-                if eqs:
-                    ctx_text = "Sistema (desde matriz):\n" + "\n".join(eqs)
-        elif hasattr(self.active_ui, 'capture_panel'):
-            # MatrixOpsUI
+    def schedule_context_refresh(self):
+        if not flags.dock_enabled():
+            return
+            
+        task = getattr(self, '_refresh_task', None)
+        if task and not task.done():
+            task.cancel()
+            
+        async def _debounced():
             try:
-                mats = self.active_ui.capture_panel.get_matrices_dict()
-                if mats:
-                    ctx_text = "Matrices disponibles:\n"
-                    for k, v in mats.items():
-                        ctx_text += f"Matriz {k} ({v['rows']}x{v['cols']}): {v['data']}\n"
-            except ValueError as e:
-                ui.notify(str(e), type='warning')
-                return
+                await asyncio.sleep(0.25)
+                if hasattr(self, 'chat_area') and getattr(self.chat_area, 'is_deleted', False):
+                    return
+                if hasattr(self, 'panel_container') and getattr(self.panel_container, 'is_deleted', False):
+                    return
+                self.notify_context_changed()
+            except asyncio.CancelledError:
+                pass
             except Exception as e:
-                logger.exception("Error inesperado en attach_context")
-                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
-                return
-        elif hasattr(self.active_ui, 'vector_panel'):
-            # VectorOpsUI
-            try:
-                vecs = self.active_ui.vector_panel.get_vectors_dict()
-                if vecs:
-                    ctx_text = "Vectores disponibles:\n"
-                    for k, v in vecs.items():
-                        ctx_text += f"Vector {k} ({v['orientation']}): {v['data']}\n"
-            except ValueError as e:
-                ui.notify(str(e), type='warning')
-                return
-            except Exception as e:
-                logger.exception("Error inesperado en attach_context (vector_ops)")
-                ui.notify('Ocurrió un error inesperado al procesar el contexto.', type='negative')
-                return
+                logger.debug(f"Context refresh cancelado o abortado: {e}")
                 
+        coro = _debounced()
+        try:
+            self._refresh_task = self._spawn(coro)
+        except RuntimeError:
+            coro.close()
+
+    def _collect_context(self) -> str:
+        if not self._storage.get('ai_ctx_enabled', True):
+            return ""
+        if not hasattr(self.active_ui, 'get_ai_context'):
+            return ""
+        try:
+            ctx_obj = self.active_ui.get_ai_context()
+            if ctx_obj is None or getattr(ctx_obj, 'empty', False):
+                return ""
+                
+            foc = getattr(self, 'explain_focus', None)
+            if foc:
+                from src.ai.context import StepRef
+                import dataclasses
+                # Si context_obj.focus ya existe, podríamos reemplazar, pero aquí lo asignamos
+                new_focus = StepRef(
+                    index=foc['index'],
+                    total=foc['total'],
+                    kind=foc['kind'],
+                    op=foc['op'],
+                    rows_before=foc.get('rows_before', {}),
+                    rows_after=foc.get('rows_after', {}),
+                    cols=tuple(foc['cols']) if foc.get('cols') else None,
+                    detail=foc.get('detail')
+                )
+                if hasattr(ctx_obj, 'focus') and ctx_obj.focus:
+                    ctx_obj.focus = new_focus
+                else:
+                    ctx_obj.focus = new_focus
+
+            return serialize_context(ctx_obj)
+        except Exception as e:
+            logger.exception("Error al recopilar el contexto para la IA")
+            ui.notify('No pudimos leer tu ejercicio; enviamos solo tu pregunta.', type='warning')
+            return ""
+
+    def attach_context(self):
+        # Legacy
+        ctx_text = self._collect_context()
         if ctx_text:
             self.attached_context = ctx_text
             self.context_chip.set_visibility(True)
@@ -120,8 +181,11 @@ class AIPanel:
         self.context_chip.set_visibility(False)
 
     def clear_chat(self):
-        self.chat_history = [{"text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "api_text": "¡Hola! Estoy aquí para ayudarte con álgebra lineal: vectores, matrices, sistemas lineales y más.", "sent": False}]
-        self.render_chat()
+        self.chat_history = []
+        if flags.dock_enabled():
+            self.render_chat_dock()
+        else:
+            self.render_chat()
 
     def render_chat(self):
         if not self.chat_area: return
@@ -157,71 +221,48 @@ class AIPanel:
 
     async def send_message(self):
         text = self.input_field.value
-        if not text or not text.strip(): return
+        await self._submit(text)
         
-        full_text = text.strip()
-        api_text = full_text
-        if self.attached_context:
-            api_text = f"[Contexto adjunto]\n{self.attached_context}\n\nPregunta: {full_text}"
-            self.clear_context()
-            
-        self.input_field.value = ''
-        
-        MAX_HISTORY = 10
-        history = [
-            {"role": "user" if m.get("sent") else "assistant", "content": m.get("api_text", m.get("text"))}
-            for m in self.chat_history[1:]
-            if not m.get("error")
-        ][-MAX_HISTORY:]
-        
-        self.chat_history.append({"text": full_text, "sent": True, "api_text": api_text})
-        self.render_chat()
-        
-        with self.chat_area:
-            typing_row = ui.row().classes('w-full justify-start mb-4')
-            with typing_row:
-                with ui.column().classes('p-3').style('background: var(--bg-panel); color: var(--text-sec); border-radius: 16px 16px 16px 4px; box-shadow: var(--elev-1); max-width: 85%;'):
-                    self._render_typing_indicator()
-                
-        ui.run_javascript("setTimeout(() => { const el = document.getElementById('ai-chat-area'); if(el) el.scrollTop = el.scrollHeight; }, 50);")
+    def render_inline_chips(self, limit=2):
+        from src.frontend.suggestions import chips_active, suggest
+        if not chips_active() or not hasattr(self.active_ui, 'get_ai_signals'):
+            return
             
         try:
-            ok, respuesta = await run.io_bound(self.motor_ia.analizar_sistema, api_text, history)
+            signals = self.active_ui.get_ai_signals()
         except Exception as e:
-            ok, respuesta = False, f"Error al procesar tu mensaje: {e}"
+            logger.error(f"Error en get_ai_signals inline: {e}")
+            signals = None
             
-        try:
-            typing_row.delete()
-        except Exception:
-            pass
-        self.chat_history.append({"text": respuesta, "sent": False, "error": not ok, "animate": True})
-        self.render_chat()
+        if not signals:
+            return
+            
+        enabled = self._storage.get('ai_ctx_enabled', True)
+        suggs = suggest(signals, limit=limit, include_specific=enabled)
+        if not suggs:
+            return
+            
+        from src.frontend.components.glosa_chips import render_chip_row
+        is_sending = getattr(self, '_is_sending', False)
+        render_chip_row(suggs, self.ask_suggestion, variant='inline', disabled=is_sending)
 
     def build(self):
-        self.overlay = ui.element('div').style('position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); z-index: 2999; transition: opacity 240ms var(--ease-std); pointer-events: none;')
+        if self._client is None:
+            try:
+                self._client = ui.context.client
+            except Exception:
+                pass
+
+        if flags.dock_enabled():
+            self.build_dock()
+            return
+            
+        self.overlay = ui.element('div').style('position: fixed; inset: 0; background: var(--scrim); z-index: calc(var(--z-dock) - 1); transition: opacity 240ms var(--ease-std); pointer-events: none;')
         self.overlay.on('click', self.toggle)
         
-        ui.add_head_html('''
-            <style>
-                @keyframes bounce {
-                  0%, 80%, 100% { transform: translateY(0); }
-                  40% { transform: translateY(-5px); }
-                }
-                .ai-input-wrapper .q-field__control { height: auto !important; min-height: 48px; }
-                
-                @media (max-width: 639px) {
-                    .ai-panel-card {
-                        inset: 8px !important;
-                        width: auto !important;
-                        height: auto !important;
-                    }
-                }
-            </style>
-        ''')
-        
         self.panel_container = ui.column().classes('no-wrap ai-panel-card').style('''
-            position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: calc(100vh - 104px);
-            background: var(--bg-elevated); z-index: 3000;
+            position: fixed; right: 16px; top: 88px; width: min(420px, calc(100vw - 32px)); height: calc(100dvh - 104px);
+            background: var(--bg-elevated); z-index: var(--z-dock);
             border: 1px solid var(--border-input); border-radius: var(--radius-card);
             box-shadow: var(--elev-3); overflow: hidden;
             transition: transform 240ms var(--ease-std), opacity 240ms var(--ease-std);
@@ -231,12 +272,12 @@ class AIPanel:
             with ui.row().classes('w-full items-center justify-between p-4 border-b border-[var(--border-input)]'):
                 with ui.row().classes('items-center gap-2'):
                     ui.icon('smart_toy', size='sm').classes('text-accent')
-                    ui.label('Tutor IA').classes('font-bold text-lg text-main')
+                    ui.label('Glosa').classes('font-bold text-lg text-main')
                     
                 with ui.row().classes('gap-2'):
-                    ui.button(icon='attach_file', on_click=self.attach_context, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Adjuntar sistema actual')
-                    ui.button(icon='delete_sweep', on_click=self.clear_chat, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Limpiar conversación')
-                    ui.button(icon='close', on_click=self.toggle, color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false')
+                    ui.button(icon='attach_file', on_click=self.attach_context, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Adjuntar sistema actual"').tooltip('Adjuntar sistema actual')
+                    ui.button(icon='delete_sweep', on_click=self.clear_chat, color=None).classes('btn-neo-icon w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Limpiar conversación"').tooltip('Limpiar conversación')
+                    ui.button(icon='close', on_click=self.toggle, color=None).classes('btn-neo-icon w-8 h-8 p-0').props('ripple=false aria-label="Cerrar Glosa"').tooltip('Cerrar')
                     
             self.chat_area = ui.column().classes('w-full flex-1 p-4 overflow-y-auto gap-2').props('id="ai-chat-area"')
             self.render_chat()
@@ -248,9 +289,9 @@ class AIPanel:
                     self.context_chip.set_visibility(True)
                 
                 with ui.row().classes('w-full items-end gap-2 ai-input-wrapper'):
-                    self.input_field = ui.textarea(placeholder='Preguntá algo...').classes('flex-1 matrix-input text-sm').props('borderless autogrow').style('max-height: 120px; overflow-y: auto;')
+                    self.input_field = ui.textarea(placeholder='Pregunta algo...').classes('flex-1 matrix-input text-sm').props('borderless autogrow').style('max-height: 120px; overflow-y: auto;')
                     self.input_field.on('keydown.enter.prevent.exact', self.send_message)
                     
-                    ui.button(icon='send', on_click=self.send_message, color=None).classes('btn-primary w-10 h-10 p-0 mb-1').props('ripple=false').style('border-radius: 12px;')
+                    ui.button(icon='send', on_click=self.send_message, color=None).classes('btn-primary w-10 h-10 p-0 mb-1').props('ripple=false aria-label="Enviar mensaje"').tooltip('Enviar').style('border-radius: 12px;')
                     
         self._update_visibility()

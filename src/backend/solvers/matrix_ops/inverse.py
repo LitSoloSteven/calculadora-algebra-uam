@@ -33,8 +33,14 @@ class MatrixInverseSolver:
     def __init__(self):
         self.ops_solver = MatrixOpsSolver()
 
-    def solve(self, matrix_a: Matrix) -> dict:
+    def solve(self, matrix_a: Matrix, *, build_step_latex: bool = True) -> dict:
         """Calcula A^-1, si existe, y devuelve pasos + verificaciones.
+
+        Args:
+            matrix_a: Matriz cuadrada a invertir.
+            build_step_latex: Si es True, genera detail_latex para cada paso.
+                Si es False, detail_latex es None en cada paso (optimización para
+                dimensiones grandes).
 
         Returns:
             dict con:
@@ -90,7 +96,7 @@ class MatrixInverseSolver:
                 f"No tiene inversa.",
                 det,
                 augmented_initial_latex=augmented_initial_latex,
-                steps=self._format_steps(reduction["steps"], n),
+                steps=self._format_steps(reduction["steps"], n, build_latex=build_step_latex),
             )
 
         # --- 5. Extraer bloque derecho ---
@@ -118,7 +124,7 @@ class MatrixInverseSolver:
             "augmented_initial_latex": augmented_initial_latex,
             "inverse": inverse,
             "inverse_latex": inverse_latex,
-            "steps": self._format_steps(reduction["steps"], n),
+            "steps": self._format_steps(reduction["steps"], n, build_latex=build_step_latex),
             "verification_step": verification,
             "verification_reverse_step": verification_reverse,
             "transpose_property_step": transpose_property,
@@ -168,7 +174,9 @@ class MatrixInverseSolver:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _format_steps(raw_steps: list[dict], n: int) -> list[dict]:
+    def _format_steps(
+        raw_steps: list[dict], n: int, build_latex: bool = True
+    ) -> list[dict]:
         """Convierte los steps de Gauss ({description, matrix}) al formato
         de matrix_ops ({description, matrix, detail_latex}).
 
@@ -186,7 +194,9 @@ class MatrixInverseSolver:
                 "description": description,
                 "matrix": mat,
                 "detail_latex": (
-                    partitioned_matrix_to_latex(mat, n) if mat is not None else None
+                    partitioned_matrix_to_latex(mat, n)
+                    if build_latex and mat is not None
+                    else None
                 ),
             })
         return out

@@ -1,8 +1,24 @@
 from fractions import Fraction
-from typing import Dict
+from typing import Dict, TypedDict
 from src.backend.constants import ZERO_EPSILON
 from src.backend.models.matrix import Matrix
 from src.backend.utils.formatters import format_fraction_str, format_parametric_expr, format_variable_for_latex
+
+class SolutionParam(TypedDict):
+    """Representación paramétrica exacta del conjunto solución de Ax = b.
+
+    x = particular + Σₖ param_names[k] · directions[k]
+
+    Invariantes (verificados por construcción y validados con assert):
+      - directions[k][free_cols[k]] == 1
+      - directions[k][free_cols[j]] == 0 para j ≠ k
+      - particular[free_cols[k]] == 0
+    """
+    num_vars: int
+    free_cols: list[int]
+    param_names: list[str]
+    particular: list[Fraction]
+    directions: list[list[Fraction]]
 
 class GaussSolver:
     """Solver de eliminación gaussiana con aritmética exacta (Fraction).
@@ -250,7 +266,50 @@ class GaussSolver:
         # los strings paramétricos.
         solution_exact = None if free_cols else list(expr_const)
 
-        return solution, solution_exact, back_sub_steps, free_cols
+        # --- solution_param: representación paramétrica exacta ---
+        # x = particular + Σₖ param_names[k] · directions[k]
+        # Se deriva directamente de expr_const y expr_terms ya calculados:
+        #   particular[i]       = expr_const[i]
+        #   directions[k][i]    = expr_terms[i].get(param_names[k], 0)
+        param_names_ordered = [free_var_map[c] for c in free_cols]
+        particular = list(expr_const)
+        directions: list[list[Fraction]] = []
+        for p_name in param_names_ordered:
+            direction = [
+                expr_terms[i].get(p_name, Fraction(0))
+                for i in range(num_vars)
+            ]
+            directions.append(direction)
+
+        # Validación defensiva de invariantes. Por construcción siempre se
+        # cumplen; si un assert dispara, hay un bug interno que queremos ver
+        # explotar en desarrollo y tests, no propagar silenciosamente al
+        # consumidor del contrato.
+        for k, fc in enumerate(free_cols):
+            assert directions[k][fc] == 1, (
+                f"Invariante roto: directions[{k}][free_cols[{k}]={fc}] "
+                f"debería ser 1, es {directions[k][fc]}."
+            )
+            assert particular[fc] == 0, (
+                f"Invariante roto: particular[free_cols[{k}]={fc}] "
+                f"debería ser 0, es {particular[fc]}."
+            )
+            for j, fc_j in enumerate(free_cols):
+                if j != k:
+                    assert directions[k][fc_j] == 0, (
+                        f"Invariante roto: directions[{k}][free_cols[{j}]={fc_j}] "
+                        f"debería ser 0, es {directions[k][fc_j]}."
+                    )
+
+        solution_param: SolutionParam = {
+            "num_vars": num_vars,
+            "free_cols": list(free_cols),
+            "param_names": param_names_ordered,
+            "particular": particular,
+            "directions": directions,
+        }
+
+        return solution, solution_exact, back_sub_steps, free_cols, solution_param
 
     def solve_reduction(self) -> dict:
         """Corre la eliminación sin back-substitution.
@@ -292,12 +351,13 @@ class GaussSolver:
                 "echelon_matrix": self.matrix,
                 "solution": None,
                 "solution_exact": None,
-                "free_cols": [],          # ← NUEVO: sin solución no hay back-substitution
+                "free_cols": [],          # ← sin solución no hay back-substitution
+                "solution_param": None,   # ← NUEVO: sin solución no hay paramétrica
                 "steps": self.steps,
                 "back_substitution_steps": []
             }
 
-        solution, solution_exact, back_steps, free_cols = self._back_substitute(pivot_cols)
+        solution, solution_exact, back_steps, free_cols, solution_param = self._back_substitute(pivot_cols)
 
         return {
             "status": status,
@@ -306,7 +366,8 @@ class GaussSolver:
             "echelon_matrix": self.matrix,
             "solution": solution,
             "solution_exact": solution_exact,
-            "free_cols": free_cols,       # ← NUEVO
+            "free_cols": free_cols,
+            "solution_param": solution_param,   # ← NUEVO
             "steps": self.steps,
             "back_substitution_steps": back_steps
         }

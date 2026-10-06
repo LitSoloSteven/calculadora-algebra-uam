@@ -1,7 +1,8 @@
 """Vista principal del Conversor de Sistemas Numéricos en Scalaris."""
 from nicegui import ui
 from src.backend.solvers.numeric_systems.conversor_bases import ConversorBases
-from src.frontend.components.navbar import create_navbar
+from src.frontend.components.app_shell import create_app_shell
+from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from .interaction_mixin import NumericSystemsInteractionMixin
 from .rendering_mixin import NumericSystemsRenderingMixin
@@ -32,12 +33,12 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/conversor')
+        create_app_shell(self, active_route=route_of('bases'))
 
-        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
+        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6 view-root'):
             # --- HERO SECTION (Entrada) ---
             with ui.column().classes('w-full panel-card p-6 gap-6'):
-                ui.label('Conversor de Bases').classes('text-2xl font-bold text-main')
+                ui.label('Conversor de bases').classes('text-2xl font-bold text-main')
 
                 # Selector de sistemas numéricos
                 with ui.row().classes('w-full items-center gap-3 flex-nowrap'):
@@ -74,7 +75,7 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
                         with ui.row().classes('absolute right-6 top-1/2 -translate-y-1/2'):
                             ui.button(
                                 icon='content_paste', on_click=self._pegar_portapapeles, color=None
-                            ).classes('btn-neo-icon w-10 h-10 p-0 text-sec').props('ripple=false').tooltip('Pegar')
+                            ).classes('btn-neo-icon w-10 h-10 p-0 text-sec').props('ripple=false aria-label="Pegar"').tooltip('Pegar')
 
                     self.lbl_error = ui.label('').classes('fs-small').style(
                         'color: var(--error); margin-left: 8px; min-height: 20px;'
@@ -89,8 +90,10 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
                     'Convertir', on_click=self._convertir_btn, color=None
                 ).classes('btn-primary w-full py-3 text-lg mt-2 font-bold')
 
+                self.chips_container = ui.column().classes('w-full mt-2')
+
             # --- RESULTADOS (Tarjetas 2x2) ---
-            with ui.row().classes('w-full grid grid-cols-1 md:grid-cols-2 gap-4 mt-6'):
+            with ui.element('div').classes('layout-grid-2 mt-6'):
                 self._crear_tarjeta_resultado('decimal', 'Decimal', '10')
                 self._crear_tarjeta_resultado('hexadecimal', 'Hexadecimal', '16')
                 self._crear_tarjeta_resultado('binario', 'Binario', '2')
@@ -107,3 +110,71 @@ class NumericSystemsUI(NumericSystemsInteractionMixin, NumericSystemsRenderingMi
 
         self.ai_panel.build()
         self._actualizar_ejemplos()
+
+    def get_ai_context(self):
+        from src.ai.context import AIContext, sanitize_user_string, is_stale
+        val = getattr(getattr(self, 'input_valor', None), 'value', None)
+        if not val:
+            return AIContext("bases", "Conversor de bases", "Conversión", {}, empty=True)
+            
+        base_orig = getattr(getattr(self, 'tabs_origen', None), 'value', self.base_activa)
+        base_dest = getattr(getattr(self, 'tabs_destino', None), 'value', self.base_destino)
+        
+        ctx = AIContext(
+            "bases", 
+            "Conversor de bases", 
+            f"{base_orig} a {base_dest}", 
+            {
+                "valor_entrada": sanitize_user_string(val, 64),
+                "base_origen": base_orig,
+                "base_destino": base_dest
+            }
+        )
+        
+        entrada_actual = {"valor": val, "base_origen": self.base_activa, "base_destino": self.base_destino}
+        ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+        
+        if getattr(self, 'tiene_resultado', False):
+            if ctx.stale:
+                ctx.result = None
+            else:
+                ctx.result = {
+                    "status": "SUCCESS",
+                    "resultados": self.resultados.copy()
+                }
+        elif getattr(getattr(self, 'lbl_error', None), 'text', None):
+            ctx.result = {
+                "status": "ERROR",
+                "message": self.lbl_error.text
+            }
+            
+        return ctx
+
+    def get_ai_signals(self):
+        from src.frontend.suggestions import Signals, InvalidCell
+        import re
+        try:
+            state = "none"
+            flags = set()
+            invalid = None
+            
+            val = self.input_valor.value.strip() if getattr(self, 'input_valor', None) and self.input_valor.value else ""
+            if val and self.base_activa in self.regex_bases:
+                if not re.match(self.regex_bases[self.base_activa], val.replace(" ", "")):
+                    invalid = InvalidCell(label="el número")
+                    
+            if getattr(self, 'tiene_resultado', False) and not getattr(self.get_ai_context(), 'stale', True):
+                state = "result"
+                
+                res = getattr(self, 'resultados_completos', {})
+                pasos = res.get("pasos", [])
+                
+                if any(p.get("tipo") == "division_sucesiva" for p in pasos):
+                    flags.add("division")
+                    
+                if any(p.get("base_destino") == 16 or p.get("base_origen") == 16 for p in pasos):
+                    flags.add("hex")
+                    
+            return Signals(tool="bases", state=state, flags=frozenset(flags), invalid=invalid)
+        except Exception:
+            return None

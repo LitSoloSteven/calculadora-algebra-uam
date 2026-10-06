@@ -1,9 +1,13 @@
 import json
+import logging
+from src.backend.exceptions import AlgebraLinealError
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.vector_ops.operations import VectorOpsSolver
 from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.vector_ops._shared import parse_payload
+
+logger = logging.getLogger(__name__)
 
 def build_vector_from_dict(vec_dict: dict) -> Matrix:
     orientation = vec_dict.get("orientation", "column")
@@ -45,8 +49,11 @@ class VectorOpsController:
             res.pop("result_matrix", None)
                 
             return json.dumps(res, cls=MatrixEncoder)
-        except Exception as e:
+        except (AlgebraLinealError, ValueError) as e:
             return json.dumps({"status": "ERROR", "message": str(e)})
+        except Exception:
+            logger.exception("Error inesperado en process_add_subtract")
+            return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la operación. Inténtalo de nuevo."})
 
     @staticmethod
     def process_scalar_multiply(payload_str: str) -> str:
@@ -70,8 +77,11 @@ class VectorOpsController:
             res.pop("result_matrix", None)
             
             return json.dumps(res, cls=MatrixEncoder)
-        except Exception as e:
+        except (AlgebraLinealError, ValueError) as e:
             return json.dumps({"status": "ERROR", "message": str(e)})
+        except Exception:
+            logger.exception("Error inesperado en process_scalar_multiply")
+            return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la multiplicación por escalar. Inténtalo de nuevo."})
 
     @staticmethod
     def process_linear_combination(payload_str: str) -> str:
@@ -91,16 +101,29 @@ class VectorOpsController:
             solver = LinearCombinationSolver()
             res = solver.solve(b, vectors)
             
-            # Formatear matrices de Gauss
-            if "steps" in res:
-                from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
-                for step in res["steps"]:
+            # Formatear matrices y construir steps_meta sobre gauss_steps
+            from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
+            from src.frontend.controllers.linear_systems._shared import build_steps_meta
+
+            setup_steps = res.get("setup_steps", [])
+            gauss_steps = res.get("gauss_steps", [])
+            initial_mat = setup_steps[-1].get("matrix") if setup_steps else None
+
+            if gauss_steps:
+                res["steps_meta"] = build_steps_meta(gauss_steps, initial=initial_mat)
+            elif "steps" in res:
+                res["steps_meta"] = build_steps_meta(res["steps"])
+
+            for s_list in (setup_steps, gauss_steps, res.get("steps", [])):
+                for step in s_list:
                     if step.get("matrix") is not None:
-                        # Si no hay detail_latex, formateamos la matriz
-                        if "detail_latex" not in step or not step["detail_latex"]:
+                        if not step.get("detail_latex"):
                             step["detail_latex"] = matrix_to_latex(step["matrix"])
-                        step.pop("matrix", None) # No enviar objeto no serializable
+                        step.pop("matrix", None)
             
             return json.dumps(res, cls=MatrixEncoder)
-        except Exception as e:
+        except (AlgebraLinealError, ValueError) as e:
             return json.dumps({"status": "ERROR", "message": str(e)})
+        except Exception:
+            logger.exception("Error inesperado en process_linear_combination")
+            return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al resolver la combinación lineal. Inténtalo de nuevo."})

@@ -1,0 +1,1 @@
+"""Paquete del Visualizador Geométrico."""

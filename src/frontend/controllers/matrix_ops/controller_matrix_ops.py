@@ -1,9 +1,12 @@
 import json
+import logging
 from fractions import Fraction
 
 from src.backend.models.matrix import Matrix
 from src.backend.solvers.matrix_ops.evaluator import MatrixExpressionEvaluator
 from src.backend.utils.validators import MatrixValidator
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixEncoder(json.JSONEncoder):
@@ -123,17 +126,64 @@ class MatrixOpsController:
         try:
             evaluator = MatrixExpressionEvaluator()
             resultado = evaluator.evaluate(expresion_str, matrices)
-        except (ValueError, ZeroDivisionError, TypeError) as e:
+        except ValueError as e:
             return json.dumps({
                 "status": "ERROR",
-                "message": f"Error al evaluar la expresión ({type(e).__name__}): {e}"
+                "message": str(e)
+            }, ensure_ascii=False)
+        except (ZeroDivisionError, TypeError):
+            logger.exception("Error al evaluar la expresión matricial")
+            return json.dumps({
+                "status": "ERROR",
+                "message": "No se pudo evaluar la expresión. Revisa la sintaxis y las dimensiones."
             }, ensure_ascii=False)
 
         # --- 4. Serialización ---
         try:
             return json.dumps(resultado, ensure_ascii=False, cls=MatrixEncoder)
-        except (TypeError, ValueError) as e:
+        except (TypeError, ValueError):
+            logger.exception("Error al serializar el resultado matricial")
             return json.dumps({
                 "status": "ERROR",
-                "message": f"Error al serializar el resultado: {e}"
+                "message": "No se pudo serializar el resultado de la expresión."
             }, ensure_ascii=False)
+
+    @staticmethod
+    def build_step_focus(step: dict, index: int, total: int) -> dict:
+        import re
+        from src.ai.context import sanitize_user_string
+
+        op_type = step.get("operation_type") or "Operación"
+        op_disp = step.get("operation_display") or ""
+        raw_op = f"{op_type}: {op_disp}" if op_disp else str(op_type)
+
+        clean_op = re.sub(r'_\{(\w+)\}', r'\1', raw_op)
+        clean_op = clean_op.replace(r'\cdot', '').replace('{', '').replace('}', '')
+        clean_op = ' '.join(clean_op.split())
+
+        detail = {}
+        res_mat = step.get("result_matrix")
+        if hasattr(res_mat, "rows") and hasattr(res_mat, "cols"):
+            detail["forma"] = f"{res_mat.rows}×{res_mat.cols}"
+        elif isinstance(res_mat, dict) and "rows" in res_mat and "cols" in res_mat:
+            detail["forma"] = f"{res_mat['rows']}×{res_mat['cols']}"
+
+        cell_steps = step.get("cell_by_cell_steps")
+        if cell_steps and isinstance(cell_steps, list):
+            for cs in cell_steps:
+                if isinstance(cs, dict) and cs.get("detail_latex"):
+                    first_desc = cs.get("description")
+                    if first_desc:
+                        detail["ejemplo"] = sanitize_user_string(first_desc, 120)
+                    break
+
+        return {
+            "index": index,
+            "total": total,
+            "kind": "otro",
+            "op": clean_op,
+            "rows_before": {},
+            "rows_after": {},
+            "cols": None,
+            "detail": detail,
+        }

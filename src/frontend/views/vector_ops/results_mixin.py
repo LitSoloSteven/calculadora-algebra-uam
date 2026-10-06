@@ -1,4 +1,5 @@
 """Mixin de renderizado de resultados y pasos para Operaciones con Vectores."""
+import html
 import re
 from nicegui import ui
 from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
@@ -27,6 +28,8 @@ class VectorOpsResultsMixin:
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-6 w-fit'):
                     ui.icon('close', size='sm')
                     ui.label(msg).classes('font-bold')
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
                 return
 
             if self.active_op == 'lin_comb':
@@ -43,10 +46,58 @@ class VectorOpsResultsMixin:
                 ui.icon(icon, size='sm')
                 ui.label(msg).classes('font-bold')
 
+            if getattr(self, 'ai_panel', None):
+                self.ai_panel.render_inline_chips()
+
             if self.active_op in ['add_sub', 'scalar']:
                 self.render_steps_and_result(res)
             else:
                 self.render_linear_combination_result(res)
+                
+            # A4: Ver en el visualizador
+            if self.active_op in ['add_sub', 'lin_comb'] and res.get('status') != 'ERROR':
+                show_visualizer = False
+                payload_vectors = []
+                scene_name = ''
+
+                from src.frontend.components.handoff import put_vectors, handoff_url
+                from src.frontend.navigation import route_of
+
+                try:
+                    vecs = self.vector_panel.get_vectors_dict()
+                except ValueError:
+                    vecs = None
+
+                if vecs:
+                    if self.active_op == 'add_sub':
+                        v_list = list(vecs.values())
+                        if len(v_list) == 2:
+                            v1_data = v_list[0]['data']
+                            v2_data = v_list[1]['data']
+                            dim = len(v1_data)
+                            if dim in (2, 3) and len(v2_data) == dim:
+                                show_visualizer = True
+                                scene_name = 'vectores'
+                                payload_vectors = [v1_data, v2_data]
+                    elif self.active_op == 'lin_comb':
+                        if 2 <= len(vecs) <= 5 and 'b' in vecs:
+                            b_data = vecs['b']['data']
+                            dim = len(b_data)
+                            others = [v['data'] for k, v in vecs.items() if k != 'b']
+                            if dim in (2, 3) and all(len(o) == dim for o in others):
+                                show_visualizer = True
+                                scene_name = 'combinacion'
+                                payload_vectors = [b_data] + others
+
+                if show_visualizer:
+                    def _go_to_visualizador(scene=scene_name, vecs_data=payload_vectors):
+                        token = put_vectors('vectores', scene, vecs_data)
+                        url = handoff_url(route_of('visualizador'), token) + f"&escena={scene}"
+                        ui.navigate.to(url)
+
+                    with ui.row().classes('mt-6'):
+                        ui.button('Ver en el Visualizador', icon='explore', color=None,
+                                  on_click=_go_to_visualizador).classes('btn-ghost').props('ripple=false')
 
     def render_steps_and_result(self, res: dict):
         final_latex = res.get('result_vector_latex')
@@ -56,7 +107,7 @@ class VectorOpsResultsMixin:
         if final_latex:
             ui.label('Resultado').classes('text-xl font-bold mb-4 text-main')
             with ui.card().classes('panel-card w-full p-6 mb-6 items-center justify-center'):
-                ui.html(f'<div class="math-label overflow-x-auto p-4 text-lg text-center">$$ {final_latex} $$</div>')
+                ui.html(f'<div class="math-scroll-container math-label p-4 text-lg text-center">$$ {final_latex} $$</div>')
 
         steps = res.get('steps', [])
         if len(steps) > 1:
@@ -75,7 +126,7 @@ class VectorOpsResultsMixin:
                             ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2')
                             if latex:
                                 ui.html(
-                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                    f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'
                                 )
 
     def render_linear_combination_result(self, res: dict):
@@ -83,7 +134,8 @@ class VectorOpsResultsMixin:
 
         if status == 'UNIQUE':
             coef_str = ", ".join(res.get('coeficientes_str', []))
-            ui.markdown(f"**Coeficientes:** `{coef_str}`").classes('mb-4')
+            safe_coef = html.escape(coef_str)
+            ui.html(f'<div class="math-scroll-container mb-4"><strong>Coeficientes:</strong> <code class="font-mono text-sm">{safe_coef}</code></div>')
 
             v_step = res.get('verification_step')
             if v_step:
@@ -91,12 +143,15 @@ class VectorOpsResultsMixin:
                     ui.label('Verificación formal (y = c₁v₁ + ... + cᵣvᵣ):').classes('font-bold mb-2')
                     detail_tex = v_step.get("detail_latex") or v_step.get("formula_latex", "")
                     if detail_tex:
-                        ui.html(f'<div class="math-label overflow-x-auto">$$ {detail_tex} $$</div>')
+                        ui.html(f'<div class="math-scroll-container math-label">$$ {detail_tex} $$</div>')
 
         elif status == 'INFINITE':
             sol_str = ", ".join(res.get('solucion_parametrica', []))
-            ui.markdown(f"**Solución paramétrica:** `{sol_str}`").classes('mb-4')
-            ui.markdown(f"**Variables libres:** `{', '.join(res.get('parametros_libres', []))}`").classes('mb-4')
+            safe_sol = html.escape(sol_str)
+            params_str = ", ".join(res.get('parametros_libres', []))
+            safe_params = html.escape(params_str)
+            ui.html(f'<div class="math-scroll-container mb-4"><strong>Solución paramétrica:</strong> <code class="font-mono text-sm">{safe_sol}</code></div>')
+            ui.html(f'<div class="math-scroll-container mb-4"><strong>Variables libres:</strong> <code class="font-mono text-sm">{safe_params}</code></div>')
 
         # 1. ACORDEÓN DE PLANTEAMIENTO ALGEBRAICO
         setup_steps = res.get('setup_steps', [])
@@ -112,7 +167,7 @@ class VectorOpsResultsMixin:
                             ui.label(desc).classes('text-sm font-bold text-sec mb-2')
                             if latex:
                                 ui.html(
-                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                    f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'
                                 )
 
         # 2. ACORDEÓN DE ELIMINACIÓN GAUSSIANA
@@ -135,10 +190,23 @@ class VectorOpsResultsMixin:
                             latex = matrix_to_latex(step['matrix'])
 
                         with ui.column().classes('w-full'):
-                            ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2')
+                            with ui.row().classes('w-full justify-between items-start gap-2'):
+                                ui.label(f'Paso {i}: {desc}').classes('text-sm font-bold text-sec mb-2 flex-1')
+                                
+                                if "steps_meta" in res and getattr(self, 'ai_panel', None):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    meta = res["steps_meta"][i-1]
+                                    render_explain_button(
+                                        meta['index'], 
+                                        meta['total'], 
+                                        meta['op'], 
+                                        lambda idx, m=meta: self.ai_panel.trigger_explain_step(m),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+
                             if latex:
                                 ui.html(
-                                    f'<div class="math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto text-center">$$ {latex} $$</div>'
+                                    f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-4 rounded-lg shadow-sm border border-[var(--border-input)] text-center">$$ {latex} $$</div>'
                                 )
 
         # 3. ACORDEÓN DE SUSTITUCIÓN HACIA ATRÁS
@@ -150,5 +218,5 @@ class VectorOpsResultsMixin:
                 with ui.column().classes('w-full p-4 gap-4 bg-[var(--input-bg)]'):
                     for bs in back_steps:
                         ui.html(
-                            f'<div class="math-label bg-[var(--bg-elevated)] p-3 rounded-lg shadow-sm border border-[var(--border-input)] overflow-x-auto">$$ {bs} $$</div>'
+                            f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-3 rounded-lg shadow-sm border border-[var(--border-input)]">$$ {bs} $$</div>'
                         )

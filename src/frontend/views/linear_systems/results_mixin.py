@@ -136,8 +136,10 @@ class LinearSystemsResultsMixin:
 
     async def ejecutar_animacion_limpieza(self, dialog):
         dialog.close()
-        ui.run_javascript('animateGarbageCollection()')
-        await asyncio.sleep(0.8)
+        try:
+            await ui.run_javascript('return window.animateGarbageCollection()', timeout=2.0)
+        except Exception:
+            pass
         self.limpiar_todo()
 
     def limpiar_todo(self):
@@ -145,6 +147,10 @@ class LinearSystemsResultsMixin:
         for inp in self.ecuaciones_inputs:
             inp.value = ''
         self.reset_resultados()
+        self._result_fp = None
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def reset_resultados(self):
         self.contenedor_resultados.clear()
@@ -152,7 +158,7 @@ class LinearSystemsResultsMixin:
         with self.contenedor_resultados:
             ui.icon('calculate', size='4rem').classes('text-placeholder mb-4')
             ui.label('Listo para resolver').classes('text-xl font-bold text-main')
-            ui.label('Ingresá las ecuaciones o la matriz y presioná Resolver').classes('text-sm text-sec mt-2 text-center')
+            ui.label('Ingresa las ecuaciones o la matriz y presiona Resolver').classes('text-sm text-sec mt-2 text-center')
 
     async def resolver_sistema(self, sender):
         if self.is_strictly_empty():
@@ -161,7 +167,7 @@ class LinearSystemsResultsMixin:
                 self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
                 with ui.row().classes('items-center gap-2 px-4 py-2 badge-warning mb-4 w-fit'):
                     ui.icon('warning_amber', size='sm')
-                    ui.label('Ingresá al menos un valor antes de resolver').classes('font-bold')
+                    ui.label('Ingresa al menos un valor antes de resolver').classes('font-bold')
             ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.fast);")
             return
 
@@ -220,6 +226,7 @@ class LinearSystemsResultsMixin:
             respuesta_json_str = GaussJordanController.process_system(json.dumps(payload_dict))
 
         respuesta = json.loads(respuesta_json_str)
+        self.last_result = respuesta
 
         with self.contenedor_resultados:
             self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
@@ -251,7 +258,8 @@ class LinearSystemsResultsMixin:
 
                     if respuesta.get("solution"):
                         for idx, val in enumerate(respuesta["solution"]):
-                            var_name = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
+                            raw_var = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
+                            var_name = html.escape(str(raw_var))
                             m = re.match(r'^([a-zA-Z]+)(\d+)$', var_name)
                             if m:
                                 html_var = f"<i>{m.group(1)}</i><sub>{m.group(2)}</sub>"
@@ -261,18 +269,34 @@ class LinearSystemsResultsMixin:
                                 latex_var = f"\\text{{{var_name}}}" if len(var_name) > 1 else var_name
 
                             if is_unique:
-                                ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main')
+                                ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main min-w-0 max-w-full').style('overflow-wrap: anywhere;')
                             else:
-                                ui.html(f'<div class="px-4 py-2 panel-card math-label text-main">$$ {latex_var} = {val} $$</div>')
+                                ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main min-w-0 max-w-full" style="overflow-wrap: anywhere;">$$ {latex_var} = {val} $$</div>')
+
+                if getattr(self, 'ai_panel', None):
+                    self.ai_panel.render_inline_chips()
 
                 if respuesta.get("intermediate_steps_latex"):
                     ui.label('Procedimiento paso a paso').classes('font-bold mt-6 text-xl text-main')
                     with ui.expansion('Ver pasos matriciales', icon='visibility').classes('w-full panel-card mt-2 timeline-expansion').props('header-class="font-bold text-main"'):
-                        for paso in respuesta["intermediate_steps_latex"]:
+                        for i, paso in enumerate(respuesta["intermediate_steps_latex"]):
                             with ui.column().classes('w-full p-4 border-l-2 border-l-[var(--accent)] ml-2 mb-2 bg-[var(--bg-panel)] rounded-r-lg'):
-                                desc_id = f"desc-{id(paso)}"
-                                ui.html(f'<span id="{desc_id}"></span>').classes('text-sm font-semibold mb-2 text-sec block')
-                                ui.timer(0.05, lambda text=paso["descripcion"], eid=desc_id: ui.run_javascript(f'typewriterEffect("{eid}", {json.dumps(text)}, 18)'), once=True)
+                                with ui.row().classes('w-full justify-between items-start'):
+                                    desc_id = f"desc-{id(paso)}"
+                                    ui.html(f'<span id="{desc_id}"></span>').classes('text-sm font-semibold mb-2 text-sec block flex-1')
+                                    ui.timer(0.05, lambda text=paso["descripcion"], eid=desc_id: ui.run_javascript(f'typewriterEffect("{eid}", {json.dumps(text)}, 18)'), once=True)
+                                    
+                                    if "steps_meta" in respuesta and getattr(self, 'ai_panel', None):
+                                        from src.frontend.components.glosa_chips import render_explain_button
+                                        meta = respuesta["steps_meta"][i]
+                                        render_explain_button(
+                                            meta['index'], 
+                                            meta['total'], 
+                                            meta['op'], 
+                                            lambda idx, m=meta: self.ai_panel.trigger_explain_step(m),
+                                            is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                        )
+
                                 ui.html(f'<div class="math-scroll-container math-label text-lg">$$ {paso["matriz"]} $$</div>')
 
                 if respuesta.get("back_substitution_steps") or respuesta.get("verification_steps_latex"):
@@ -289,6 +313,22 @@ class LinearSystemsResultsMixin:
 
         if not is_error:
             self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
+            n_vars = len(matrix_A_vals[0]) if matrix_A_vals else 0
+            with self.contenedor_resultados:
+                with ui.row().classes('gap-2 mt-4 flex-wrap'):
+                    if len(matrix_A_vals) == len(matrix_A_vals[0]):
+                        from src.frontend.components.handoff import put_matrix, handoff_url
+                        from src.frontend.navigation import route_of
+                        ui.button('Ver A⁻¹ en Matriz inversa', icon='arrow_forward', color=None,
+                                  on_click=lambda: ui.navigate.to(handoff_url(route_of('inversa'), put_matrix('sistemas', matrix_A_vals)))
+                                 ).classes('btn-ghost').props('ripple=false').tooltip('Misma eliminación de filas, ahora sobre [A | I]')
+
+                    if n_vars in (2, 3):
+                        from src.frontend.components.handoff import put_system, handoff_url
+                        from src.frontend.navigation import route_of
+                        ui.button('Ver en el Visualizador', icon='insights', color=None,
+                                  on_click=lambda: ui.navigate.to(handoff_url(route_of('visualizador'), put_system('sistemas', matrix_A_vals, vector_b_vals)))
+                                 ).classes('btn-ghost').props('ripple=false').tooltip('Visualiza el sistema en R² o R³')
 
         ui.run_javascript('typesetMathWhenReady();')
 
@@ -299,7 +339,19 @@ class LinearSystemsResultsMixin:
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
-    def trigger_flip_animation(self):
+        from src.ai.context import fingerprint
+        entrada = {"mode": self.mode_tabs.value, "method": self.method_tabs.value}
+        if self.mode_tabs.value == 'Ecuaciones':
+            entrada["ecuaciones"] = [inp.value for inp in self.ecuaciones_inputs]
+        else:
+            entrada["A"] = matrix_A_vals
+            entrada["b"] = vector_b_vals
+        self._result_fp = fingerprint(entrada)
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
+
+    def trigger_flip_animation(self, e=None):
         ui.run_javascript('''
             const panel = document.querySelector('.main-grid-panel');
             if(panel) {
@@ -308,4 +360,7 @@ class LinearSystemsResultsMixin:
                 panel.classList.add('animate-slide-bounce');
             }
         ''')
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 

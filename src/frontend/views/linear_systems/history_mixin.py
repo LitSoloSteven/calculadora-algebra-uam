@@ -40,7 +40,7 @@ class LinearSystemsHistoryMixin:
                     ui.label(f"Método: {h['method'].replace('-', ' ').title()}").classes('text-sm font-bold text-main')
 
                     status_class = 'text-[var(--accent)]' if h['status'] == 'UNIQUE_SOLUTION' else (
-                        'text-warning' if h['status'] == 'INFINITE_SOLUTIONS' else 'text-[var(--error)]'
+                        'text-warn' if h['status'] == 'INFINITE_SOLUTIONS' else 'text-[var(--error)]'
                     )
                     status_text = 'Solución Única' if h['status'] == 'UNIQUE_SOLUTION' else (
                         'Infinitas Soluciones' if h['status'] == 'INFINITE_SOLUTIONS' else (

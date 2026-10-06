@@ -4,6 +4,9 @@ from typing import Union
 from src.backend.constants import (
     ZERO_EPSILON,
     FRACTION_RECONSTRUCTION_LIMIT,
+    MAX_NUMBER_STRING_LENGTH,
+    MSG_SCI_NOTATION_NOT_SUPPORTED,
+    MSG_NUMBER_TOO_LONG,
 )
 from src.backend.exceptions import MatrixDataError
 
@@ -46,6 +49,12 @@ class Matrix:
 
         Los strings NO pasan por limit_denominator: si el usuario escribió
         '1/1001', se respeta el denominador 1001, no se trunca a 1/1000.
+
+        Rechaza (DoS):
+          - Strings con 'e'/'E' → notación científica, prohibida.
+          - Strings con longitud > MAX_NUMBER_STRING_LENGTH.
+
+        Ambos chequeos se aplican ANTES de tocar Fraction, en O(1).
         """
         if isinstance(value, (Fraction, int)):
             return value
@@ -54,6 +63,10 @@ class Matrix:
             val_clean = value.strip()
             if not val_clean:
                 return Fraction(0)
+            if "e" in val_clean or "E" in val_clean:
+                raise MatrixDataError(MSG_SCI_NOTATION_NOT_SUPPORTED)
+            if len(val_clean) > MAX_NUMBER_STRING_LENGTH:
+                raise MatrixDataError(MSG_NUMBER_TOO_LONG)
             try:
                 return Fraction(val_clean)
             except (ValueError, ZeroDivisionError):

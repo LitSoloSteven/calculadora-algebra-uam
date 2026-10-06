@@ -14,6 +14,7 @@ que el controller usará para verificar la solución.
 """
 import json
 from fractions import Fraction
+from typing import Any
 
 from src.backend.exceptions import MatrixDataError
 from src.backend.models.matrix import Matrix
@@ -150,3 +151,66 @@ def validate_and_build_augmented(
         })
 
     return matrix, A_fractions, b_fractions, m, n, None
+
+def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
+    from src.ai.context import excerpt_rows
+    from src.frontend.controllers._step_classifier import classify_step
+
+    meta = []
+    total = len(raw_steps)
+    current_pivot_col = 0
+    
+    for i, step in enumerate(raw_steps):
+        desc = step["description"]
+        mat = step["matrix"]
+        rows = [[mat.get(r, c) for c in range(mat.cols)] for r in range(mat.rows)]
+        
+        parsed = classify_step(desc)
+        kind = parsed["kind"]
+        
+        pivot = None
+        rows_before = {}
+        rows_after = {}
+        cols_range = None
+        
+        prev_mat = raw_steps[i-1]["matrix"] if i > 0 else (initial if initial is not None else mat)
+        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if (i > 0 or initial is not None) else rows
+        
+        if kind == "pivote":
+            r = parsed["row1"]
+            c = parsed["col"]
+            if r is not None and c is not None:
+                pivot = [r, c]
+                current_pivot_col = c
+        elif kind == "intercambio":
+            r1 = parsed["row1"]
+            r2 = parsed["row2"]
+            if r1 is not None and r2 is not None:
+                pivot = [r1, current_pivot_col]
+                rows_before, cols_range = excerpt_rows(prev_rows, [r1, r2], current_pivot_col)
+                rows_after, _ = excerpt_rows(rows, [r1, r2], current_pivot_col)
+        elif kind == "eliminacion":
+            t = parsed["row1"]
+            p = parsed["row2"]
+            if t is not None and p is not None:
+                pivot = [p, current_pivot_col]
+                rows_before, cols_range = excerpt_rows(prev_rows, [t, p], current_pivot_col)
+                rows_after, _ = excerpt_rows(rows, [t], current_pivot_col)
+        elif kind == "normalizacion":
+            r = parsed["row1"]
+            if r is not None:
+                pivot = [r, current_pivot_col]
+                rows_before, cols_range = excerpt_rows(prev_rows, [r], current_pivot_col)
+                rows_after, _ = excerpt_rows(rows, [r], current_pivot_col)
+            
+        meta.append({
+            "index": i + 1,
+            "total": total,
+            "kind": kind,
+            "op": desc,
+            "pivot": pivot,
+            "rows_before": rows_before,
+            "rows_after": rows_after,
+            "cols": list(cols_range) if cols_range else None
+        })
+    return meta

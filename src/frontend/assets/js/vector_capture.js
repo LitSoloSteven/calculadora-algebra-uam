@@ -62,8 +62,9 @@
     document.querySelectorAll(`input[data-vec-id="${vId}"]`).forEach(inp => {
       let isSame = (inp.dataset.vecIdx === idx);
       let control = inp.closest('.q-field__control');
-      if (control && isSame) {
-        control.style.background = 'color-mix(in srgb, var(--accent) 15%, var(--input-bg))';
+      if (control) {
+        if (isSame) control.classList.add('cross-hl');
+        else control.classList.remove('cross-hl');
       }
     });
   });
@@ -75,22 +76,25 @@
 
     document.querySelectorAll(`input[data-vec-id="${vId}"]`).forEach(inp => {
       let control = inp.closest('.q-field__control');
-      if (control) control.style.background = '';
+      if (control) control.classList.remove('cross-hl');
     });
   });
 })();
 
 window.animateVectorDimensionRemoval = function (idxRemove) {
   return new Promise(resolve => {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input[data-vec-idx='${idxRemove}']`);
     const anims = [];
     cells.forEach(input => {
       let control = input.closest('.q-field__control');
       if (control) {
         anims.push(control.animate(
-          [{ opacity: 1, transform: 'scale(1)', filter: 'blur(0)' },
-          { opacity: 0, transform: 'scale(0.85) translateY(-8px)', filter: 'blur(2px)' }],
-          { duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          [{ opacity: 1, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(0.85) translateY(-8px)' }],
+          { duration: 120, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });
@@ -104,15 +108,18 @@ window.animateVectorDimensionRemoval = function (idxRemove) {
 
 window.animateVectorDimensionAddition = function (idxAdd) {
   return new Promise(resolve => {
+    if (window.scalarisMotionOK ? !window.scalarisMotionOK() : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      return resolve();
+    }
     let cells = document.querySelectorAll(`input[data-vec-idx='${idxAdd}']`);
     const anims = [];
     cells.forEach(input => {
       let control = input.closest('.q-field__control');
       if (control) {
         anims.push(control.animate(
-          [{ opacity: 0, transform: 'scale(0.85) translateY(8px)', filter: 'blur(2px)' },
-          { opacity: 1, transform: 'scale(1)', filter: 'blur(0)' }],
-          { duration: 240, easing: 'cubic-bezier(0.32,0.72,0,1)', fill: 'forwards' }
+          [{ opacity: 0, transform: 'scale(0.85) translateY(8px)' },
+          { opacity: 1, transform: 'scale(1)' }],
+          { duration: 120, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
         ).finished);
       }
     });

@@ -24,12 +24,12 @@ class NumericSystemsRenderingMixin:
                         icon='swap_vert',
                         on_click=lambda e, b=id_base: self._swap_base(b),
                         color=None
-                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Usar como entrada')
+                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Usar como entrada"').tooltip('Usar como entrada')
                     ui.button(
                         icon='content_copy',
                         on_click=lambda e, b=id_base: self._copiar_resultado(b, e.sender),
                         color=None
-                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false').tooltip('Copiar')
+                    ).classes('btn-ghost w-8 h-8 p-0 text-sec').props('ripple=false aria-label="Copiar"').tooltip('Copiar')
 
             self.ui_valores[id_base] = ui.label('0').classes(
                 'text-2xl font-mono text-main break-all tracking-wide transition-opacity duration-300'
@@ -43,11 +43,11 @@ class NumericSystemsRenderingMixin:
                 self._limpiar_resultados()
                 return False
 
-            if self.base_activa == 'hexadecimal':
-                val = val.upper()
+            val_raw = val
+            val_conv = val.upper() if self.base_activa == 'hexadecimal' else val
 
             metodo = getattr(self.conversor, f"{self.base_activa}_a_todo")
-            res = metodo(val, self.base_destino)
+            res = metodo(val_conv, self.base_destino)
 
             if "error" in res:
                 self._limpiar_resultados()
@@ -65,6 +65,19 @@ class NumericSystemsRenderingMixin:
             self._render_bits(res['binario'].replace('-', ''))
             self._aplicar_opacidad_tarjetas(revelar=revelar_tarjetas)
             self._mostrar_procedimiento()
+            
+            from src.ai.context import fingerprint
+            entrada = {"valor": val_raw, "base_origen": self.base_activa, "base_destino": self.base_destino}
+            self._result_fp = fingerprint(entrada)
+            p = getattr(self, 'ai_panel', None)
+            if p and hasattr(p, 'schedule_context_refresh'):
+                p.schedule_context_refresh()
+
+            if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
+                self.chips_container.clear()
+                with self.chips_container:
+                    self.ai_panel.render_inline_chips()
+                    
             return True
         except asyncio.CancelledError:
             pass
@@ -86,6 +99,8 @@ class NumericSystemsRenderingMixin:
         if self.bits_container:
             self.bits_container.style('opacity: 0;')
         self.pasos_container.classes('hidden')
+        if getattr(self, 'chips_container', None):
+            self.chips_container.clear()
 
     def _render_bits(self, bin_str):
         self.bits_container.clear()
@@ -121,6 +136,19 @@ class NumericSystemsRenderingMixin:
                     nombre = nombres_base.get(paso["base_origen"], f'Base {paso["base_origen"]}')
                     titulo = f'{idx}. Expansión Posicional desde {nombre}'
                     with ui.expansion(titulo, icon='functions').classes('w-full panel-card font-bold text-main timeline-expansion'):
+                        if getattr(self, 'ai_panel', None):
+                            with ui.row().classes('w-full justify-end px-4 py-2 bg-[var(--bg-elevated)] border-b border-[var(--border-input)]'):
+                                from src.frontend.components.glosa_chips import render_explain_button
+                                render_explain_button(
+                                    idx, 
+                                    len(self.resultados_completos.get("pasos", [])), 
+                                    titulo, 
+                                    lambda ix, t=titulo: self.ai_panel.trigger_explain_step({
+                                        'index': ix, 'total': len(self.resultados_completos.get("pasos", [])), 'kind': 'otro', 'op': t
+                                    }),
+                                    is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                )
+                                
                         filas_html = ""
                         eq_str = ""
                         for t in paso["terminos"]:
@@ -155,13 +183,26 @@ class NumericSystemsRenderingMixin:
                     nombre = nombres_base.get(paso["base_destino"], f'Base {paso["base_destino"]}')
                     titulo = f'{idx}. Divisiones Sucesivas hacia {nombre}'
                     with ui.expansion(titulo, icon='vertical_align_bottom').classes('w-full panel-card font-bold text-main timeline-expansion'):
+                        if getattr(self, 'ai_panel', None):
+                            with ui.row().classes('w-full justify-end px-4 py-2 bg-[var(--bg-elevated)] border-b border-[var(--border-input)]'):
+                                from src.frontend.components.glosa_chips import render_explain_button
+                                render_explain_button(
+                                    idx, 
+                                    len(self.resultados_completos.get("pasos", [])), 
+                                    titulo, 
+                                    lambda ix, t=titulo: self.ai_panel.trigger_explain_step({
+                                        'index': ix, 'total': len(self.resultados_completos.get("pasos", [])), 'kind': 'otro', 'op': t
+                                    }),
+                                    is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                )
+                                
                         filas_html = ""
                         for f in paso["filas"]:
-                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
+                            filas_html += f"<tr><td class='p-2 border-b border-[var(--border-input)] text-center' style='overflow-wrap: anywhere;'>{f['dividendo']}</td><td class='p-2 border-b border-[var(--border-input)] text-center'>÷ {f['divisor']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold' style='overflow-wrap: anywhere;'>{f['cociente']}</td><td class='p-2 border-b border-[var(--border-input)] text-center font-bold text-[var(--btn-primary-text)] bg-[var(--accent)] rounded-md m-1 block'>{f['residuo']}</td></tr>"
 
                         tabla = f"""
                         <div class="flex items-center gap-6 mt-4 font-normal">
-                            <div class="overflow-x-auto flex-grow">
+                            <div class="overflow-x-auto flex-grow" style="min-width: 0;">
                                 <table class="w-full text-sm border-collapse">
                                     <thead>
                                         <tr class="bg-[var(--bg-elevated)]">
@@ -174,7 +215,7 @@ class NumericSystemsRenderingMixin:
                                     <tbody>{filas_html}</tbody>
                                 </table>
                             </div>
-                            <div class="flex flex-col items-center justify-center text-sec">
+                            <div class="flex flex-col items-center justify-center text-sec flex-shrink-0">
                                 <span class="material-icons text-3xl">arrow_upward</span>
                                 <span class="text-xs text-center w-24">{paso["lectura"]}</span>
                             </div>

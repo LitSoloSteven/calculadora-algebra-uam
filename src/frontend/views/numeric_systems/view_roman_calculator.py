@@ -1,7 +1,10 @@
-"""Vista dedicada para la Calculadora de Números Romanos en Scalaris."""
+import logging
 from collections import Counter
 from nicegui import ui
-from src.frontend.components.navbar import create_navbar
+
+logger = logging.getLogger(__name__)
+from src.frontend.components.app_shell import create_app_shell
+from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel
 from src.backend.solvers.numeric_systems.roman_calculator import RomanCalculator, RomanNumeralError
 
@@ -14,12 +17,12 @@ class RomanCalculatorUI:
 
     def build(self):
         self.ai_panel = AIPanel(self)
-        create_navbar(self, active_route='/romanos')
+        create_app_shell(self, active_route=route_of('romanos'))
 
-        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6'):
+        with ui.column().classes('w-full max-w-4xl mx-auto items-center q-pa-md mt-6 view-root'):
             # --- PANEL DE ENTRADA ---
             with ui.column().classes('w-full panel-card p-6 gap-6'):
-                ui.label('Calculadora de Números Romanos').classes('text-2xl font-bold text-main')
+                ui.label('Números romanos').classes('text-2xl font-bold text-main')
 
                 # Selector de operación con neo-tabs
                 with ui.row().classes('w-full items-center gap-3'):
@@ -50,7 +53,7 @@ class RomanCalculatorUI:
                                 'px-3.5 py-1.5 rounded-lg border text-main '
                                 'font-mono text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer'
                             ).style(
-                                'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'
+                                'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                             ).props('no-caps flat ripple=false')
 
                         chip_ejemplo('XIV + IX', 'XIV', 'IX', 'suma')
@@ -62,19 +65,21 @@ class RomanCalculatorUI:
                     with ui.row().classes('w-full items-center gap-3 flex-nowrap'):
                         input_a = ui.input(placeholder='Operando A (ej: XIV)').classes(
                             'flex-1 matrix-input conversor-input text-center'
-                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase;')
+                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase; min-width: 0;')
                         input_a.props('autocomplete="off" spellcheck="false"')
 
                         lbl_signo = ui.label('+').classes('text-2xl font-bold text-sec flex-shrink-0')
 
                         input_b = ui.input(placeholder='Operando B (ej: IX)').classes(
                             'flex-1 matrix-input conversor-input text-center'
-                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase;')
+                        ).style('font-size: 1.5rem !important; padding: 18px 20px; text-transform: uppercase; min-width: 0;')
                         input_b.props('autocomplete="off" spellcheck="false"')
 
                     lbl_error = ui.label('').classes('fs-small').style(
                         'color: var(--error); margin-left: 8px; min-height: 20px;'
                     )
+
+                self.chips_container = ui.column().classes('w-full mt-2')
 
                 # Botón de cálculo
                 ui.button(
@@ -84,13 +89,22 @@ class RomanCalculatorUI:
             # --- CONTENEDOR DINÁMICO DE RESULTADOS ---
             resultado_container = ui.column().classes('w-full gap-6 mt-6')
 
+            def notify_change():
+                p = getattr(self, 'ai_panel', None)
+                if p and hasattr(p, 'schedule_context_refresh'):
+                    p.schedule_context_refresh()
+
             def actualizar_signo(e):
                 signos = {'suma': '+', 'resta': '−', 'mult': '×'}
                 lbl_signo.text = signos.get(e.value, '+')
                 lbl_error.text = ''
+                notify_change()
 
             tabs_op.on_value_change(actualizar_signo)
             tabs_op.set_value('suma')
+
+            input_a.on_value_change(lambda _: notify_change())
+            input_b.on_value_change(lambda _: notify_change())
 
             input_a.on('keydown.enter', lambda: operar_romanos())
             input_b.on('keydown.enter', lambda: operar_romanos())
@@ -150,6 +164,12 @@ class RomanCalculatorUI:
                     dec_b = getattr(res, 'operando_b_decimal', None)
                     res_rom = res.resultado_romano
                     res_dec = res.resultado_decimal
+                    self.last_result = res
+                    
+                    if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
+                        self.chips_container.clear()
+                        with self.chips_container:
+                            self.ai_panel.render_inline_chips()
 
                     with resultado_container:
                         # ----------------------------------------------------
@@ -161,10 +181,10 @@ class RomanCalculatorUI:
                                     ui.label('RESULTADO DE LA OPERACIÓN').classes('text-xs font-bold tracking-widest text-sec')
                                     ui.label(nombre_op.upper()).classes(
                                         'text-[10px] font-extrabold px-2.5 py-0.5 rounded border'
-                                    ).style('background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
+                                    ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
                                 ui.button(icon='content_copy', on_click=lambda: copiar(res_rom), color=None).classes(
                                     'btn-neo-icon w-9 h-9 p-0 text-sec'
-                                ).props('flat round').tooltip('Copiar resultado romano')
+                                ).props('flat round aria-label="Copiar resultado romano"').tooltip('Copiar resultado romano')
 
                             # Ecuación en display grande
                             with ui.row().classes('w-full items-center justify-center gap-4 py-4 flex-wrap text-center'):
@@ -175,7 +195,7 @@ class RomanCalculatorUI:
                                 ui.label(res_rom).classes(
                                     'text-4xl md:text-5xl font-black font-mono tracking-wider px-6 py-2.5 rounded-xl border'
                                 ).style(
-                                    'background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);'
+                                    'background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);'
                                 )
 
                         # ----------------------------------------------------
@@ -189,11 +209,21 @@ class RomanCalculatorUI:
                         with ui.expansion('1. Decodificación de Operandos a Decimal', icon='tag').classes(
                             'w-full panel-card rounded-2xl text-main font-bold text-xl'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
-                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
-                                with ui.row().classes('w-full grid grid-cols-1 md:grid-cols-2 gap-4'):
+                            if getattr(self, 'ai_panel', None):
+                                with ui.row().classes('w-full justify-end px-6 py-2').style('background: var(--bg-elevated);'):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        1, 3, "Decodificación de Operandos a Decimal",
+                                        lambda idx: self.ai_panel.trigger_explain_step({
+                                            'index': 1, 'total': 3, 'kind': 'otro', 'op': 'Decodificación de Operandos a Decimal'
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
+                                with ui.element('div').classes('layout-grid-2'):
                                     # Card Operando A
                                     with ui.row().classes('p-5 rounded-xl border items-center justify-between').style(
-                                        'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         with ui.column().classes('gap-1'):
                                             ui.label('Operando A').classes('text-base font-semibold text-sec')
@@ -202,7 +232,7 @@ class RomanCalculatorUI:
 
                                     # Card Operando B
                                     with ui.row().classes('p-5 rounded-xl border items-center justify-between').style(
-                                        'background: var(--elev-2); border-color: var(--border-input); box-shadow: var(--elev-1);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         with ui.column().classes('gap-1'):
                                             ui.label('Operando B').classes('text-base font-semibold text-sec')
@@ -218,12 +248,22 @@ class RomanCalculatorUI:
                         with ui.expansion(titulo_paso_2, icon='calculate').classes(
                             'w-full panel-card rounded-2xl text-main font-bold text-xl mt-4'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
-                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
+                            if getattr(self, 'ai_panel', None):
+                                with ui.row().classes('w-full justify-end px-6 py-2').style('background: var(--bg-elevated);'):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        2, 3, titulo_paso_2,
+                                        lambda idx, t=titulo_paso_2: self.ai_panel.trigger_explain_step({
+                                            'index': 2, 'total': 3, 'kind': 'otro', 'op': t
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
 
                                 if op == 'mult' and isinstance(dec_b, int):
                                     with ui.column().classes('w-full gap-2.5'):
                                         with ui.row().classes('w-full py-3.5 px-5 rounded-xl text-base font-bold text-sec items-center border').style(
-                                            'background: var(--elev-2); border-color: var(--border-input);'
+                                            'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                         ):
                                             ui.label('Iteración').classes('w-1/4 text-center')
                                             ui.label('Operando Sumado').classes('w-1/4 text-center')
@@ -243,11 +283,11 @@ class RomanCalculatorUI:
                                                     ui.label(res_rom if i == dec_b else str(acum)).classes(
                                                         'font-black px-4 py-1.5 rounded-lg text-base border tracking-wider'
                                                     ).style(
-                                                        'background: var(--elev-2); color: var(--accent); border-color: var(--border-input);'
+                                                        'background: var(--bg-elevated); box-shadow: var(--elev-1); color: var(--accent); border-color: var(--border-input);'
                                                     )
                                 else:
                                     with ui.column().classes('w-full p-6 rounded-2xl border gap-4').style(
-                                        'background: var(--elev-2); border-color: var(--border-input);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         with ui.row().classes('items-center justify-between w-full'):
                                             ui.label('Operación Aritmética Evaluada').classes(
@@ -256,11 +296,11 @@ class RomanCalculatorUI:
                                             if op == 'resta':
                                                 ui.label('Validación: A > B ✓').classes(
                                                     'text-base md:text-lg font-bold px-4 py-1.5 rounded-xl border'
-                                                ).style('background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
+                                                ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
                                             else:
                                                 ui.label('Adición Directa ✓').classes(
                                                     'text-base md:text-lg font-bold px-4 py-1.5 rounded-xl border'
-                                                ).style('background: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
+                                                ).style('background: var(--bg-elevated); box-shadow: var(--elev-inset); color: var(--accent); border-color: var(--border-input);')
 
                                         with ui.row().classes('items-center gap-5 py-3 justify-center flex-wrap'):
                                             ui.label(f'{dec_a}').classes('text-4xl md:text-5xl font-mono font-bold text-main')
@@ -278,12 +318,22 @@ class RomanCalculatorUI:
                         with ui.expansion('3. Notación y Construcción Canónica Romana', icon='history_edu').classes(
                             'w-full panel-card rounded-2xl text-main font-bold text-xl mt-4'
                         ).props('default-opened header-class="pt-5 pb-3 px-6 items-center"'):
-                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--elev-inset);'):
+                            if getattr(self, 'ai_panel', None):
+                                with ui.row().classes('w-full justify-end px-6 py-2').style('background: var(--bg-elevated);'):
+                                    from src.frontend.components.glosa_chips import render_explain_button
+                                    render_explain_button(
+                                        3, 3, "Notación y Construcción Canónica Romana",
+                                        lambda idx: self.ai_panel.trigger_explain_step({
+                                            'index': 3, 'total': 3, 'kind': 'otro', 'op': 'Notación y Construcción Canónica Romana'
+                                        }),
+                                        is_loading=getattr(self.ai_panel, '_is_sending', False)
+                                    )
+                            with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
                                 pasos_can = _desglosar_pasos_canónicos(res_dec)
 
                                 with ui.column().classes('w-full gap-2'):
                                     with ui.row().classes('w-full py-3.5 px-5 rounded-xl text-base font-bold text-sec items-center border').style(
-                                        'background: var(--elev-2); border-color: var(--border-input);'
+                                        'background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'
                                     ):
                                         ui.label('Sustracción').classes('w-1/3 text-center')
                                         ui.label('Glifo Asignado').classes('w-1/3 text-center')
@@ -298,13 +348,13 @@ class RomanCalculatorUI:
                                                 ui.label(p_can['simbolo']).classes(
                                                     'font-black px-6 py-2 rounded-xl text-xl border tracking-widest'
                                                 ).style(
-                                                    'background: var(--elev-2); color: var(--accent); border-color: var(--border-input);'
+                                                    'background: var(--bg-elevated); box-shadow: var(--elev-1); color: var(--accent); border-color: var(--border-input);'
                                                 )
                                             ui.label(f'= {p_can["restante"]}').classes('w-1/3 text-center text-sec font-bold')
 
                                 with ui.column().classes(
                                     'w-full p-6 items-center justify-center border rounded-2xl shadow-inner mt-4'
-                                ).style('background: var(--elev-2); border-color: var(--border-input);'):
+                                ).style('background: var(--bg-panel); border-color: var(--border-input); box-shadow: var(--elev-2);'):
                                     ui.label('EXPRESIÓN FINAL VERIFICADA').classes('text-xs md:text-sm font-bold text-sec tracking-widest')
                                     with ui.row().classes('items-baseline gap-4 mt-2 flex-wrap justify-center'):
                                         ui.label(f'{val_a} {simbolo_op} {val_b} =').classes('text-2xl md:text-3xl text-sec font-mono font-medium')
@@ -314,8 +364,124 @@ class RomanCalculatorUI:
                                         ui.label(f'({res_dec})').classes('text-lg md:text-xl text-sec font-mono')
 
                 except RomanNumeralError as err:
+                    self.last_result = None
+                    self.last_error = err
                     lbl_error.text = str(err)
+                    if getattr(self, 'ai_panel', None) and getattr(self, 'chips_container', None):
+                        self.chips_container.clear()
+                        with self.chips_container:
+                            self.ai_panel.render_inline_chips()
                 except Exception as err:
-                    lbl_error.text = str(err)
+                    logger.exception("Error inesperado en la calculadora de números romanos")
+                    self.last_result = None
+                    self.last_error = err
+                    lbl_error.text = "Ocurrió un error inesperado al procesar la operación. Inténtalo de nuevo."
+                finally:
+                    from src.ai.context import fingerprint
+                    entrada = {"a": val_a, "b": val_b, "operacion": op}
+                    self._result_fp = fingerprint(entrada)
+                    p = getattr(self, 'ai_panel', None)
+                    if p and hasattr(p, 'schedule_context_refresh'):
+                        p.schedule_context_refresh()
+
+        def classify_roman_error(exc: Exception) -> str | None:
+            by_code = {
+                "ZERO_NOT_REPRESENTABLE": "err_sub_zero",
+                "NEGATIVE_NOT_REPRESENTABLE": "err_sub_neg",
+                "INVALID_SYNTAX": "err_syntax",
+                "NOT_CANONICAL": "err_syntax",
+                "EMPTY_INPUT": "err_syntax",
+            }
+            code = getattr(exc, "code", None)
+            if code in by_code:
+                return by_code[code]
+            msg = str(exc).lower()
+            if "no existe el número cero" in msg:
+                return "err_sub_zero"
+            if "no existen los números negativos" in msg:
+                return "err_sub_neg"
+            if "sintaxis válida" in msg or "canónica" in msg:
+                return "err_syntax"
+            return None
+
+        self.classify_roman_error = classify_roman_error
+
+        def get_ai_context():
+            from src.ai.context import AIContext, sanitize_user_string, is_stale
+            val_a = input_a.value
+            val_b = input_b.value
+            if not val_a and not val_b:
+                return AIContext("romanos", "Números romanos", "Calculadora Romana", {}, empty=True)
+            
+            ctx = AIContext(
+                "romanos",
+                "Números romanos",
+                f"Operación: {tabs_op.value}",
+                {
+                    "operando_a": sanitize_user_string(val_a, 32) if val_a else "",
+                    "operando_b": sanitize_user_string(val_b, 32) if val_b else "",
+                    "operacion": tabs_op.value
+                }
+            )
+            entrada_actual = {"a": (val_a or "").strip().upper(), "b": (val_b or "").strip().upper(), "operacion": tabs_op.value}
+            ctx.stale = is_stale(entrada_actual, getattr(self, '_result_fp', None))
+
+            if getattr(self, 'last_result', None):
+                if ctx.stale:
+                    ctx.result = None
+                else:
+                    ctx.result = {
+                        "status": "SUCCESS",
+                        "resultado_romano": self.last_result.resultado_romano,
+                        "resultado_decimal": self.last_result.resultado_decimal
+                    }
+            elif lbl_error.text:
+                if ctx.stale:
+                    ctx.result = None
+                else:
+                    ctx.result = {
+                        "status": "ERROR",
+                        "message": lbl_error.text
+                    }
+            return ctx
+            
+        self.get_ai_context = get_ai_context
+        
+        def get_ai_signals():
+            from src.frontend.suggestions import Signals, InvalidCell
+            try:
+                state = "none"
+                flags = set()
+                invalid = None
+                
+                import re
+                regex = r'^(M{0,3})(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$'
+                
+                v_a = (input_a.value or "").strip().upper()
+                v_b = (input_b.value or "").strip().upper()
+                
+                if v_a and not re.match(regex, v_a):
+                    invalid = InvalidCell(label="Operando A")
+                elif v_b and not re.match(regex, v_b):
+                    invalid = InvalidCell(label="Operando B")
+                    
+                stale = getattr(self.get_ai_context(), 'stale', False)
+                if not stale:
+                    if getattr(self, 'last_result', None):
+                        state = "ok"
+                    elif getattr(self, 'last_error', None):
+                        state = "error"
+                        err_flag = classify_roman_error(self.last_error)
+                        if err_flag:
+                            flags.add(err_flag)
+                            
+                if tabs_op.value == 'mult':
+                    flags.add("op_mult")
+                    
+                return Signals(tool="romanos", state=state, flags=frozenset(flags), invalid=invalid)
+            except Exception:
+                return None
+                
+        self.get_ai_signals = get_ai_signals
 
         self.ai_panel.build()

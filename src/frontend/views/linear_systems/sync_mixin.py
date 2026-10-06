@@ -20,6 +20,9 @@ class LinearSystemsSyncMixin:
     def _on_equations_change(self, e=None):
         self.update_sync_buttons()
         self._trigger_live_preview()
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
 
     def render_ecuaciones(self):
         backup_vals = [inp.value for inp in self.ecuaciones_inputs]
@@ -113,3 +116,6 @@ class LinearSystemsSyncMixin:
     def _on_grid_change(self):
         self._trigger_live_preview()
         self.update_sync_buttons()
+        p = getattr(self, 'ai_panel', None)
+        if p and hasattr(p, 'schedule_context_refresh'):
+            p.schedule_context_refresh()
