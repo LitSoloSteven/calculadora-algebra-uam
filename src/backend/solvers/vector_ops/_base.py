@@ -130,3 +130,13 @@ class _VectorOpsBase(StepTraceMixin):
             f"y se transpone a {v2_t.rows}×{v2_t.cols} para coincidir con {name1}."
         )
         return v1, v2_t, msg
+
+    # Alias canónicos en castellano
+    _es_vector_columna = _is_column_vector
+    _es_vector_fila = _is_row_vector
+    _es_vector = _is_vector
+    _dimension_vector = _vector_dim
+    _validar_vector = _assert_vector
+    _validar_vector_columna = _assert_column_vector
+    _transponer = _transpose
+    _armonizar_dimensiones = _harmonize_shapes

@@ -27,13 +27,14 @@ def collect_bound_names(tree: ast.AST) -> set[str]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             bound.add(node.name)
-            args_obj = getattr(node, "args", ast.arguments())
-            for a in args_obj.posonlyargs + args_obj.args + args_obj.kwonlyargs:
-                bound.add(a.arg)
-            if args_obj.vararg:
-                bound.add(args_obj.vararg.arg)
-            if args_obj.kwarg:
-                bound.add(args_obj.kwarg.arg)
+            if hasattr(node, "args"):
+                args_obj = node.args
+                for a in getattr(args_obj, "posonlyargs", []) + args_obj.args + args_obj.kwonlyargs:
+                    bound.add(a.arg)
+                if args_obj.vararg:
+                    bound.add(args_obj.vararg.arg)
+                if args_obj.kwarg:
+                    bound.add(args_obj.kwarg.arg)
 
         elif isinstance(node, ast.Lambda):
             for a in node.args.posonlyargs + node.args.args + node.args.kwonlyargs:

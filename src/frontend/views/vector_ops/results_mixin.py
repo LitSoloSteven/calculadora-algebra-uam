@@ -220,3 +220,8 @@ class VectorOpsResultsMixin:
                         ui.html(
                             f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-3 rounded-lg shadow-sm border border-[var(--border-input)]">$$ {bs} $$</div>'
                         )
+
+    # Alias canónicos en castellano
+    renderizar_estado_vacio = render_empty_state
+    renderizar_resultado = render_result
+

@@ -48,6 +48,7 @@ class GaussSolver:
                 f"matriz aumentada ({augmented_matrix.cols}); si no, no "
                 f"quedan columnas para las variables."
             )
+        self.initial_matrix = augmented_matrix.clone()
         self.matrix = augmented_matrix.clone()
         self.eps = eps
         self.variable_names = variable_names
@@ -343,6 +344,67 @@ class GaussSolver:
         rank, pivot_cols = self._eliminate(full_reduction=self.FULL_REDUCTION)
         status, message = self._check_system_status(rank)
 
+        num_vars = self._num_vars()
+        es_homogeneo = all(
+            abs(self.initial_matrix.get(r, num_vars)) < self.eps
+            for r in range(self.initial_matrix.rows)
+        )
+        rango_a = rank
+        rango_aumentada = rank + 1 if status == "NO_SOLUTION" else rank
+
+        columnas_independientes = (rango_a == num_vars)
+        dependencia_lineal = {
+            "son_linealmente_independientes": columnas_independientes,
+            "conclusion": (
+                f"Las columnas de la matriz de coeficientes son LINEALMENTE INDEPENDIENTES (rango = {rango_a} = {num_vars} variables)."
+                if columnas_independientes else
+                f"Las columnas de la matriz de coeficientes son LINEALMENTE DEPENDIENTES (rango = {rango_a} < {num_vars} variables)."
+            )
+        }
+
+        if status == "NO_SOLUTION":
+            clasificacion_rouche = "Sistema Incompatible"
+            explicacion_rouche = (
+                f"rg(A) = {rango_a} < rg(A|b) = {rango_aumentada}. "
+                "Por el Teorema de Rouché-Frobenius, el sistema no tiene solución (incompatible)."
+            )
+        elif status == "UNIQUE_SOLUTION":
+            clasificacion_rouche = "Sistema Compatible Determinado"
+            if es_homogeneo:
+                explicacion_rouche = (
+                    f"Sistema Homogéneo con rg(A) = {rango_a} = n ({num_vars} incógnitas). "
+                    "Presenta únicamente la solución trivial única (x = 0)."
+                )
+            else:
+                explicacion_rouche = (
+                    f"rg(A) = rg(A|b) = {rango_a} = n ({num_vars} incógnitas). "
+                    "Por el Teorema de Rouché-Frobenius, el sistema presenta solución única (compatible determinado)."
+                )
+        else:  # INFINITE_SOLUTIONS
+            clasificacion_rouche = "Sistema Compatible Indeterminado"
+            grados_libertad = num_vars - rango_a
+            if es_homogeneo:
+                explicacion_rouche = (
+                    f"Sistema Homogéneo con rg(A) = {rango_a} < n ({num_vars} incógnitas). "
+                    f"Presenta infinitas soluciones no triviales (dimensión del espacio nulo = {grados_libertad})."
+                )
+            else:
+                explicacion_rouche = (
+                    f"rg(A) = rg(A|b) = {rango_a} < n ({num_vars} incógnitas). "
+                    f"Por el Teorema de Rouché-Frobenius, presenta infinitas soluciones con {grados_libertad} variable(s) libre(s)."
+                )
+
+        analisis_sistema = {
+            "es_homogeneo": es_homogeneo,
+            "rango_a": rango_a,
+            "rango_aumentada": rango_aumentada,
+            "num_incognitas": num_vars,
+            "clasificacion_rouche": clasificacion_rouche,
+            "explicacion_rouche": explicacion_rouche,
+            "dependencia_lineal": dependencia_lineal,
+            "pivotes": pivot_cols,
+        }
+
         if status == "NO_SOLUTION":
             return {
                 "status": status,
@@ -353,6 +415,7 @@ class GaussSolver:
                 "solution_exact": None,
                 "free_cols": [],          # ← sin solución no hay back-substitution
                 "solution_param": None,   # ← NUEVO: sin solución no hay paramétrica
+                "analisis_sistema": analisis_sistema,
                 "steps": self.steps,
                 "back_substitution_steps": []
             }
@@ -368,6 +431,18 @@ class GaussSolver:
             "solution_exact": solution_exact,
             "free_cols": free_cols,
             "solution_param": solution_param,   # ← NUEVO
+            "analisis_sistema": analisis_sistema,
             "steps": self.steps,
             "back_substitution_steps": back_steps
         }
+
+    # Alias canónicos en castellano
+    resolver = solve
+    resolver_reduccion = solve_reduction
+    _eliminar = _eliminate
+    _eliminar_fila_exacta = _eliminate_row_exact
+    _verificar_estado_sistema = _check_system_status
+    _sustitucion_regresiva = _back_substitute
+    _obtener_fila = _get_row
+    _establecer_fila = _set_row
+    _num_variables = _num_vars

@@ -272,3 +272,10 @@ class MatrixExpressionEvaluator:
             "result_matrix_latex": matrix_to_latex(final_val),
             "segment_steps": self.global_steps
         }
+
+    # Alias canónicos en castellano
+    evaluar = evaluate
+    _tokenizar = _tokenize
+    _a_rpn = _to_rpn
+    _multiplicar_escalar = _scalar_multiply
+

@@ -236,7 +236,7 @@ class VectorCapturePanel:
                 if not val_str:
                     val_str = '0'
                 
-                success, _, msg = MatrixValidator.parse_number_exact(val_str)
+                success, _, msg = MatrixValidator.parsear_numero_exacto(val_str)
                 if not success:
                     raise ValueError(f"Error en Vector {name}, componente {i+1}: {msg}")
                 parsed_data.append(val_str)
@@ -261,3 +261,14 @@ class VectorCapturePanel:
         if r < 0 or r >= self.dim:
             return
         ui.run_javascript(f"if(window.flashElement) flashElement('{self.panel_id}_{name}_idx{r}');")
+
+    # Alias canónicos en castellano
+    obtener_siguiente_nombre_disponible = get_next_available_name
+    agregar_vector = add_vector
+    eliminar_vector = remove_vector
+    ajustar_dimension = adjust_dimension
+    adjust_dim = adjust_dimension
+    obtener_diccionario_vectores = get_vectors_dict
+    renderizar_todos_los_vectores = render_all_vectors
+    limpiar = clear
+

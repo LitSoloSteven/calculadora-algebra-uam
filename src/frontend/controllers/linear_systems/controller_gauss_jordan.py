@@ -25,7 +25,7 @@ class GaussJordanController:
 
         # --- Ejecución del solver ---
         solver = GaussJordanSolver(matrix, variable_names=variables)
-        result = solver.solve()
+        result = solver.resolver()
 
         classification = result.get("message", "")
         solution = result.get("solution")
@@ -51,6 +51,8 @@ class GaussJordanController:
             "classification": classification,
             "message": classification,
             "solution": [str(x) for x in solution] if solution else [],
+            "solution_param": result.get("solution_param"),
+            "analisis_sistema": result.get("analisis_sistema"),
             "intermediate_steps_latex": steps_latex,
             "steps_meta": steps_meta,
             "verification_steps_latex": verification_steps_latex,
@@ -58,3 +60,6 @@ class GaussJordanController:
         }
 
         return json.dumps(response, ensure_ascii=False)
+
+    # Alias canónico en castellano
+    procesar_sistema = process_system

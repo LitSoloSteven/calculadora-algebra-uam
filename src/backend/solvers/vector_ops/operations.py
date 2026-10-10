@@ -257,4 +257,9 @@ class VectorOpsSolver(_VectorOpsBase):
             "steps": self.steps,
             "latex_details": latex_details,
         }
-        
+
+    # Alias canónicos en castellano
+    sumar = add
+    restar = subtract
+    multiplicar_escalar = scalar_multiply
+    _operacion_binaria = _binary_op

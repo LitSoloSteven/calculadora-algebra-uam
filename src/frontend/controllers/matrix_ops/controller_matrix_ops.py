@@ -125,7 +125,7 @@ class MatrixOpsController:
         # documenta: preferimos un error de dominio a un 500.
         try:
             evaluator = MatrixExpressionEvaluator()
-            resultado = evaluator.evaluate(expresion_str, matrices)
+            resultado = evaluator.evaluar(expresion_str, matrices)
         except ValueError as e:
             return json.dumps({
                 "status": "ERROR",
@@ -187,3 +187,7 @@ class MatrixOpsController:
             "cols": None,
             "detail": detail,
         }
+
+    # Alias canónicos en castellano
+    procesar_expresion = process_expression
+    _construir_matrices = _build_matrices

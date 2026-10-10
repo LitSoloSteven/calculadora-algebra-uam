@@ -43,7 +43,7 @@ class Matrix:
             self.data = [[Fraction(0) for _ in range(cols)] for _ in range(rows)]
 
     @staticmethod
-    def _normalize_val(value: NumericLike) -> Numeric:
+    def _normalizar_valor(valor: NumericLike) -> Numeric:
         """Conserva Fraction/int intactos. Parsea strings como Fraction exacto
         (formato 'a/b' o decimal). Convierte float simple a Fraction.
 
@@ -56,74 +56,100 @@ class Matrix:
 
         Ambos chequeos se aplican ANTES de tocar Fraction, en O(1).
         """
-        if isinstance(value, (Fraction, int)):
-            return value
+        if isinstance(valor, (Fraction, int)):
+            return valor
 
-        if isinstance(value, str):
-            val_clean = value.strip()
-            if not val_clean:
+        if isinstance(valor, str):
+            val_limpio = valor.strip()
+            if not val_limpio:
                 return Fraction(0)
-            if "e" in val_clean or "E" in val_clean:
+            if "e" in val_limpio or "E" in val_limpio:
                 raise MatrixDataError(MSG_SCI_NOTATION_NOT_SUPPORTED)
-            if len(val_clean) > MAX_NUMBER_STRING_LENGTH:
+            if len(val_limpio) > MAX_NUMBER_STRING_LENGTH:
                 raise MatrixDataError(MSG_NUMBER_TOO_LONG)
             try:
-                return Fraction(val_clean)
+                return Fraction(val_limpio)
             except (ValueError, ZeroDivisionError):
-                raise MatrixDataError(f"Valor no parseable como número: '{value}'.")
+                raise MatrixDataError(f"Valor no parseable como número: '{valor}'.")
 
-        if isinstance(value, float):
+        if isinstance(valor, float):
             try:
-                frac = Fraction(value).limit_denominator(FRACTION_RECONSTRUCTION_LIMIT)
-                if abs(float(frac) - value) < ZERO_EPSILON:
+                frac = Fraction(valor).limit_denominator(FRACTION_RECONSTRUCTION_LIMIT)
+                if abs(float(frac) - valor) < ZERO_EPSILON:
                     return frac
             except (ValueError, OverflowError):
                 pass
-            return value
+            return valor
 
-        raise MatrixDataError(f"Tipo no soportado en celda: {type(value).__name__}.")
+        raise MatrixDataError(f"Tipo no soportado en celda: {type(valor).__name__}.")
 
-    def _check_bounds(self, row: int, col: int) -> None:
-        if not (0 <= row < self.rows and 0 <= col < self.cols):
+    _normalize_val = _normalizar_valor
+
+    def _verificar_limites(self, fila: int, columna: int) -> None:
+        if not (0 <= fila < self.rows and 0 <= columna < self.cols):
             raise IndexError(
-                f"Índice [{row},{col}] fuera de rango para una matriz {self.rows}×{self.cols}."
+                f"Índice [{fila},{columna}] fuera de rango para una matriz {self.rows}×{self.cols}."
             )
 
-    def get(self, row: int, col: int) -> Numeric:
-        self._check_bounds(row, col)
-        return self.data[row][col]
+    _check_bounds = _verificar_limites
 
-    def set(self, row: int, col: int, value: Numeric) -> None:
-        self._check_bounds(row, col)
-        self.data[row][col] = self._normalize_val(value)
+    @property
+    def filas(self) -> int:
+        return self.rows
 
-    def clone(self) -> 'Matrix':
-        new_data = [row[:] for row in self.data]
-        return Matrix(self.rows, self.cols, new_data)
+    @property
+    def columnas(self) -> int:
+        return self.cols
 
-    def swap_rows(self, r1: int, r2: int) -> None:
-        # Usamos _check_bounds sobre la primera columna para validar ambos índices de fila.
-        self._check_bounds(r1, 0)
-        self._check_bounds(r2, 0)
-        if r1 != r2:
-            self.data[r1], self.data[r2] = self.data[r2], self.data[r1]
+    @property
+    def datos(self) -> list[list[Numeric]]:
+        return self.data
 
-    def add_scaled_row(self, target_r: int, source_r: int, scalar: Numeric) -> None:
-        self._check_bounds(target_r, 0)
-        self._check_bounds(source_r, 0)
-        s_norm = self._normalize_val(scalar)
+    def obtener(self, fila: int, columna: int) -> Numeric:
+        self._verificar_limites(fila, columna)
+        return self.data[fila][columna]
+
+    get = obtener
+
+    def establecer(self, fila: int, columna: int, valor: Numeric) -> None:
+        self._verificar_limites(fila, columna)
+        self.data[fila][columna] = self._normalizar_valor(valor)
+
+    set = establecer
+
+    def clonar(self) -> 'Matrix':
+        nuevos_datos = [fila[:] for fila in self.data]
+        return Matrix(self.rows, self.cols, nuevos_datos)
+
+    clone = clonar
+
+    def intercambiar_filas(self, f1: int, f2: int) -> None:
+        # Usamos _verificar_limites sobre la primera columna para validar ambos índices de fila.
+        self._verificar_limites(f1, 0)
+        self._verificar_limites(f2, 0)
+        if f1 != f2:
+            self.data[f1], self.data[f2] = self.data[f2], self.data[f1]
+
+    swap_rows = intercambiar_filas
+
+    def sumar_fila_escalada(self, fila_destino: int, fila_origen: int, escalar: Numeric) -> None:
+        self._verificar_limites(fila_destino, 0)
+        self._verificar_limites(fila_origen, 0)
+        s_norm = self._normalizar_valor(escalar)
         for c in range(self.cols):
-            curr = self.data[target_r][c]
-            src = self.data[source_r][c]
-            self.data[target_r][c] = self._normalize_val(curr + s_norm * src)
+            actual = self.data[fila_destino][c]
+            origen = self.data[fila_origen][c]
+            self.data[fila_destino][c] = self._normalizar_valor(actual + s_norm * origen)
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Matrix):
+    add_scaled_row = sumar_fila_escalada
+
+    def __eq__(self, otro: object) -> bool:
+        if not isinstance(otro, Matrix):
             return NotImplemented
-        if self.rows != other.rows or self.cols != other.cols:
+        if self.rows != otro.rows or self.cols != otro.cols:
             return False
         return all(
-            abs(float(self.data[r][c]) - float(other.data[r][c])) < ZERO_EPSILON
+            abs(float(self.data[r][c]) - float(otro.data[r][c])) < ZERO_EPSILON
             for r in range(self.rows)
             for c in range(self.cols)
         )
@@ -131,7 +157,7 @@ class Matrix:
     def __str__(self) -> str:
         from src.backend.utils.formatters import format_fraction_str
         res = []
-        for row in self.data:
-            formatted_row = [f"{format_fraction_str(val):>8}" for val in row]
-            res.append("[ " + " ".join(formatted_row) + " ]")
+        for fila in self.data:
+            fila_formateada = [f"{format_fraction_str(val):>8}" for val in fila]
+            res.append("[ " + " ".join(fila_formateada) + " ]")
         return "\n".join(res)

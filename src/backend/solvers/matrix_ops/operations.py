@@ -313,3 +313,12 @@ class MatrixOpsSolver(StepTraceMixin):
         for i in range(n):
             det *= Fraction(M.get(i, i))
         return det
+
+    # Alias canónicos en castellano
+    sumar = add
+    restar = subtract
+    multiplicar = multiply
+    multiplicar_escalar = scalar_multiply
+    transponer = transpose
+    determinante = determinant
+    _operacion_binaria_elemento_a_elemento = _elementwise_binary_op

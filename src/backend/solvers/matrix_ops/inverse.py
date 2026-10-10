@@ -266,3 +266,6 @@ class MatrixInverseSolver:
             "coincide": coincide,
             "detail_latex": detail_latex,
         }
+
+    # Alias canónico en castellano
+    resolver = solve

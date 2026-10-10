@@ -213,4 +213,11 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
             "rows_after": rows_after,
             "cols": list(cols_range) if cols_range else None
         })
-    return meta
+    return meta
+
+
+# Alias canónicos en castellano
+parsear_payload = parse_payload
+validar_y_construir_aumentada = validate_and_build_augmented
+construir_metadatos_pasos = build_steps_meta
+

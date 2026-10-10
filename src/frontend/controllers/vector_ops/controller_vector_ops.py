@@ -9,40 +9,43 @@ from src.frontend.controllers.vector_ops._shared import parse_payload
 
 logger = logging.getLogger(__name__)
 
-def build_vector_from_dict(vec_dict: dict) -> Matrix:
-    orientation = vec_dict.get("orientation", "column")
-    raw_data = vec_dict.get("data", [])
+def construir_vector_desde_dict(vec_dict: dict) -> Matrix:
+    orientacion = vec_dict.get("orientation", "column")
+    datos_crudos = vec_dict.get("data", [])
     
-    parsed_vals = []
-    for val_str in raw_data:
-        success, val, err = MatrixValidator.parse_number_exact(str(val_str))
-        if not success:
+    valores_parseados = []
+    for val_str in datos_crudos:
+        exito, val, err = MatrixValidator.parsear_numero_exacto(str(val_str))
+        if not exito:
             raise ValueError(f"Valor inválido: {val_str}. {err}")
-        parsed_vals.append(val)
+        valores_parseados.append(val)
         
-    if orientation == 'column':
-        return Matrix(len(parsed_vals), 1, [[v] for v in parsed_vals])
+    if orientacion == 'column':
+        return Matrix(len(valores_parseados), 1, [[v] for v in valores_parseados])
     else:
-        return Matrix(1, len(parsed_vals), [parsed_vals])
+        return Matrix(1, len(valores_parseados), [valores_parseados])
+
+build_vector_from_dict = construir_vector_desde_dict
+
 
 class VectorOpsController:
     @staticmethod
-    def process_add_subtract(payload_str: str) -> str:
+    def procesar_suma_resta(payload_str: str) -> str:
         from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixEncoder
         data, err = parse_payload(payload_str)
         if err: return err
         
         try:
             op = data.get("operation")
-            v1 = build_vector_from_dict(data.get("v1", {}))
-            v2 = build_vector_from_dict(data.get("v2", {}))
+            v1 = construir_vector_desde_dict(data.get("v1", {}))
+            v2 = construir_vector_desde_dict(data.get("v2", {}))
             strict = data.get("strict", False)
             
             solver = VectorOpsSolver()
             if op == "add":
-                res = solver.add(v1, v2, name1="v_1", name2="v_2", strict=strict)
+                res = solver.sumar(v1, v2, name1="v_1", name2="v_2", strict=strict)
             else:
-                res = solver.subtract(v1, v2, name1="v_1", name2="v_2", strict=strict)
+                res = solver.restar(v1, v2, name1="v_1", name2="v_2", strict=strict)
                 
             for step in res.get("steps", []):
                 step.pop("matrix", None)
@@ -55,22 +58,24 @@ class VectorOpsController:
             logger.exception("Error inesperado en process_add_subtract")
             return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la operación. Inténtalo de nuevo."})
 
+    process_add_subtract = procesar_suma_resta
+
     @staticmethod
-    def process_scalar_multiply(payload_str: str) -> str:
+    def procesar_multiplicacion_escalar(payload_str: str) -> str:
         from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixEncoder
         data, err = parse_payload(payload_str)
         if err: return err
         
         try:
             scalar_str = str(data.get("scalar", "0"))
-            success, k, msg = MatrixValidator.parse_number_exact(scalar_str)
-            if not success:
+            exito, k, msg = MatrixValidator.parsear_numero_exacto(scalar_str)
+            if not exito:
                 return json.dumps({"status": "ERROR", "message": f"Escalar inválido: {msg}"})
                 
-            v = build_vector_from_dict(data.get("v", {}))
+            v = construir_vector_desde_dict(data.get("v", {}))
             
             solver = VectorOpsSolver()
-            res = solver.scalar_multiply(k, v, name="v", result_name="w")
+            res = solver.multiplicar_escalar(k, v, name="v", result_name="w")
             
             for step in res.get("steps", []):
                 step.pop("matrix", None)
@@ -83,23 +88,25 @@ class VectorOpsController:
             logger.exception("Error inesperado en process_scalar_multiply")
             return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la multiplicación por escalar. Inténtalo de nuevo."})
 
+    process_scalar_multiply = procesar_multiplicacion_escalar
+
     @staticmethod
-    def process_linear_combination(payload_str: str) -> str:
+    def procesar_combinacion_lineal(payload_str: str) -> str:
         from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixEncoder
         data, err = parse_payload(payload_str)
         if err: return err
         
         try:
             b_data = data.get("b", {})
-            b = build_vector_from_dict(b_data)
+            b = construir_vector_desde_dict(b_data)
             
             vectors_raw = data.get("vectors", [])
             vectors = []
             for v_data in vectors_raw:
-                vectors.append(build_vector_from_dict(v_data))
+                vectors.append(construir_vector_desde_dict(v_data))
             
             solver = LinearCombinationSolver()
-            res = solver.solve(b, vectors)
+            res = solver.resolver(b, vectors)
             
             # Formatear matrices y construir steps_meta sobre gauss_steps
             from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
@@ -127,3 +134,6 @@ class VectorOpsController:
         except Exception:
             logger.exception("Error inesperado en process_linear_combination")
             return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al resolver la combinación lineal. Inténtalo de nuevo."})
+
+    process_linear_combination = procesar_combinacion_lineal
+

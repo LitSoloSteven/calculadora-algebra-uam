@@ -256,3 +256,26 @@ class EquationGrid:
         self.generar_cuadricula()
         if self.on_data_change:
             self.on_data_change()
+
+    def cargar_datos(self, matrix_A: list[list[str]], vector_b: list[str]) -> None:
+        """Carga datos directamente en la matriz, actualizando dimensiones y cuadrícula."""
+        self.m = len(matrix_A)
+        self.n = len(matrix_A[0]) if self.m > 0 else 3
+        self._cache_A.clear()
+        self._cache_b.clear()
+        for i, row in enumerate(matrix_A):
+            for j, val in enumerate(row):
+                s = str(val).strip()
+                if s and s != "0":
+                    self._cache_A[(i, j)] = s
+        for i, val in enumerate(vector_b):
+            s = str(val).strip()
+            if s and s != "0":
+                self._cache_b[i] = s
+        self.entradas_A.clear()
+        self.entradas_b.clear()
+        self.generar_cuadricula()
+        if self.on_data_change:
+            self.on_data_change()
+
+    load_data = cargar_datos

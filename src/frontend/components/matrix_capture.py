@@ -254,7 +254,7 @@ class MatrixCapturePanel:
                     # Se conserva la validación para dar feedback inmediato en la UI,
                     # pero ahora se envía el string original al backend para no
                     # perder precisión en fracciones con denominador > 1000.
-                    success, _, msg = MatrixValidator.parse_number_exact(val_str)
+                    success, _, msg = MatrixValidator.parsear_numero_exacto(val_str)
                     if not success:
                         raise ValueError(f"Error en Matriz {name}, celda [{r+1},{c+1}]: {msg}")
                     row_vals.append(val_str)
@@ -266,3 +266,12 @@ class MatrixCapturePanel:
                 "data": parsed_data
             }
         return result
+
+    # Alias canónicos en castellano
+    obtener_siguiente_nombre_disponible = get_next_available_name
+    agregar_matriz = add_matrix
+    eliminar_matriz = remove_matrix
+    ajustar_tamano = adjust_size
+    obtener_diccionario_matrices = get_matrices_dict
+    renderizar_todas_las_matrices = render_all_matrices
+

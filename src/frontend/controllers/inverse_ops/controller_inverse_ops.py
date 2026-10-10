@@ -89,7 +89,7 @@ class InverseOpsController:
                 cell_str = str(cell).strip() if cell is not None else ""
                 if cell_str == "":
                     cell_str = "0"
-                ok, val, err_msg = MatrixValidator.parse_number_exact(cell_str)
+                ok, val, err_msg = MatrixValidator.parsear_numero_exacto(cell_str)
                 if not ok:
                     return cls._empty_result(
                         "ERROR",
@@ -106,7 +106,7 @@ class InverseOpsController:
         t0 = time.perf_counter()
         try:
             solver = MatrixInverseSolver()
-            res = solver.solve(matrix_a, build_step_latex=False)
+            res = solver.resolver(matrix_a, build_step_latex=False)
         except ValueError as e:
             return cls._empty_result(
                 "ERROR",
@@ -589,3 +589,7 @@ class InverseOpsController:
             "rows_after": rows_after,
             "cols": cols_range,
         }
+
+    # Alias canónico en castellano
+    procesar_inversa = process_inverse
+

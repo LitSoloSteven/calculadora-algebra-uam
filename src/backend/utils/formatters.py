@@ -107,3 +107,10 @@ def format_parametric_expr(const: Fraction, terms: Dict[str, Fraction]) -> str:
             parts.append(f"{sign} {c_str}{var}")
 
     return " ".join(parts) if parts else "0"
+
+
+# Alias canónicos en castellano
+formatear_variable_latex = format_variable_for_latex
+formatear_fraccion_str = format_fraction_str
+numero_a_latex = number_to_latex
+formatear_expresion_parametrica = format_parametric_expr

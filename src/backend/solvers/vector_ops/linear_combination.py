@@ -435,3 +435,7 @@ class LinearCombinationSolver(_VectorOpsBase):
 
         # Fallback defensivo: Gauss devolvió un status inesperado.
         return self._lc_error(f"Estado inesperado del solver: {gauss_status}")
+
+    # Alias canónicos en castellano
+    resolver = solve
+    _error_combinacion_lineal = _lc_error

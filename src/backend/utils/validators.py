@@ -273,7 +273,17 @@ class MatrixValidator:
         if isinstance(raw_data, list) and len(raw_data) == 0:
             return False, "La matriz no puede estar vacía."
         return True, "Datos válidos."
-    
+
+    # Alias canónicos en castellano
+    parsear_numero_exacto = parse_number_exact
+    parsear_numero = parse_number
+    validar_dimensiones = validate_dimensions
+    validar_datos_matriz = validate_matrix_data
+    validar_y_parsear_matriz_cruda = validate_and_parse_raw_matrix
+    validar_coherencia_variables = validate_variable_coherence
+    verificar_solucion = verify_solution
+    validar_datos_crudos = validate_raw_data
+
 
 def validate_same_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
     """
@@ -288,6 +298,9 @@ def validate_same_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
         )
 
 
+validar_mismas_dimensiones = validate_same_dimensions
+
+
 def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> None:
     """
     Valida que el número de columnas de A (n) sea igual al número de filas de B (p).
@@ -299,3 +312,6 @@ def validate_multiplication_dimensions(matrix_a: Matrix, matrix_b: Matrix) -> No
             shape_a=(matrix_a.rows, matrix_a.cols),
             shape_b=(matrix_b.rows, matrix_b.cols),
         )
+
+
+validar_dimensiones_multiplicacion = validate_multiplication_dimensions

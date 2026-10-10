@@ -25,7 +25,7 @@ class MatrixController:
 
         # --- Ejecución del solver ---
         solver = GaussSolver(matrix, variable_names=variables)
-        result = solver.solve()
+        result = solver.resolver()
 
         # --- Formateo de la respuesta ---
         raw_steps = result.get("steps", [])
@@ -52,6 +52,8 @@ class MatrixController:
             "classification": result.get("message"),
             "message": result.get("message"),
             "solution": solution,
+            "solution_param": result.get("solution_param"),
+            "analisis_sistema": result.get("analisis_sistema"),
             "intermediate_steps_latex": intermediate_steps_latex,
             "steps_meta": steps_meta,
             "back_substitution_steps": result.get("back_substitution_steps", []),
@@ -59,3 +61,6 @@ class MatrixController:
         }
 
         return json.dumps(response_payload)
+
+    # Alias canónico en castellano
+    procesar_sistema = process_system
