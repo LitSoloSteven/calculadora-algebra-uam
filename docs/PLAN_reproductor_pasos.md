@@ -47,12 +47,12 @@ Corregir la vista previa del modo Ecuaciones de Sistemas, que actualmente no mue
 ### F6. Vectores
 - **Archivos:** `src/frontend/views/vector_ops/results_mixin.py`, `src/frontend/controllers/vector_ops/controller_vector_ops.py`, `src/frontend/controllers/vector_ops/_shared.py` y `src/frontend/components/reproductor_pasos/`.
 - **Criterio de aceptación:** pasos de preparación, Gauss, sustitución y verificación que actualmente se muestran se integran en el reproductor con controles, índice y Glosa; se mantienen `setup_steps`, `gauss_steps`, `steps`, `steps_meta` y `back_substitution_steps`. Vectores de dimensión 10 con 9 vectores conservan desplazamiento y legibilidad.
-- **Estado:** pendiente.
+- **Estado:** implementada; suite global completada (1014 pasaron); verificación visual manual pendiente.
 
 ### F7. Conversor de bases
 - **Archivos:** `src/frontend/views/numeric_systems/rendering_mixin.py`, `src/frontend/views/numeric_systems/interaction_mixin.py`, `src/frontend/views/numeric_systems/view_numeric_systems.py` y `src/frontend/components/reproductor_pasos/`.
 - **Criterio de aceptación:** expansiones posicionales y divisiones sucesivas se recorren desde el reproductor compartido, con navegación, velocidad, slider, progreso, tipo, explicación, fases y Glosa. Se preservan los métodos `_agrupar`, `_limpiar_resultados`, `_marcar_resultado_desincronizado` y `_cambiar_base_destino` compatibles con los dobles de `tests/test_conversor_ui_logic.py`. Se contemplan números de 200 bits.
-- **Estado:** pendiente.
+- **Estado:** implementada; suite global completada (1021 pasaron); verificación visual manual pendiente.
 
 ### F8. Números romanos, verificación global y cierre
 - **Archivos:** `src/frontend/views/numeric_systems/view_roman_calculator.py`, `src/frontend/components/reproductor_pasos/` y, si se necesitan estilos o scripts adicionales, `src/frontend/assets/css/reproductor_pasos.css`, `src/frontend/theme.py` y assets dedicados enlazados desde `_HEAD_HTML`; al cierre, eliminar `docs/PLAN_reproductor_pasos.md`.
@@ -85,6 +85,6 @@ Estas restricciones son contrato y no se editan ni debilitan:
 | F3. Componente compartido y migración de Matriz inversa | implementación y pruebas focalizadas completadas (29 pasaron); suite global detenida en una prueba del conversor; verificación visual manual pendiente |
 | F4. Sistemas de ecuaciones Gauss y Gauss-Jordan | implementada; suite global completada (1002 pasaron); verificación visual manual pendiente |
 | F5. Matrices | implementada; suite global completada (1007 pasaron); verificación visual manual pendiente |
-| F6. Vectores | pendiente |
-| F7. Conversor de bases | pendiente |
+| F6. Vectores | implementada; suite global completada (1014 pasaron); verificación visual manual pendiente |
+| F7. Conversor de bases | implementada; suite global completada (1021 pasaron); verificación visual manual pendiente |
 | F8. Números romanos, verificación global y cierre | pendiente |
