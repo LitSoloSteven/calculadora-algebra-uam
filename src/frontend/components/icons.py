@@ -127,6 +127,17 @@ def icon_svg(nombre: str) -> str:
             <line x1="4" y1="19" x2="18" y2="10"></line>
             <polyline points="14 10 18 10 18 14"></polyline>
         </svg>'''
+
+    elif nombre == 'abrir':
+        return base + '''
+            <polyline points="7 10 12 15 17 10"></polyline>
+        </svg>'''
+
+    elif nombre == 'cerrar':
+        return base + '''
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+        </svg>'''
     
     return ''
 
