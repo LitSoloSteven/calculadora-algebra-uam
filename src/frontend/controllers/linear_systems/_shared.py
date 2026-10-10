@@ -18,6 +18,7 @@ from typing import Any
 
 from src.backend.exceptions import MatrixDataError
 from src.backend.models.matrix import Matrix
+from src.backend.utils.formatters import format_fraction_str
 from src.backend.utils.validators import MatrixValidator
 
 
@@ -213,4 +214,17 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
             "rows_after": rows_after,
             "cols": list(cols_range) if cols_range else None
         })
-    return meta
+    return meta
+
+
+def serialize_matrix(mat: Matrix) -> dict:
+    """Serializa una Matrix a un diccionario con filas, columnas y datos en strings exactos."""
+    return {
+        "rows": mat.rows,
+        "cols": mat.cols,
+        "data": [
+            [format_fraction_str(mat.get(r, c)) for c in range(mat.cols)]
+            for r in range(mat.rows)
+        ],
+    }
+

@@ -19,9 +19,7 @@ from src.frontend.views.inverse_ops._config import (
     CONFIRM_BIG_N,
     PREVIEW_MAX_N,
 )
-from src.frontend.views.inverse_ops._render import (
-    matrix_table_html,
-)
+from src.frontend.components.reproductor_pasos.html_tablas import html_tabla_matriz
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +295,7 @@ class InverseOpsResultsMixin:
                             f'<div class="math-scroll-container math-label text-base">$$ A = {result["matrix_a_latex"]} $$</div>'
                         )
                     elif result.get('matrix_a'):
-                        ui.html(matrix_table_html(result['matrix_a']))
+                        ui.html(html_tabla_matriz(result['matrix_a']))
 
                 if getattr(self, 'ai_panel', None):
                     self.ai_panel.render_inline_chips()
@@ -342,10 +340,10 @@ class InverseOpsResultsMixin:
                     with ui.row().classes('items-start justify-center gap-8 flex-wrap w-full my-4'):
                         with ui.column().classes('items-center layout-fit'):
                             ui.label('A').classes('font-bold text-main mb-2')
-                            ui.html(matrix_table_html(result['matrix_a']))
+                            ui.html(html_tabla_matriz(result['matrix_a']))
                         with ui.column().classes('items-center layout-fit'):
                             ui.label('A⁻¹').classes('font-bold text-main mb-2')
-                            ui.html(matrix_table_html(result['inverse']))
+                            ui.html(html_tabla_matriz(result['inverse']))
 
                 def copiar_inversa():
                     inv = result.get('inverse')
@@ -376,7 +374,7 @@ class InverseOpsResultsMixin:
                 with ui.expansion('Ver A⁻¹ en decimales (≈4 cifras)', icon='numbers').classes(
                     'w-full mt-3 panel-card'
                 ).props('header-class="font-bold text-main text-sm"'):
-                    ui.html(matrix_table_html(result['inverse'], decimals=True))
+                    ui.html(html_tabla_matriz(result['inverse'], decimales=True))
 
                 ui.label(
                     'Cada columna j de A⁻¹ es la solución x de A·x = eⱼ (eⱼ = columna j de la identidad).'

@@ -83,8 +83,58 @@ class VectorOpsController:
             logger.exception("Error inesperado en process_scalar_multiply")
             return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al procesar la multiplicación por escalar. Inténtalo de nuevo."})
 
-    @staticmethod
-    def process_linear_combination(payload_str: str) -> str:
+    @classmethod
+    def _enrich_linear_combination_response(cls, res: dict, vectors: list[Matrix]) -> None:
+        from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
+        from src.frontend.controllers._agrupar_pasos import agrupar_pasos_eliminacion
+        from src.frontend.controllers.linear_systems._shared import (
+            build_steps_meta,
+            serialize_matrix,
+        )
+
+        setup_steps = res.get("setup_steps", [])
+        gauss_steps = res.get("gauss_steps", [])
+        initial_mat = setup_steps[-1].get("matrix") if setup_steps else None
+
+        if gauss_steps:
+            res["steps_meta"] = build_steps_meta(gauss_steps, initial=initial_mat)
+        elif "steps" in res:
+            res["steps_meta"] = build_steps_meta(res["steps"])
+
+        n_vars = len(vectors)
+        variables = [f"c_{i+1}" for i in range(n_vars)]
+        res["n_vars"] = n_vars
+        res["variables"] = variables
+
+        pasos_clasificados, groups, stats = agrupar_pasos_eliminacion(
+            gauss_steps, n_vars, res.get("status"), contexto="sistema", metodo="gauss"
+        )
+        res["steps_view"] = [
+            {
+                "index": s["index"],
+                "kind": s["kind"],
+                "description": s["description"],
+                "explanation": s["explanation"],
+                "group_index": s["group_index"],
+                "pivot": list(s["pivot"]) if s["pivot"] is not None else None,
+                "rows_changed": list(s["rows_changed"]),
+                "swap_rows": list(s["swap_rows"]) if s["swap_rows"] is not None else None,
+                "matrix": serialize_matrix(s["matrix"]) if s.get("matrix") is not None else None,
+            }
+            for s in pasos_clasificados
+        ]
+        res["groups"] = groups
+        res["stats"] = stats
+
+        for s_list in (setup_steps, gauss_steps, res.get("steps", [])):
+            for step in s_list:
+                if step.get("matrix") is not None:
+                    if not step.get("detail_latex"):
+                        step["detail_latex"] = matrix_to_latex(step["matrix"])
+                    step.pop("matrix", None)
+
+    @classmethod
+    def process_linear_combination(cls, payload_str: str) -> str:
         from src.frontend.controllers.matrix_ops.controller_matrix_ops import MatrixEncoder
         data, err = parse_payload(payload_str)
         if err: return err
@@ -94,32 +144,11 @@ class VectorOpsController:
             b = build_vector_from_dict(b_data)
             
             vectors_raw = data.get("vectors", [])
-            vectors = []
-            for v_data in vectors_raw:
-                vectors.append(build_vector_from_dict(v_data))
+            vectors = [build_vector_from_dict(v_data) for v_data in vectors_raw]
             
             solver = LinearCombinationSolver()
             res = solver.solve(b, vectors)
-            
-            # Formatear matrices y construir steps_meta sobre gauss_steps
-            from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
-            from src.frontend.controllers.linear_systems._shared import build_steps_meta
-
-            setup_steps = res.get("setup_steps", [])
-            gauss_steps = res.get("gauss_steps", [])
-            initial_mat = setup_steps[-1].get("matrix") if setup_steps else None
-
-            if gauss_steps:
-                res["steps_meta"] = build_steps_meta(gauss_steps, initial=initial_mat)
-            elif "steps" in res:
-                res["steps_meta"] = build_steps_meta(res["steps"])
-
-            for s_list in (setup_steps, gauss_steps, res.get("steps", [])):
-                for step in s_list:
-                    if step.get("matrix") is not None:
-                        if not step.get("detail_latex"):
-                            step["detail_latex"] = matrix_to_latex(step["matrix"])
-                        step.pop("matrix", None)
+            cls._enrich_linear_combination_response(res, vectors)
             
             return json.dumps(res, cls=MatrixEncoder)
         except (AlgebraLinealError, ValueError) as e:
@@ -127,3 +156,4 @@ class VectorOpsController:
         except Exception:
             logger.exception("Error inesperado en process_linear_combination")
             return json.dumps({"status": "ERROR", "message": "Ocurrió un error inesperado al resolver la combinación lineal. Inténtalo de nuevo."})
+

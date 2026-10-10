@@ -1,0 +1,61 @@
+.chip-inicial,
+.chip-eliminacion,
+.chip-otro,
+.chip-planteamiento,
+.chip-sustitucion,
+.chip-operacion,
+.chip-expansion,
+.chip-decodificacion {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.chip-intercambio,
+.chip-ajuste,
+.chip-division {
+    background: var(--badge-warn-bg);
+    color: var(--badge-warn-text);
+}
+
+.chip-pivote,
+.chip-componente {
+    background: var(--bg-elevated);
+    color: var(--accent);
+    outline: 1px solid var(--accent);
+}
+
+.chip-normalizacion,
+.chip-verificacion,
+.chip-construccion {
+    background: var(--badge-suc-bg);
+    color: var(--badge-suc-text);
+}
+
+.chip-final,
+.chip-lectura,
+.chip-resultado {
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+}
+
+.repro-cuerpo {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .repro-cuerpo {
+        scrollbar-gutter: stable;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .repro-cuerpo {
+        scroll-behavior: auto !important;
+        transition-duration: 0ms !important;
+        animation: none !important;
+    }
+}

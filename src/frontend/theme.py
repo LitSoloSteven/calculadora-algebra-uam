@@ -36,10 +36,12 @@ _HEAD_HTML = """
 
     <!-- Estilos de tema y diseño visual -->
     <link rel="stylesheet" href="/assets/css/theme.css">
+    <link rel="stylesheet" href="/assets/css/reproductor_pasos.css">
 
     <!-- Scripts de interactividad y tema -->
     <script src="/assets/js/theme.js"></script>
     <script src="/assets/js/app.js"></script>
+    <script src="/assets/js/reproductor_pasos.js"></script>
     <script src="/assets/js/hub.js"></script>
 """
 
