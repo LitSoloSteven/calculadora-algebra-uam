@@ -7,14 +7,16 @@ from src.frontend.components.calculator import CalculatorPanel
 from src.frontend.components.ai_panel import AIPanel
 from .sync_mixin import LinearSystemsSyncMixin
 from .history_mixin import LinearSystemsHistoryMixin
-from .graphics_mixin import LinearSystemsGraphicsMixin
+from .steps_mixin import LinearSystemsStepsMixin
 from .results_mixin import LinearSystemsResultsMixin
+from .preview_mixin import LinearSystemsPreviewMixin
 
 
 class LinearSystemsUI(
     LinearSystemsSyncMixin,
     LinearSystemsHistoryMixin,
-    LinearSystemsGraphicsMixin,
+    LinearSystemsPreviewMixin,
+    LinearSystemsStepsMixin,
     LinearSystemsResultsMixin
 ):
     """Controlador de vista modular para Sistemas Lineales."""
@@ -26,6 +28,7 @@ class LinearSystemsUI(
         self.mode_tabs = None
         self.method_tabs = None
         self.initial_method = initial_method
+        self.reproductor_pasos = None
 
         # Estado del modo ecuaciones
         self.num_ecuaciones = 3
@@ -66,6 +69,7 @@ class LinearSystemsUI(
                         self.sync_from_matrix()
                     elif e.value == 'Matriz' and not self.is_ecuaciones_empty():
                         self.sync_from_equations()
+                    self._trigger_live_preview()
 
                 self.mode_tabs.on_value_change(on_mode_change)
 

@@ -1,123 +1,21 @@
-"""Mixin de resolución, gráficos y renderizado de resultados para Sistemas Lineales."""
-import json
+"""Mixin de resolución y presentación de resultados para Sistemas Lineales."""
 import asyncio
-import logging
 import html
+import json
+import logging
 import re
+
 from nicegui import ui
+
+from src.backend.utils.parsers import SystemParser
+from src.frontend.controllers.linear_systems.controller_gauss import MatrixController
+from src.frontend.controllers.linear_systems.controller_gauss_jordan import GaussJordanController
 
 logger = logging.getLogger(__name__)
 
-from src.frontend.controllers.linear_systems.controller_gauss import MatrixController
-from src.frontend.controllers.linear_systems.controller_gauss_jordan import GaussJordanController
-from src.backend.utils.parsers import SystemParser
-from src.backend.utils.validators import MatrixValidator
-from src.frontend.helpers import format_step_for_mathjax, to_float
-from src.frontend.theme import (
-    CHART_PALETTE,
-    CHART_MARKER_LIGHT,
-    CHART_MARKER_BORDER,
-    CHART_GRID_COLOR,
-    CHART_ZERO_COLOR,
-    CHART_FONT_COLOR,
-)
-
 
 class LinearSystemsResultsMixin:
-    """Maneja el preview en vivo, resolución de sistemas (Gauss/Gauss-Jordan), gráficos y formateo."""
-
-    def _trigger_live_preview(self):
-        if self.preview_task:
-            self.preview_task.cancel()
-        self.preview_task = asyncio.create_task(self._update_preview())
-
-    async def _update_preview(self):
-        await asyncio.sleep(0.3)
-        if not self.preview_container:
-            return
-
-        try:
-            self.preview_container.clear()
-            with self.preview_container:
-                matrix_A, vector_b = self.grid.get_matrix_data()
-                if not matrix_A or len(matrix_A) == 0 or len(matrix_A[0]) == 0:
-                    ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
-                    return
-
-                m = len(matrix_A)
-                n = len(matrix_A[0])
-
-                def sanitize(val):
-                    if not val:
-                        return '0'
-                    success, _, _ = MatrixValidator.parse_number_exact(val)
-                    if not success:
-                        return r"\color{gray}{?}"
-                    return val
-
-                # Construir LaTeX para matriz aumentada
-                latex_lines = []
-                for i, row in enumerate(matrix_A):
-                    row_strs = [sanitize(val) for val in row]
-                    b_val = sanitize(vector_b[i] if i < len(vector_b) else '0')
-                    latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
-
-                spec = "c" * n + "|c"
-                matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
-                matrix_tex = html.escape(matrix_tex)
-
-                ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
-
-                if m * n > 48:
-                    ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                    return
-
-                # Validar celdas antes de exportar a ecuaciones
-                todas_validas = True
-                for i in range(m):
-                    for j in range(n):
-                        val = matrix_A[i][j]
-                        if val:
-                            success, _, _ = MatrixValidator.parse_number_exact(val)
-                            if not success:
-                                todas_validas = False
-                                break
-                    if not todas_validas:
-                        break
-
-                b_valid = True
-                for i in range(m):
-                    val = vector_b[i] if i < len(vector_b) else ''
-                    if val:
-                        success, _, _ = MatrixValidator.parse_number_exact(val)
-                        if not success:
-                            b_valid = False
-                            break
-
-                if not todas_validas or not b_valid:
-                    ui.label('Corrige los valores inválidos para ver las ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                    return
-
-                # Construir LaTeX para sistema de ecuaciones
-                eqs = self.grid.export_to_equations()
-                if not eqs:
-                    ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
-                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                    return
-
-                eqs_tex = r" \\ ".join(eqs)
-                eqs_tex = re.sub(r'x(\d+)', r'x_{\1}', eqs_tex)
-                system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
-                system_tex = html.escape(system_tex)
-
-                ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
-                ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
-        except Exception as e:
-            logger.error("Error al actualizar vista previa", exc_info=e)
-            with self.preview_container:
-                ui.label('No se pudo generar la vista previa.').classes('text-sec italic text-sm mt-4 text-center')
+    """Resuelve sistemas lineales y presenta sus resultados y procedimientos."""
 
     async def confirmar_limpieza(self):
         if self.is_empty():
@@ -143,6 +41,9 @@ class LinearSystemsResultsMixin:
         self.limpiar_todo()
 
     def limpiar_todo(self):
+        if getattr(self, 'reproductor_pasos', None) is not None:
+            self.reproductor_pasos.detener()
+            self.reproductor_pasos = None
         self.grid.clear()
         for inp in self.ecuaciones_inputs:
             inp.value = ''
@@ -153,6 +54,9 @@ class LinearSystemsResultsMixin:
             p.schedule_context_refresh()
 
     def reset_resultados(self):
+        if getattr(self, 'reproductor_pasos', None) is not None:
+            self.reproductor_pasos.detener()
+            self.reproductor_pasos = None
         self.contenedor_resultados.clear()
         self.contenedor_resultados.classes(remove='items-start justify-start', add='items-center justify-center')
         with self.contenedor_resultados:
@@ -190,11 +94,8 @@ class LinearSystemsResultsMixin:
                 ui.label('Ocurrió un error inesperado al resolver el sistema. Revisa los datos e inténtalo de nuevo.').classes('font-bold')
         ui.notify('Error inesperado', type='negative', position='top')
 
-    async def _resolver_core(self, btn):
-        await asyncio.sleep(0.1)
-        self.contenedor_resultados.clear()
-
-        # Extraer datos según la pestaña activa
+    def _obtener_payload(self) -> tuple[dict, list, list, list] | None:
+        """Extrae y valida los datos de entrada según el modo activo."""
         variables = None
         if self.mode_tabs.value == 'Matriz':
             matrix_A_vals, vector_b_vals = self.grid.get_matrix_data()
@@ -213,12 +114,23 @@ class LinearSystemsResultsMixin:
                     with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
                         ui.icon('close', size='sm')
                         ui.label(msg).classes('font-bold')
-                return
+                return None
 
             matrix_A_vals = [[str(val) for val in row[:-1]] for row in parsed_matrix.data]
             vector_b_vals = [str(row[-1]) for row in parsed_matrix.data]
 
         payload_dict = {"matrix_A": matrix_A_vals, "vector_b": vector_b_vals, "variables": variables}
+        return payload_dict, matrix_A_vals, vector_b_vals, variables
+
+    async def _resolver_core(self, btn):
+        """Coordina el flujo completo de cálculo y renderizado de resultados."""
+        await asyncio.sleep(0.1)
+        self.contenedor_resultados.clear()
+
+        datos_entrada = self._obtener_payload()
+        if datos_entrada is None:
+            return
+        payload_dict, matrix_A_vals, vector_b_vals, variables = datos_entrada
 
         if self.method_tabs.value == 'gauss':
             respuesta_json_str = MatrixController.process_system(json.dumps(payload_dict))
@@ -230,112 +142,11 @@ class LinearSystemsResultsMixin:
 
         with self.contenedor_resultados:
             self.contenedor_resultados.classes(remove='items-center justify-center', add='items-start justify-start')
-
-            status = respuesta.get("status")
-            classification_msg = respuesta.get("classification") or respuesta.get("message", "")
-            is_error = str(status).upper() == "ERROR"
-
-            if is_error:
-                with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
-                    ui.icon('close', size='sm')
-                    ui.label(classification_msg).classes('font-bold')
-            elif status == "NO_SOLUTION":
-                with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
-                    ui.icon('close', size='sm')
-                    ui.label("Sin solución").classes('font-bold')
-            else:
-                is_unique = (status == "UNIQUE_SOLUTION")
-                badge_class = 'badge-success' if is_unique else 'badge-warning'
-                icon_str = 'check' if is_unique else 'warning_amber'
-                texto_corto = "Solución única" if is_unique else "Infinitas soluciones"
-
-                with ui.row().classes('w-full items-center gap-3 mb-4 flex-wrap'):
-                    with ui.row().classes(f'items-center gap-2 px-4 py-2 {badge_class}'):
-                        ui.icon(icon_str, size='sm')
-                        badge_id = f"badge-{id(texto_corto)}"
-                        ui.html(f'<b id="{badge_id}"></b>').classes('math-label')
-                        ui.timer(0.05, lambda t=texto_corto, bid=badge_id: ui.run_javascript(f'typewriterEffect("{bid}", {json.dumps(t)}, 25)'), once=True)
-
-                    if respuesta.get("solution"):
-                        for idx, val in enumerate(respuesta["solution"]):
-                            raw_var = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
-                            var_name = html.escape(str(raw_var))
-                            m = re.match(r'^([a-zA-Z]+)(\d+)$', var_name)
-                            if m:
-                                html_var = f"<i>{m.group(1)}</i><sub>{m.group(2)}</sub>"
-                                latex_var = f"{m.group(1)}_{{{m.group(2)}}}"
-                            else:
-                                html_var = f"<i>{var_name}</i>"
-                                latex_var = f"\\text{{{var_name}}}" if len(var_name) > 1 else var_name
-
-                            if is_unique:
-                                ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main min-w-0 max-w-full').style('overflow-wrap: anywhere;')
-                            else:
-                                ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main min-w-0 max-w-full" style="overflow-wrap: anywhere;">$$ {latex_var} = {val} $$</div>')
-
-                if getattr(self, 'ai_panel', None):
-                    self.ai_panel.render_inline_chips()
-
-                if respuesta.get("intermediate_steps_latex"):
-                    ui.label('Procedimiento paso a paso').classes('font-bold mt-6 text-xl text-main')
-                    with ui.expansion('Ver pasos matriciales', icon='visibility').classes('w-full panel-card mt-2 timeline-expansion').props('header-class="font-bold text-main"'):
-                        for i, paso in enumerate(respuesta["intermediate_steps_latex"]):
-                            with ui.column().classes('w-full p-4 border-l-2 border-l-[var(--accent)] ml-2 mb-2 bg-[var(--bg-panel)] rounded-r-lg'):
-                                with ui.row().classes('w-full justify-between items-start'):
-                                    desc_id = f"desc-{id(paso)}"
-                                    ui.html(f'<span id="{desc_id}"></span>').classes('text-sm font-semibold mb-2 text-sec block flex-1')
-                                    ui.timer(0.05, lambda text=paso["descripcion"], eid=desc_id: ui.run_javascript(f'typewriterEffect("{eid}", {json.dumps(text)}, 18)'), once=True)
-                                    
-                                    if "steps_meta" in respuesta and getattr(self, 'ai_panel', None):
-                                        from src.frontend.components.glosa_chips import render_explain_button
-                                        meta = respuesta["steps_meta"][i]
-                                        render_explain_button(
-                                            meta['index'], 
-                                            meta['total'], 
-                                            meta['op'], 
-                                            lambda idx, m=meta: self.ai_panel.trigger_explain_step(m),
-                                            is_loading=getattr(self.ai_panel, '_is_sending', False)
-                                        )
-
-                                ui.html(f'<div class="math-scroll-container math-label text-lg">$$ {paso["matriz"]} $$</div>')
-
-                if respuesta.get("back_substitution_steps") or respuesta.get("verification_steps_latex"):
-                    with ui.expansion('Detalles y Comprobación', icon='fact_check').classes('w-full panel-card mt-4').props('header-class="font-bold text-main"'):
-                        if respuesta.get("back_substitution_steps"):
-                            ui.label('Sustitución:' if self.method_tabs.value == 'gauss' else 'Solución Final:').classes('font-bold text-sm text-sec mt-2')
-                            for paso in respuesta["back_substitution_steps"]:
-                                ui.html(f'<div class="math-scroll-container math-label w-full">$$ {format_step_for_mathjax(paso)} $$</div>')
-
-                        if respuesta.get("verification_steps_latex"):
-                            ui.label('Comprobación Ax = b:').classes('font-bold text-sm text-sec mt-4')
-                            for paso in respuesta["verification_steps_latex"]:
-                                ui.html(f'<div class="math-scroll-container math-label">$$ {format_step_for_mathjax(paso)} $$</div>')
-
-        if not is_error:
-            self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
-            n_vars = len(matrix_A_vals[0]) if matrix_A_vals else 0
-            with self.contenedor_resultados:
-                with ui.row().classes('gap-2 mt-4 flex-wrap'):
-                    if len(matrix_A_vals) == len(matrix_A_vals[0]):
-                        from src.frontend.components.handoff import put_matrix, handoff_url
-                        from src.frontend.navigation import route_of
-                        ui.button('Ver A⁻¹ en Matriz inversa', icon='arrow_forward', color=None,
-                                  on_click=lambda: ui.navigate.to(handoff_url(route_of('inversa'), put_matrix('sistemas', matrix_A_vals)))
-                                 ).classes('btn-ghost').props('ripple=false').tooltip('Misma eliminación de filas, ahora sobre [A | I]')
-
-                    if n_vars in (2, 3):
-                        from src.frontend.components.handoff import put_system, handoff_url
-                        from src.frontend.navigation import route_of
-                        ui.button('Ver en el Visualizador', icon='insights', color=None,
-                                  on_click=lambda: ui.navigate.to(handoff_url(route_of('visualizador'), put_system('sistemas', matrix_A_vals, vector_b_vals)))
-                                 ).classes('btn-ghost').props('ripple=false').tooltip('Visualiza el sistema en R² o R³')
+            self._render_encabezado_y_solucion(respuesta, variables)
+            self._render_steps_section(respuesta)
+            self._render_botones_accion(respuesta, matrix_A_vals, vector_b_vals)
 
         ui.run_javascript('typesetMathWhenReady();')
-
-        with self.contenedor_resultados:
-            if not is_error:
-                await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
-
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")
 
@@ -351,6 +162,78 @@ class LinearSystemsResultsMixin:
         if p and hasattr(p, 'schedule_context_refresh'):
             p.schedule_context_refresh()
 
+    def _render_encabezado_y_solucion(self, respuesta: dict, variables: list | None):
+        """Renderiza las insignias de estado y las fichas de solución."""
+        status = respuesta.get("status")
+        classification_msg = respuesta.get("classification") or respuesta.get("message", "")
+        is_error = str(status).upper() == "ERROR"
+
+        if is_error:
+            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
+                ui.icon('close', size='sm')
+                ui.label(classification_msg).classes('font-bold')
+        elif status == "NO_SOLUTION":
+            with ui.row().classes('items-center gap-2 px-4 py-2 badge-error mb-4 w-fit'):
+                ui.icon('close', size='sm')
+                ui.label("Sin solución").classes('font-bold')
+        else:
+            is_unique = (status == "UNIQUE_SOLUTION")
+            badge_class = 'badge-success' if is_unique else 'badge-warning'
+            icon_str = 'check' if is_unique else 'warning_amber'
+            texto_corto = "Solución única" if is_unique else "Infinitas soluciones"
+
+            with ui.row().classes('w-full items-center gap-3 mb-4 flex-wrap'):
+                with ui.row().classes(f'items-center gap-2 px-4 py-2 {badge_class}'):
+                    ui.icon(icon_str, size='sm')
+                    badge_id = f"badge-{id(texto_corto)}"
+                    ui.html(f'<b id="{badge_id}"></b>').classes('math-label')
+                    ui.timer(0.05, lambda t=texto_corto, bid=badge_id: ui.run_javascript(f'typewriterEffect("{bid}", {json.dumps(t)}, 25)'), once=True)
+
+                if respuesta.get("solution"):
+                    for idx, val in enumerate(respuesta["solution"]):
+                        raw_var = variables[idx] if variables and idx < len(variables) else f"x{idx+1}"
+                        var_name = html.escape(str(raw_var))
+                        m = re.match(r'^([a-zA-Z]+)(\d+)$', var_name)
+                        if m:
+                            html_var = f"<i>{m.group(1)}</i><sub>{m.group(2)}</sub>"
+                            latex_var = f"{m.group(1)}_{{{m.group(2)}}}"
+                        else:
+                            html_var = f"<i>{var_name}</i>"
+                            latex_var = f"\\text{{{var_name}}}" if len(var_name) > 1 else var_name
+
+                        if is_unique:
+                            ui.html(f'{html_var} = {val}').classes('px-4 py-2 panel-card font-bold math-label text-main min-w-0 max-w-full').style('overflow-wrap: anywhere;')
+                        else:
+                            ui.html(f'<div class="math-scroll-container px-4 py-2 panel-card math-label text-main min-w-0 max-w-full" style="overflow-wrap: anywhere;">$$ {latex_var} = {val} $$</div>')
+
+            if getattr(self, 'ai_panel', None):
+                self.ai_panel.render_inline_chips()
+
+    def _render_botones_accion(self, respuesta: dict, matrix_A_vals: list, vector_b_vals: list):
+        """Pinta los botones de handoff hacia Matriz inversa y Visualizador."""
+        status = respuesta.get("status")
+        is_error = str(status).upper() == "ERROR"
+        if is_error:
+            return
+
+        self._add_to_history(matrix_A_vals, vector_b_vals, len(matrix_A_vals), len(matrix_A_vals[0]) if matrix_A_vals else 0, status, self.method_tabs.value)
+        n_vars = len(matrix_A_vals[0]) if matrix_A_vals else 0
+
+        with ui.row().classes('gap-2 mt-4 flex-wrap'):
+            if len(matrix_A_vals) == len(matrix_A_vals[0]):
+                from src.frontend.components.handoff import handoff_url, put_matrix
+                from src.frontend.navigation import route_of
+                ui.button('Ver A⁻¹ en Matriz inversa', icon='arrow_forward', color=None,
+                          on_click=lambda: ui.navigate.to(handoff_url(route_of('inversa'), put_matrix('sistemas', matrix_A_vals)))
+                         ).classes('btn-ghost').props('ripple=false').tooltip('Misma eliminación de filas, ahora sobre [A | I]')
+
+            if n_vars in (2, 3):
+                from src.frontend.components.handoff import handoff_url, put_system
+                from src.frontend.navigation import route_of
+                ui.button('Ver en el Visualizador', icon='insights', color=None,
+                          on_click=lambda: ui.navigate.to(handoff_url(route_of('visualizador'), put_system('sistemas', matrix_A_vals, vector_b_vals)))
+                         ).classes('btn-ghost').props('ripple=false').tooltip('Visualiza el sistema en R² o R³')
+
     def trigger_flip_animation(self, e=None):
         ui.run_javascript('''
             const panel = document.querySelector('.main-grid-panel');
@@ -363,4 +246,3 @@ class LinearSystemsResultsMixin:
         p = getattr(self, 'ai_panel', None)
         if p and hasattr(p, 'schedule_context_refresh'):
             p.schedule_context_refresh()
-

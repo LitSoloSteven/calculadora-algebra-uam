@@ -40,6 +40,8 @@ class LinearSystemsSyncMixin:
                             on_change=self._on_equations_change
                         ).classes('matrix-input flex-1').props(f'borderless autocomplete="new-password" name="eq{i}"')
                         self.ecuaciones_inputs.append(inp)
+        if getattr(self, 'preview_container', None):
+            self._trigger_live_preview()
 
     def sync_from_matrix(self):
         eqs = self.grid.export_to_equations(preserve_shape=True)
@@ -61,6 +63,8 @@ class LinearSystemsSyncMixin:
                         self.ecuaciones_inputs.append(inp)
 
         self.update_sync_buttons()
+        if getattr(self, 'preview_container', None):
+            self._trigger_live_preview()
         ui.notify('Sincronizado desde Matriz', type='positive', position='top')
 
     def sync_from_equations(self):

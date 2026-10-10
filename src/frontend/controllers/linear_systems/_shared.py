@@ -18,6 +18,7 @@ from typing import Any
 
 from src.backend.exceptions import MatrixDataError
 from src.backend.models.matrix import Matrix
+from src.backend.utils.formatters import format_fraction_str
 from src.backend.utils.validators import MatrixValidator
 
 
@@ -119,7 +120,7 @@ def validate_and_build_augmented(
     for i, row in enumerate(matrix_A_raw):
         fila_frac: list[Fraction] = []
         for j, cell in enumerate(row):
-            raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
+            raw = str(cell).strip() if cell is not None and str(cell).strip() else "0"
             ok, val, err = MatrixValidator.parse_number_exact(raw)
             if not ok:
                 return None, None, None, 0, 0, json.dumps({
@@ -131,7 +132,7 @@ def validate_and_build_augmented(
 
     b_fractions: list[Fraction] = []
     for i, cell in enumerate(vector_b_raw):
-        raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
+        raw = str(cell).strip() if cell is not None and str(cell).strip() else "0"
         ok, val, err = MatrixValidator.parse_number_exact(raw)
         if not ok:
             return None, None, None, 0, 0, json.dumps({
@@ -152,6 +153,7 @@ def validate_and_build_augmented(
 
     return matrix, A_fractions, b_fractions, m, n, None
 
+
 def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
     from src.ai.context import excerpt_rows
     from src.frontend.controllers._step_classifier import classify_step
@@ -159,23 +161,27 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
     meta = []
     total = len(raw_steps)
     current_pivot_col = 0
-    
+
     for i, step in enumerate(raw_steps):
         desc = step["description"]
         mat = step["matrix"]
         rows = [[mat.get(r, c) for c in range(mat.cols)] for r in range(mat.rows)]
-        
+
         parsed = classify_step(desc)
         kind = parsed["kind"]
-        
+
         pivot = None
         rows_before = {}
         rows_after = {}
         cols_range = None
-        
-        prev_mat = raw_steps[i-1]["matrix"] if i > 0 else (initial if initial is not None else mat)
-        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if (i > 0 or initial is not None) else rows
-        
+
+        prev_mat = raw_steps[i - 1]["matrix"] if i > 0 else (initial if initial is not None else mat)
+        prev_rows = (
+            [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)]
+            if (i > 0 or initial is not None)
+            else rows
+        )
+
         if kind == "pivote":
             r = parsed["row1"]
             c = parsed["col"]
@@ -202,7 +208,7 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
                 pivot = [r, current_pivot_col]
                 rows_before, cols_range = excerpt_rows(prev_rows, [r], current_pivot_col)
                 rows_after, _ = excerpt_rows(rows, [r], current_pivot_col)
-            
+
         meta.append({
             "index": i + 1,
             "total": total,
@@ -211,13 +217,25 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
             "pivot": pivot,
             "rows_before": rows_before,
             "rows_after": rows_after,
-            "cols": list(cols_range) if cols_range else None
+            "cols": list(cols_range) if cols_range else None,
         })
     return meta
+
+
+def serialize_matrix(mat: Matrix) -> dict:
+    """Serializa una Matrix a un diccionario con filas, columnas y datos en strings exactos."""
+    return {
+        "rows": mat.rows,
+        "cols": mat.cols,
+        "data": [
+            [format_fraction_str(mat.get(r, c)) for c in range(mat.cols)]
+            for r in range(mat.rows)
+        ],
+    }
 
 
 # Alias canónicos en castellano
 parsear_payload = parse_payload
 validar_y_construir_aumentada = validate_and_build_augmented
 construir_metadatos_pasos = build_steps_meta
-
+serializar_matriz = serialize_matrix

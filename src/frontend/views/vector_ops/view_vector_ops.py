@@ -12,7 +12,6 @@ from src.frontend.components.vector_capture import VectorCapturePanel
 from src.frontend.controllers.vector_ops.controller_vector_ops import VectorOpsController
 from .results_mixin import VectorOpsResultsMixin
 
-
 class VectorOpsUI(VectorOpsResultsMixin):
     """Controlador de vista modular para operaciones con vectores."""
 
