@@ -37,7 +37,7 @@ Corregir la vista previa del modo Ecuaciones de Sistemas, que actualmente no mue
 ### F4. Sistemas de ecuaciones (Gauss y Gauss-Jordan)
 - **Archivos:** `src/frontend/views/linear_systems/results_mixin.py`, `src/frontend/controllers/linear_systems/controller_gauss.py`, `src/frontend/controllers/linear_systems/controller_gauss_jordan.py`, `src/frontend/controllers/linear_systems/_shared.py`, y `src/frontend/components/reproductor_pasos/`.
 - **Criterio de aceptación:** ambas variantes muestran los pasos en el reproductor compartido con todas sus funciones y Glosa; se mantienen disponibles y compatibles `intermediate_steps_latex`, `steps_meta`, `back_substitution_steps` y `verification_steps_latex`, además de las claves existentes. Sistemas de 10x10 con fracciones de denominador de cuatro dígitos se pueden consultar sin desbordar el diseño.
-- **Estado:** pendiente.
+- **Estado:** implementada; suite global completada (1002 pasaron); verificación visual manual pendiente.
 
 ### F5. Matrices
 - **Archivos:** `src/frontend/views/matrix_ops/view_matrix_ops.py`, `src/frontend/controllers/matrix_ops/controller_matrix_ops.py` y `src/frontend/components/reproductor_pasos/`.
@@ -83,7 +83,7 @@ Estas restricciones son contrato y no se editan ni debilitan:
 | F1. Vista previa del modo Ecuaciones | implementada; suite global y comprobación visual manual pendientes |
 | F2. Quitar visualización gráfica de Sistemas | implementada; suite global y verificación visual manual pendientes |
 | F3. Componente compartido y migración de Matriz inversa | implementación y pruebas focalizadas completadas (29 pasaron); suite global detenida en una prueba del conversor; verificación visual manual pendiente |
-| F4. Sistemas de ecuaciones Gauss y Gauss-Jordan | pendiente |
+| F4. Sistemas de ecuaciones Gauss y Gauss-Jordan | implementada; suite global completada (1002 pasaron); verificación visual manual pendiente |
 | F5. Matrices | pendiente |
 | F6. Vectores | pendiente |
 | F7. Conversor de bases | pendiente |
