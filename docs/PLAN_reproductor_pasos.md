@@ -42,7 +42,7 @@ Corregir la vista previa del modo Ecuaciones de Sistemas, que actualmente no mue
 ### F5. Matrices
 - **Archivos:** `src/frontend/views/matrix_ops/view_matrix_ops.py`, `src/frontend/controllers/matrix_ops/controller_matrix_ops.py` y `src/frontend/components/reproductor_pasos/`.
 - **Criterio de aceptación:** todos los pasos y segmentos de operaciones matriciales se presentan mediante el reproductor compartido, con navegación, explicación, índice y Glosa. Se conserva `segment_steps` y el resto del contrato actual; las operaciones de celdas siguen vinculadas al paso correspondiente.
-- **Estado:** pendiente.
+- **Estado:** implementada; suite global completada (1007 pasaron); verificación visual manual pendiente.
 
 ### F6. Vectores
 - **Archivos:** `src/frontend/views/vector_ops/results_mixin.py`, `src/frontend/controllers/vector_ops/controller_vector_ops.py`, `src/frontend/controllers/vector_ops/_shared.py` y `src/frontend/components/reproductor_pasos/`.
@@ -84,7 +84,7 @@ Estas restricciones son contrato y no se editan ni debilitan:
 | F2. Quitar visualización gráfica de Sistemas | implementada; suite global y verificación visual manual pendientes |
 | F3. Componente compartido y migración de Matriz inversa | implementación y pruebas focalizadas completadas (29 pasaron); suite global detenida en una prueba del conversor; verificación visual manual pendiente |
 | F4. Sistemas de ecuaciones Gauss y Gauss-Jordan | implementada; suite global completada (1002 pasaron); verificación visual manual pendiente |
-| F5. Matrices | pendiente |
+| F5. Matrices | implementada; suite global completada (1007 pasaron); verificación visual manual pendiente |
 | F6. Vectores | pendiente |
 | F7. Conversor de bases | pendiente |
 | F8. Números romanos, verificación global y cierre | pendiente |
