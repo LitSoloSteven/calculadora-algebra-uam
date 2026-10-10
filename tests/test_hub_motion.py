@@ -84,7 +84,7 @@ def test_hub_rows_and_tiles_have_bounded_stagger_indices():
     assert "style=\"--i:{row_index}\"" in view
     assert "style=\"--i:{min(tile_index, 3)}\"" in view
     assert "calc(var(--i, 0) * 45ms)" in css
-    assert "calc(var(--i, 0) * 35ms)" in css
+    assert "calc(var(--i, 0) * 50ms)" in css
     assert "min(tile_index, 3)" in view
     assert "event.detail === 0" in js
     assert "html[data-input=\"keyboard\"]" in css
@@ -143,10 +143,10 @@ def test_popover_motion_waits_for_close_transition_and_has_fallback():
     assert "cancelCloseWait();" in js
     assert "dialog.removeAttribute('data-open')" in js
     assert "event.propertyName === 'opacity'" in js
-    assert "setTimeout(function () { finishClose(dialog); }, 180)" in js
+    assert "setTimeout(function () { finishClose(dialog); }, 340)" in js
     assert "dialog.close()" in js
-    assert "transition: opacity 200ms var(--ease-std)" in css
-    assert "transition: opacity 140ms var(--ease-std), transform 140ms var(--ease-std)" in css
-    assert "transition-duration: 220ms" in css
+    assert "transition: opacity 220ms var(--ease-std)" in css
+    assert "transition: opacity 220ms var(--ease-std), transform 220ms var(--ease-std)" in css
+    assert "transition-duration: 320ms" in css
     assert "transform: translateY(100%)" in css
-    assert "transition-duration: 160ms" in css
+    assert "transition-duration: 240ms" in css

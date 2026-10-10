@@ -208,7 +208,7 @@ def test_active_background_contrast_aa_in_all_themes():
 def test_popover_layout_and_scroll_lock_contract():
     css = get_hub_css_block()
 
-    assert "width: min(92vw, 36rem)" in css
+    assert "width: min(92vw, 42rem)" in css
     assert "max-height: min(82dvh, 44rem)" in css
     assert ".hub-pop::backdrop" in css
     assert "background: var(--scrim)" in css

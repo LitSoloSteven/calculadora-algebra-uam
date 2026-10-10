@@ -185,7 +185,7 @@
       if (event.target === card && event.propertyName === 'opacity') finishClose(dialog);
     };
     card.addEventListener('transitionend', closeTransitionHandler);
-    closeTimer = setTimeout(function () { finishClose(dialog); }, 180);
+    closeTimer = setTimeout(function () { finishClose(dialog); }, 340);
   }
 
   function haloDisabled(event) {
