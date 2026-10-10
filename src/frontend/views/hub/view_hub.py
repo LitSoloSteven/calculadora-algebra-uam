@@ -7,7 +7,6 @@ from nicegui import ui
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.components.app_shell import create_app_shell
 from src.frontend.components.icons import icon_svg
-from src.frontend.components.theme_switcher import render_theme_button
 from src.frontend.navigation import HUB_ROUTE
 from ._model import TileModel, format_item_count, hub_pillars, initial_selection
 
@@ -89,16 +88,13 @@ class HubUI:
             with ui.element('header').classes('hub-head'):
                 with ui.element('div').classes('hub-brand'):
                     ui.html('''
-                        <div class="brand-logo-container flex items-center justify-center" style="width: 40px; height: 40px;">
-                            <img src="/assets/LogoOscuro.png" alt="" class="brand-logo brand-logo-dark" style="height: 40px; width: 40px; object-fit: contain;" />
-                            <img src="/assets/LogoClaro.png" alt="" class="brand-logo brand-logo-light" style="height: 40px; width: 40px; object-fit: contain;" />
+                        <div class="brand-logo-container flex items-center justify-center" style="width: 56px; height: 56px;">
+                            <img src="/assets/LogoOscuro.png" alt="" class="brand-logo brand-logo-dark" style="height: 56px; width: 56px; object-fit: contain;" />
+                            <img src="/assets/LogoClaro.png" alt="" class="brand-logo brand-logo-light" style="height: 56px; width: 56px; object-fit: contain;" />
                         </div>
                     ''')
                     _text_element('h1', 'Scalaris', 'hub-title')
                 _text_element('p', 'Álgebra lineal y utilidades numéricas, con cada paso a la vista.', 'hub-lead')
-                with ui.element('div').classes('hub-theme'):
-                    render_theme_button()
-
             with ui.element('div').classes('hub-matrix').props(
                 'role="group" aria-label="Áreas de Scalaris"'
             ):

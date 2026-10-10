@@ -28,8 +28,6 @@ def test_hub_narrow_layout_prevents_tile_and_popover_header_overflow():
     assert '"mark mark"' in css
     assert ".hub-tile-mark" in css
     assert "min-width: 0" in css
-    assert ".hub-theme" in css
-    assert "position: static" in css
 
 
 def test_hub_narrow_row_mark_reserves_two_lines_before_featured_state():

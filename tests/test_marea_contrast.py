@@ -1,4 +1,4 @@
-"""Pruebas automáticas de contraste WCAG AA, relieve y swatches para Marea #D8FFFF (Fase C2).
+"""Pruebas automáticas de contraste WCAG AA, relieve y swatches para Marea #CFE3F0 (Fase C2).
 
 Verifica en Python puro sin dependencias de navegador ni NiceGUI:
 - Contraste WCAG 2.x AA en Marea (>= 4.5:1 texto, >= 3.0:1 no-texto/foco).
@@ -171,11 +171,11 @@ def test_marea_neumorphic_relief_heuristics():
 
 
 def test_swatches_marea_four_declarations():
-    """Verifica que las cuatro declaraciones de --swatch-marea sean exactamente #D8FFFF."""
+    """Verifica que las cuatro declaraciones de --swatch-marea sean exactamente #CFE3F0."""
     content = CSS_PATH.read_text(encoding="utf-8")
-    assert content.count("--swatch-marea: #D8FFFF;") >= 4, (
-        f"Se esperaban al menos 4 declaraciones exactas de '--swatch-marea: #D8FFFF;', "
-        f"se encontraron {content.count('--swatch-marea: #D8FFFF;')}"
+    assert content.count("--swatch-marea: #CFE3F0;") >= 4, (
+        f"Se esperaban al menos 4 declaraciones exactas de '--swatch-marea: #CFE3F0;', "
+        f"se encontraron {content.count('--swatch-marea: #CFE3F0;')}"
     )
 
 
