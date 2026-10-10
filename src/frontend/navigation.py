@@ -68,6 +68,8 @@ _SHORT_LABELS: dict[str, str] = {
     "inversa": "Inversa",
     "bases": "Bases",
     "romanos": "Romanos",
+    "leontief": "Leontief",
+    "transformaciones": "Transformaciones",
 }
 
 
@@ -166,10 +168,10 @@ TOOLS: tuple[Tool, ...] = (
     Tool(
         id="leontief",
         name="Modelo de Leontief",
-        descriptor="Insumo-producto: x = (I − C)⁻¹ d",
+        descriptor="Insumo-producto: x = (I - C)^(-1) d",
         route="/algebra-lineal/leontief",
         pillar_id="algebra",
-        icon="hub",
+        icon="matriz_inversa",
         page_title="Modelo de Leontief | Scalaris",
         example_latex=r"x = (I - C)^{-1}\,d",
         enabled=True,
@@ -180,7 +182,7 @@ TOOLS: tuple[Tool, ...] = (
         descriptor="ker(T), Im(T), rango y nulidad",
         route="/algebra-lineal/transformaciones",
         pillar_id="algebra",
-        icon="transform",
+        icon="operaciones_matrices",
         page_title="Transformaciones Lineales | Scalaris",
         example_latex=r"T: \mathbb{R}^n \to \mathbb{R}^m",
         enabled=True,
@@ -285,7 +287,6 @@ def breadcrumb(route: str) -> tuple[tuple[str, str | None], ...]:
 
 def legacy_redirects() -> tuple[LegacyRedirect, ...]:
     """Devuelve la tupla de redirecciones legacy activas según el estado de HUB_ENABLED."""
-    # Lectura dinámica en tiempo de llamada para permitir monkeypatching en tests
     import src.frontend.navigation as nav_mod
     hub_active = getattr(nav_mod, "HUB_ENABLED", False)
 
@@ -295,7 +296,6 @@ def legacy_redirects() -> tuple[LegacyRedirect, ...]:
         redirects.append(LegacyRedirect(path="/", target_route="/algebra-lineal/sistemas", permanent=False))
         redirects.append(LegacyRedirect(path="/ia", target_route="/algebra-lineal/sistemas", permanent=False))
     else:
-        # En F2 con Hub activado: '/' es la página Hub y '/ia' va a '/?glosa=1'
         redirects.append(LegacyRedirect(path="/ia", target_route="/", fixed_query=(("glosa", "1"),), permanent=True))
 
     redirects.extend([

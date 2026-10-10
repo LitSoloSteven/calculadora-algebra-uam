@@ -59,7 +59,12 @@ class GaussJordanController:
             "back_substitution_steps": result.get("back_substitution_steps", [])
         }
 
-        return json.dumps(response, ensure_ascii=False)
+        def _serializador(obj):
+            if hasattr(obj, "numerator") and hasattr(obj, "denominator"):
+                return str(obj)
+            return str(obj)
+
+        return json.dumps(response, default=_serializador, ensure_ascii=False)
 
     # Alias canónico en castellano
-    procesar_sistema = process_system
+    procesar_sistema = process_system

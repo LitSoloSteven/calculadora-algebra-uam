@@ -1,16 +1,17 @@
-"""Vista de Transformaciones Lineales T: R^n → R^m (P5 — LIT-8).
+"""Vista de Transformaciones Lineales T: R^n -> R^m (P5 - LIT-8).
 
 Layout:
   - Panel izquierdo: captura de la matriz A (m×n), nombres de variables
-    y 4 presets geométricos (identidad 2D, reflexión, proyección, rotación 90°,
-    shear, expansión a 3D).
+    y 4 presets geometricos (identidad 2D, reflexion, proyeccion, rotacion 90,
+    shear, expansion a 3D).
   - Panel derecho: resultados (ker(T), Im(T), rango, nulidad, Teorema de la
-    Dimensión, callout de convención de subespacios).
+    Dimension, callout de convencion de subespacios).
 """
 import json
 import asyncio
 import logging
 import html
+from functools import partial
 
 from nicegui import ui
 
@@ -22,7 +23,7 @@ from src.frontend.controllers.matrix_ops.controller_transformaciones import Tran
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Presets de demostración geométrica
+# Presets de demostracion geometrica
 # ══════════════════════════════════════════════════════════════════════════
 
 PRESETS_TRANSFORMACIONES = [
@@ -30,37 +31,37 @@ PRESETS_TRANSFORMACIONES = [
         "nombre": "Identidad 2D",
         "descripcion": "T(x)=x. Biyectiva, rango=2, nulidad=0.",
         "A": [["1", "0"], ["0", "1"]],
-        "variables": ["x₁", "x₂"],
+        "variables": ["x1", "x2"],
     },
     {
-        "nombre": "Reflexión eje x",
+        "nombre": "Reflexion eje x",
         "descripcion": "T reflejan en el eje x. Biyectiva.",
         "A": [["1", "0"], ["0", "-1"]],
-        "variables": ["x₁", "x₂"],
+        "variables": ["x1", "x2"],
     },
     {
-        "nombre": "Proyección sobre eje x",
-        "descripcion": "T proyecta en el eje x. No inyectiva (ker ≠ {0}). Núcleo = span{e₂}.",
+        "nombre": "Proyeccion sobre eje x",
+        "descripcion": "T proyecta en el eje x. No inyectiva (ker != {0}). Nucleo = span{e2}.",
         "A": [["1", "0"], ["0", "0"]],
-        "variables": ["x₁", "x₂"],
+        "variables": ["x1", "x2"],
     },
     {
-        "nombre": "Rotación 90°",
-        "descripcion": "T rota vectores 90° en sentido antihorario. Biyectiva.",
+        "nombre": "Rotacion 90 deg",
+        "descripcion": "T rota vectores 90 grados en sentido antihorario. Biyectiva.",
         "A": [["0", "-1"], ["1", "0"]],
-        "variables": ["x₁", "x₂"],
+        "variables": ["x1", "x2"],
     },
     {
-        "nombre": "R² → R³ (inyectiva)",
-        "descripcion": "Embedding de R² en R³. Inyectiva, no sobreyectiva.",
+        "nombre": "R2 -> R3 (inyectiva)",
+        "descripcion": "Embedding de R2 en R3. Inyectiva, no sobreyectiva.",
         "A": [["1", "0"], ["0", "1"], ["0", "0"]],
-        "variables": ["x₁", "x₂"],
+        "variables": ["x1", "x2"],
     },
     {
-        "nombre": "R³ → R² (sobreyectiva)",
-        "descripcion": "Proyección de R³ a R². Sobreyectiva, no inyectiva.",
+        "nombre": "R3 -> R2 (sobreyectiva)",
+        "descripcion": "Proyeccion de R3 a R2. Sobreyectiva, no inyectiva.",
         "A": [["1", "0", "0"], ["0", "1", "0"]],
-        "variables": ["x₁", "x₂", "x₃"],
+        "variables": ["x1", "x2", "x3"],
     },
 ]
 
@@ -69,8 +70,8 @@ class TransformacionesUI:
     """Vista completa de Transformaciones Lineales."""
 
     def __init__(self):
-        self.m = 2  # filas de A (dimensión del codominio)
-        self.n = 2  # columnas de A (dimensión del dominio)
+        self.m = 2  # filas de A (dimension del codominio)
+        self.n = 2  # columnas de A (dimension del dominio)
         self.entradas_A: list[list] = []
         self.entradas_vars: list = []
         self.contenedor_A = None
@@ -91,7 +92,7 @@ class TransformacionesUI:
                 ui.icon("transform", size="2rem").classes("text-accent")
                 with ui.column().classes("gap-0"):
                     ui.label("Transformaciones Lineales").classes("text-2xl font-bold text-main")
-                    ui.label("T: Rⁿ → Rᵐ · Núcleo · Imagen · Rango · Nulidad").classes("text-sm text-sec")
+                    ui.label("T: R^n -> R^m · Nucleo · Imagen · Rango · Nulidad").classes("text-sm text-sec")
 
             with ui.element("div").classes("layout-split mb-8"):
                 # ── Panel izquierdo ────────────────────────────────────
@@ -121,7 +122,7 @@ class TransformacionesUI:
 
     def _build_presets(self):
         with ui.column().classes("w-full panel-card p-4 mb-4"):
-            ui.label("Ejemplos geométricos").classes("font-bold text-main mb-2 text-sm uppercase tracking-wide")
+            ui.label("Ejemplos geometricos").classes("font-bold text-main mb-2 text-sm uppercase tracking-wide")
             with ui.row().classes("gap-2 flex-wrap"):
                 for preset in PRESETS_TRANSFORMACIONES:
                     ui.button(
@@ -133,24 +134,23 @@ class TransformacionesUI:
     def _build_tamano_selector(self):
         with ui.row().classes("w-full items-center gap-3 mb-2 flex-wrap"):
             ui.label("Dimensiones A (m×n):").classes("text-sm font-bold text-sec")
-            from functools import partial
             with ui.row().classes("gap-1 items-center"):
                 ui.label("m=").classes("text-sm text-sec")
-                ui.button(icon="remove", on_click=partial(self._ajustar_m, -1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props("ripple=false")
-                ui.button(icon="add", on_click=partial(self._ajustar_m, 1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props("ripple=false")
+                ui.button(icon="remove", on_click=partial(self._ajustar_m, -1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props('ripple=false aria-label="Reducir filas m"')
+                ui.button(icon="add", on_click=partial(self._ajustar_m, 1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props('ripple=false aria-label="Aumentar filas m"')
             with ui.row().classes("gap-1 items-center"):
                 ui.label("n=").classes("text-sm text-sec")
-                ui.button(icon="remove", on_click=partial(self._ajustar_n, -1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props("ripple=false")
-                ui.button(icon="add", on_click=partial(self._ajustar_n, 1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props("ripple=false")
+                ui.button(icon="remove", on_click=partial(self._ajustar_n, -1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props('ripple=false aria-label="Reducir columnas n"')
+                ui.button(icon="add", on_click=partial(self._ajustar_n, 1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props('ripple=false aria-label="Aumentar columnas n"')
 
     def _build_panel_A(self):
         with ui.column().classes("w-full panel-card p-4 mb-4"):
-            ui.label("Matriz A de la transformación").classes("font-bold text-main mb-3")
+            ui.label("Matriz A de la transformacion").classes("font-bold text-main mb-3")
             ui.html(
                 '<p class="text-xs text-sec mb-2">'
                 "Ingresa la matriz A tal que T(x) = Ax. "
-                "Filas m = dimensión del codominio R<sup>m</sup>, "
-                "columnas n = dimensión del dominio R<sup>n</sup>.</p>"
+                "Filas m = dimension del codominio R<sup>m</sup>, "
+                "columnas n = dimension del dominio R<sup>n</sup>.</p>"
             )
             self.contenedor_A = ui.column().classes("w-full")
             self._generar_cuadricula_A()
@@ -162,7 +162,7 @@ class TransformacionesUI:
             self._generar_entradas_vars()
 
     # ------------------------------------------------------------------
-    # Generadores de cuadrícula
+    # Generadores de cuadricula
     # ------------------------------------------------------------------
 
     def _generar_cuadricula_A(self):
@@ -236,7 +236,7 @@ class TransformacionesUI:
             with self.contenedor_resultados:
                 with ui.row().classes("items-center gap-2 px-4 py-2 badge-error mb-4 w-fit"):
                     ui.icon("close", size="sm")
-                    ui.label("Error inesperado. Revisa los datos e inténtalo de nuevo.").classes("font-bold")
+                    ui.label("Error inesperado. Revisa los datos e intentalo de nuevo.").classes("font-bold")
         finally:
             btn.props("loading=false")
 
@@ -282,15 +282,13 @@ class TransformacionesUI:
         m, n = r.get("m"), r.get("n")
         rango = r.get("rango")
         nulidad = r.get("nulidad")
-        es_iny = r.get("es_inyectiva")
-        es_sob = r.get("es_sobreyectiva")
 
-        # ── Banner éxito ───────────────────────────────────────────────
+        # ── Banner exito ───────────────────────────────────────────────
         with ui.row().classes("items-center gap-2 px-4 py-2 badge-success mb-4 w-fit"):
             ui.icon("check", size="sm")
             ui.label(r.get("message", "")).classes("font-bold")
 
-        # ── Callout de convención (IMPORTANTE pedagógico) ──────────────
+        # ── Callout de convencion ─────────────────────────────────────
         callout = r.get("callout_convencion", "")
         if callout:
             with ui.row().classes("w-full items-start gap-2 px-4 py-3 rounded-lg mb-4").style(
@@ -305,18 +303,18 @@ class TransformacionesUI:
             for label, val, color_class in [
                 ("Rango", rango, "text-accent"),
                 ("Nulidad", nulidad, "text-sec"),
-                (f"T: R^{n} → R^{m}", "", ""),
+                (f"T: R^{n} -> R^{m}", "", ""),
             ]:
                 with ui.column().classes("panel-card p-4 flex-1 items-center text-center gap-1"):
                     if val != "":
                         ui.label(str(val)).classes(f"text-3xl font-bold {color_class}")
                     ui.label(label).classes("text-sm text-sec")
 
-        # Teorema de la dimensión
+        # Teorema de la dimension
         with ui.row().classes("w-full panel-card p-3 mb-4 items-center gap-2"):
             ui.icon("functions", size="sm").classes("text-accent")
             ui.html(
-                f'<span class="font-bold text-main">Teorema de la Dimensión:</span> '
+                f'<span class="font-bold text-main">Teorema de la Dimension:</span> '
                 f'<span class="text-sec">{html.escape(r.get("teorema_dimension", ""))}</span>'
             )
 
@@ -330,10 +328,10 @@ class TransformacionesUI:
                     with ui.row().classes(f"items-center gap-2 px-3 py-2 {badge} w-fit rounded"):
                         ui.label(texto).classes("text-sm font-bold")
 
-        # ── Núcleo ker(T) ──────────────────────────────────────────────
+        # ── Nucleo ker(T) ──────────────────────────────────────────────
         base_nucleo = r.get("base_nucleo", [])
         with ui.column().classes("w-full panel-card p-4 mb-4"):
-            ui.label(f"Núcleo  ker(T)  [dim = {nulidad}]").classes("font-bold text-main mb-2")
+            ui.label(f"Nucleo  ker(T)  [dim = {nulidad}]").classes("font-bold text-main mb-2")
             if not base_nucleo:
                 ui.html(
                     '<div class="math-scroll-container math-label text-lg text-center">'
@@ -356,7 +354,7 @@ class TransformacionesUI:
             ui.html(
                 '<p class="text-xs text-sec mb-2">'
                 "Base formada por las columnas pivote de A "
-                "(convención columna estándar).</p>"
+                "(convencion columna estandar).</p>"
             )
             if not base_imagen:
                 ui.label("Imagen = {0}").classes("text-sec italic")
@@ -370,10 +368,10 @@ class TransformacionesUI:
                         f"$$ \\mathbf{{a}}_{{{idx}}} = {vec_tex} $$</div>"
                     )
 
-        # ── Pasos de reducción ─────────────────────────────────────────
+        # ── Pasos de reduccion ─────────────────────────────────────────
         pasos = r.get("pasos_reduccion", [])
         if pasos:
-            with ui.expansion("Ver reducción Gauss-Jordan de A", icon="visibility").classes(
+            with ui.expansion("Ver reduccion Gauss-Jordan de A", icon="visibility").classes(
                 "w-full panel-card mt-4 timeline-expansion"
             ).props('header-class="font-bold text-main"'):
                 for paso in pasos:

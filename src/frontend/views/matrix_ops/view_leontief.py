@@ -1,15 +1,16 @@
-"""Vista del Modelo de Insumo-Producto de Leontief (P5 — LIT-8).
+"""Vista del Modelo de Insumo-Producto de Leontief (P5 - LIT-8).
 
 Layout:
   - Panel izquierdo: captura de C (n×n) y d (vector de demanda), selector de sectores
     y 3 presets (2 sectores simple, 3 sectores, economía inviable).
-  - Panel derecho: resultados del solver (M = I−C, multiplicador, Hawkins-Simon,
+  - Panel derecho: resultados del solver (M = I-C, multiplicador, Hawkins-Simon,
     vector de producción x, análisis sectorial).
 """
 import json
 import asyncio
 import logging
 import html
+from functools import partial
 
 from nicegui import ui
 
@@ -71,10 +72,10 @@ class LeontiefUI:
         with ui.column().classes("w-full max-w-7xl mx-auto p-6 mt-4 view-root"):
             # Header
             with ui.row().classes("w-full items-center gap-3 mb-6"):
-                ui.icon("hub", size="2rem").classes("text-accent")
+                ui.icon("matriz_inversa", size="2rem").classes("text-accent")
                 with ui.column().classes("gap-0"):
                     ui.label("Modelo de Leontief").classes("text-2xl font-bold text-main")
-                    ui.label("Insumo-Producto · x = (I − C)⁻¹ d").classes("text-sm text-sec")
+                    ui.label("Insumo-Producto · x = (I - C)^(-1) d").classes("text-sm text-sec")
 
             with ui.element("div").classes("layout-split mb-8"):
                 # ── Panel izquierdo ────────────────────────────────────
@@ -117,9 +118,8 @@ class LeontiefUI:
     def _build_tamano_selector(self):
         with ui.row().classes("w-full items-center gap-3 mb-2"):
             ui.label("Tamaño n×n:").classes("text-sm font-bold text-sec")
-            from functools import partial
-            ui.button(icon="remove", on_click=partial(self._ajustar_tamano, -1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props("ripple=false")
-            ui.button(icon="add", on_click=partial(self._ajustar_tamano, 1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props("ripple=false")
+            ui.button(icon="remove", on_click=partial(self._ajustar_tamano, -1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props('ripple=false aria-label="Reducir dimension"')
+            ui.button(icon="add", on_click=partial(self._ajustar_tamano, 1), color=None).classes("btn-neo-icon w-7 h-7 p-0").props('ripple=false aria-label="Aumentar dimension"')
 
     def _build_panel_C(self):
         with ui.column().classes("w-full panel-card p-4 mb-4"):
@@ -293,19 +293,19 @@ class LeontiefUI:
 
         # ── Fórmula M = I − C ─────────────────────────────────────────
         with ui.column().classes("w-full panel-card p-4 mb-4"):
-            ui.label("Matriz de Leontief  M = I − C").classes("font-bold text-main mb-2")
+            ui.label("Matriz de Leontief  M = I - C").classes("font-bold text-main mb-2")
             m_tex = html.escape(r.get("matriz_leontief_latex", ""))
             ui.html(f'<div class="math-scroll-container math-label text-xl text-center">$$ M = {m_tex} $$</div>')
 
         # ── Multiplicador M^{-1} ──────────────────────────────────────
         with ui.column().classes("w-full panel-card p-4 mb-4"):
-            ui.label("Multiplicador de Leontief  (I − C)⁻¹").classes("font-bold text-main mb-2")
+            ui.label("Multiplicador de Leontief  (I - C)^(-1)").classes("font-bold text-main mb-2")
             mul_tex = html.escape(r.get("matriz_multiplicador_latex", ""))
             ui.html(f'<div class="math-scroll-container math-label text-xl text-center">$$ (I-C)^{{-1}} = {mul_tex} $$</div>')
 
         # ── Vector de producción x = (I-C)^{-1} d ─────────────────────
         with ui.column().classes("w-full panel-card p-4 mb-4"):
-            ui.label("Vector de producción  x = (I − C)⁻¹ · d").classes("font-bold text-main mb-3")
+            ui.label("Vector de producción  x = (I - C)^(-1) · d").classes("font-bold text-main mb-3")
             sectores = r.get("sectores", [])
             prods = r.get("vector_produccion", [])
             dems = r.get("vector_demanda", [])
@@ -361,7 +361,7 @@ class LeontiefUI:
     def _reset_resultados(self):
         self.contenedor_resultados.clear()
         with self.contenedor_resultados:
-            ui.icon("hub", size="4rem").classes("text-placeholder mb-4")
+            ui.icon("matriz_inversa", size="4rem").classes("text-placeholder mb-4")
             ui.label("Listo para calcular").classes("text-xl font-bold text-main")
             ui.label("Ingresa la matriz C y el vector d, luego presiona Calcular.").classes(
                 "text-sm text-sec mt-2 text-center"
