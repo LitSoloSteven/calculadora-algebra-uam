@@ -60,7 +60,7 @@ class MatrixController:
             "verification_steps_latex": verification_steps_latex
         }
 
-        return json.dumps(response_payload)
+        return json.dumps(response_payload, ensure_ascii=False, default=str)
 
     # Alias canónico en castellano
     procesar_sistema = process_system

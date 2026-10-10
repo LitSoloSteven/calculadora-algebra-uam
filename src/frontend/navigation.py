@@ -163,6 +163,28 @@ TOOLS: tuple[Tool, ...] = (
         example_latex=r"\text{XIV} + \text{IX} = \text{XXIII}",
         enabled=True,
     ),
+    Tool(
+        id="leontief",
+        name="Modelo de Leontief",
+        descriptor="Insumo-producto: x = (I − C)⁻¹ d",
+        route="/algebra-lineal/leontief",
+        pillar_id="algebra",
+        icon="hub",
+        page_title="Modelo de Leontief | Scalaris",
+        example_latex=r"x = (I - C)^{-1}\,d",
+        enabled=True,
+    ),
+    Tool(
+        id="transformaciones",
+        name="Transformaciones Lineales",
+        descriptor="ker(T), Im(T), rango y nulidad",
+        route="/algebra-lineal/transformaciones",
+        pillar_id="algebra",
+        icon="transform",
+        page_title="Transformaciones Lineales | Scalaris",
+        example_latex=r"T: \mathbb{R}^n \to \mathbb{R}^m",
+        enabled=True,
+    ),
 )
 
 _TOOLS_BY_ID: dict[str, Tool] = {t.id: t for t in TOOLS}
@@ -173,6 +195,8 @@ NAV_FLAT_ORDER: tuple[str, ...] = (
     "matrices",
     "inversa",
     "vectores",
+    "leontief",
+    "transformaciones",
     "visualizador",
     "bases",
     "romanos",

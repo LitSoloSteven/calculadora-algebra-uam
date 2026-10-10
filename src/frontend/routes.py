@@ -91,6 +91,20 @@ def register_routes() -> None:
         app_ui = RomanCalculatorUI()
         app_ui.build()
 
+    @ui.page(route_of("leontief"), title=tool_by_id("leontief").page_title)
+    def leontief_page():
+        from src.frontend.views.matrix_ops.view_leontief import LeontiefUI
+        setup_theme()
+        app_ui = LeontiefUI()
+        app_ui.build()
+
+    @ui.page(route_of("transformaciones"), title=tool_by_id("transformaciones").page_title)
+    def transformaciones_page():
+        from src.frontend.views.matrix_ops.view_transformaciones import TransformacionesUI
+        setup_theme()
+        app_ui = TransformacionesUI()
+        app_ui.build()
+
     if navigation.HUB_ENABLED:
         @ui.page(HUB_ROUTE, title=HUB_PAGE_TITLE)
         async def hub_page(client: Client, glosa: str = ''):
