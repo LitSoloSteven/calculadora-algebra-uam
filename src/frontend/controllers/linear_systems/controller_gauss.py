@@ -3,10 +3,12 @@ import json
 from src.backend.solvers.linear_systems.gauss import GaussSolver
 from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
 from src.backend.utils.validators import MatrixValidator
+from src.frontend.controllers._agrupar_pasos import agrupar_pasos_eliminacion
 from src.frontend.controllers.linear_systems._shared import (
-    parse_payload,
-    validate_and_build_augmented,
     build_steps_meta,
+    parse_payload,
+    serialize_matrix,
+    validate_and_build_augmented,
 )
 
 
@@ -25,7 +27,7 @@ class MatrixController:
 
         # --- Ejecución del solver ---
         solver = GaussSolver(matrix, variable_names=variables)
-        result = solver.resolver()
+        result = solver.resolver() if hasattr(solver, "resolver") else solver.solve()
 
         # --- Formateo de la respuesta ---
         raw_steps = result.get("steps", [])
@@ -47,6 +49,26 @@ class MatrixController:
                 as_latex=True
             )
 
+        pasos, groups, stats = agrupar_pasos_eliminacion(
+            raw_steps, _n, result.get("status"), contexto="sistema", metodo="gauss"
+        )
+        steps_view = [
+            {
+                "index": s["index"],
+                "kind": s["kind"],
+                "description": s["description"],
+                "explanation": s["explanation"],
+                "group_index": s["group_index"],
+                "pivot": list(s["pivot"]) if s["pivot"] is not None else None,
+                "rows_changed": list(s["rows_changed"]),
+                "swap_rows": list(s["swap_rows"]) if s["swap_rows"] is not None else None,
+                "matrix": serialize_matrix(s["matrix"]),
+            }
+            for s in pasos
+        ]
+
+        vars_list = variables if variables is not None else [f"x{i+1}" for i in range(_n)]
+
         response_payload = {
             "status": result.get("status"),
             "classification": result.get("message"),
@@ -57,10 +79,15 @@ class MatrixController:
             "intermediate_steps_latex": intermediate_steps_latex,
             "steps_meta": steps_meta,
             "back_substitution_steps": result.get("back_substitution_steps", []),
-            "verification_steps_latex": verification_steps_latex
+            "verification_steps_latex": verification_steps_latex,
+            "variables": vars_list,
+            "n_vars": _n,
+            "steps_view": steps_view,
+            "groups": groups,
+            "stats": stats,
         }
 
         return json.dumps(response_payload, ensure_ascii=False, default=str)
 
     # Alias canónico en castellano
-    procesar_sistema = process_system
+    procesar_sistema = process_system

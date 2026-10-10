@@ -137,25 +137,26 @@ def test_initial_selection_corrupt_data(corrupt):
 
 
 def test_hub_js_static_contract():
-    """Verifica el contrato estatico de assets/js/hub.js (sin scroll listeners ni estado ajeno)."""
+    """Verifica el contrato de eventos delegados de la matriz y sus diálogos."""
     js_path = Path("src/frontend/assets/js/hub.js")
     assert js_path.exists()
     content = js_path.read_text(encoding="utf-8")
 
-    # No contiene scroll listeners
     assert "addEventListener('scroll'" not in content
     assert 'addEventListener("scroll"' not in content
-
-    # No contiene requestAnimationFrame sobre frameworks reactivos (React/Vue/useState)
-    assert "useState" not in content
-    assert "setState" not in content
-    assert "React" not in content
-    assert "Vue" not in content
-
-    # Exporta scalarisReadRecent, scalarisRecordVisit y scalarisHubSelect
     assert "window.scalarisReadRecent =" in content
     assert "window.scalarisRecordVisit =" in content
-    assert "window.scalarisHubSelect =" in content
+    assert "window.scalarisHubSelect" not in content
+    assert "function open(" in content
+    assert "function close(" in content
+    assert "dialog.showModal()" in content
+    assert "event.detail === 0" in content
+    assert "data-hub-pending" in content
+    assert "}, 1200);" in content
+    assert "hub-carousel" not in content
+    assert "ResizeObserver" not in content
+    assert "onPointerDown" not in content
 
-    # Referencia al selector exacto de tiles del panel activo
-    assert "'.hub-panel.is-active .hub-tile'" in content
+    focus_calls = [call.split(")", 1)[0] for call in content.split(".focus(")[1:]]
+    assert focus_calls
+    assert all("preventScroll" in args and "true" in args for args in focus_calls)
