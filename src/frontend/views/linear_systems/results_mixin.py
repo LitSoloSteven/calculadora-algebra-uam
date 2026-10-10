@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 from src.frontend.controllers.linear_systems.controller_gauss import MatrixController
 from src.frontend.controllers.linear_systems.controller_gauss_jordan import GaussJordanController
 from src.backend.utils.parsers import SystemParser
-from src.backend.utils.validators import MatrixValidator
 from src.frontend.helpers import format_step_for_mathjax, to_float
 from src.frontend.theme import (
     CHART_PALETTE,
@@ -25,99 +24,6 @@ from src.frontend.theme import (
 
 class LinearSystemsResultsMixin:
     """Maneja el preview en vivo, resolución de sistemas (Gauss/Gauss-Jordan), gráficos y formateo."""
-
-    def _trigger_live_preview(self):
-        if self.preview_task:
-            self.preview_task.cancel()
-        self.preview_task = asyncio.create_task(self._update_preview())
-
-    async def _update_preview(self):
-        await asyncio.sleep(0.3)
-        if not self.preview_container:
-            return
-
-        try:
-            self.preview_container.clear()
-            with self.preview_container:
-                matrix_A, vector_b = self.grid.get_matrix_data()
-                if not matrix_A or len(matrix_A) == 0 or len(matrix_A[0]) == 0:
-                    ui.label('La matriz está vacía.').classes('text-sec italic text-sm mt-4 text-center')
-                    return
-
-                m = len(matrix_A)
-                n = len(matrix_A[0])
-
-                def sanitize(val):
-                    if not val:
-                        return '0'
-                    success, _, _ = MatrixValidator.parse_number_exact(val)
-                    if not success:
-                        return r"\color{gray}{?}"
-                    return val
-
-                # Construir LaTeX para matriz aumentada
-                latex_lines = []
-                for i, row in enumerate(matrix_A):
-                    row_strs = [sanitize(val) for val in row]
-                    b_val = sanitize(vector_b[i] if i < len(vector_b) else '0')
-                    latex_lines.append(" & ".join(row_strs) + f" & {b_val}")
-
-                spec = "c" * n + "|c"
-                matrix_tex = rf"\left[ \begin{{array}}{{{spec}}} " + r" \\ ".join(latex_lines) + r" \end{array} \right]"
-                matrix_tex = html.escape(matrix_tex)
-
-                ui.html(f'<div id="preview-matrix" class="math-scroll-container math-label text-lg mb-6 w-full text-center">$$ {matrix_tex} $$</div>')
-
-                if m * n > 48:
-                    ui.label('Sistema demasiado grande para vista previa en ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                    return
-
-                # Validar celdas antes de exportar a ecuaciones
-                todas_validas = True
-                for i in range(m):
-                    for j in range(n):
-                        val = matrix_A[i][j]
-                        if val:
-                            success, _, _ = MatrixValidator.parse_number_exact(val)
-                            if not success:
-                                todas_validas = False
-                                break
-                    if not todas_validas:
-                        break
-
-                b_valid = True
-                for i in range(m):
-                    val = vector_b[i] if i < len(vector_b) else ''
-                    if val:
-                        success, _, _ = MatrixValidator.parse_number_exact(val)
-                        if not success:
-                            b_valid = False
-                            break
-
-                if not todas_validas or not b_valid:
-                    ui.label('Corrige los valores inválidos para ver las ecuaciones.').classes('text-sec italic text-sm mt-4 text-center')
-                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                    return
-
-                # Construir LaTeX para sistema de ecuaciones
-                eqs = self.grid.export_to_equations()
-                if not eqs:
-                    ui.label('No hay ecuaciones válidas.').classes('text-sec italic text-sm mt-4 text-center')
-                    ui.run_javascript("typesetMathWhenReady(['preview-matrix']);")
-                    return
-
-                eqs_tex = r" \\ ".join(eqs)
-                eqs_tex = re.sub(r'x(\d+)', r'x_{\1}', eqs_tex)
-                system_tex = r" \begin{cases} " + eqs_tex + r" \end{cases} "
-                system_tex = html.escape(system_tex)
-
-                ui.html(f'<div id="preview-system" class="math-scroll-container math-label text-lg w-full text-center">$$ {system_tex} $$</div>')
-                ui.run_javascript("typesetMathWhenReady(['preview-matrix', 'preview-system']);")
-        except Exception as e:
-            logger.error("Error al actualizar vista previa", exc_info=e)
-            with self.preview_container:
-                ui.label('No se pudo generar la vista previa.').classes('text-sec italic text-sm mt-4 text-center')
 
     async def confirmar_limpieza(self):
         if self.is_empty():

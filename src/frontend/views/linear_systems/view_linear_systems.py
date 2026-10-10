@@ -9,12 +9,14 @@ from .sync_mixin import LinearSystemsSyncMixin
 from .history_mixin import LinearSystemsHistoryMixin
 from .graphics_mixin import LinearSystemsGraphicsMixin
 from .results_mixin import LinearSystemsResultsMixin
+from .preview_mixin import LinearSystemsPreviewMixin
 
 
 class LinearSystemsUI(
     LinearSystemsSyncMixin,
     LinearSystemsHistoryMixin,
     LinearSystemsGraphicsMixin,
+    LinearSystemsPreviewMixin,
     LinearSystemsResultsMixin
 ):
     """Controlador de vista modular para Sistemas Lineales."""
@@ -66,6 +68,7 @@ class LinearSystemsUI(
                         self.sync_from_matrix()
                     elif e.value == 'Matriz' and not self.is_ecuaciones_empty():
                         self.sync_from_equations()
+                    self._trigger_live_preview()
 
                 self.mode_tabs.on_value_change(on_mode_change)
 

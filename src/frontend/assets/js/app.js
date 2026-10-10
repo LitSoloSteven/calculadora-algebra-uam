@@ -75,6 +75,8 @@ window.typesetMathWhenReady = function (elementIds, maxWaitMs) {
         if (els.length > 0) {
           window.MathJax.typesetClear(els);
           window.MathJax.typesetPromise(els).catch(err => console.log(err));
+        } else if (Date.now() - start < maxWaitMs) {
+          setTimeout(attempt, 100);
         }
       } else {
         window.MathJax.typesetClear();
