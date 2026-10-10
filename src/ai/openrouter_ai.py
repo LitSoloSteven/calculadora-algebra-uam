@@ -104,7 +104,7 @@ class OpenRouterIA:
         deadline = self._time_monotonic() + 40.0
         
         for idx, modelo in enumerate(modelos_a_intentar):
-            max_intentos = 2 if idx == 0 else 1 # El primario permite 2 intentos (backoff), fallback 1
+            max_intentos = 2 if idx == 0 else 1  # El primario permite 2 intentos (backoff), fallback 1
             
             for intento in range(max_intentos):
                 if cancel and cancel.is_set():
@@ -138,13 +138,13 @@ class OpenRouterIA:
                                         _response_cache[cache_key] = (res, self._time_monotonic())
                                 return res
                             else:
-                                logger.error(f"AI response EMPTY. Status 200 sin choices. Modelo: {modelo}")
+                                logger.error(f"Respuesta de IA VACÍA. Estado 200 sin choices. Modelo: {modelo}")
                                 return AIResult(False, "Glosa no devolvió una respuesta. Reformula la pregunta o inténtalo de nuevo.", AIErrorKind.EMPTY)
                         except Exception as e:
                             logger.error(f"Error parseando json de AI: {e}")
                             
                     elif response.status_code in {401, 403}:
-                        logger.error(f"Auth error OpenRouter: {response.status_code} - {response.text[:200]}")
+                        logger.error(f"Error de autenticación con OpenRouter: {response.status_code} - {response.text[:200]}")
                         return AIResult(False, "Glosa no pudo autenticarse con el servicio de IA. Avisa a quien administra Scalaris.", AIErrorKind.AUTH)
                         
                     elif response.status_code == 429:
@@ -153,7 +153,7 @@ class OpenRouterIA:
                             self._time_sleep(1.0)
                             continue
                         elif idx == 0 and len(modelos_a_intentar) > 1:
-                            break # Pasar al fallback
+                            break  # Pasar al fallback
                         else:
                             return AIResult(False, "Glosa está recibiendo muchas consultas ahora. Espera unos segundos y vuelve a intentarlo.", AIErrorKind.RATE_LIMIT)
                             
@@ -163,7 +163,7 @@ class OpenRouterIA:
                             self._time_sleep(1.0)
                             continue
                         else:
-                            break # Fallback o termina
+                            break  # Fallback o termina
                             
                     else:
                         logger.error(f"Error {response.status_code} en {modelo}: {response.text[:200]}")
@@ -172,7 +172,7 @@ class OpenRouterIA:
                 except requests.exceptions.Timeout:
                     logger.warning(f"Timeout al contactar {modelo}")
                     if idx == 0 and len(modelos_a_intentar) > 1:
-                        break # Pasa a fallback
+                        break  # Pasa a fallback
                     return AIResult(False, "Glosa tardó demasiado en responder. Vuelve a intentarlo en unos segundos.", AIErrorKind.TIMEOUT)
                 except requests.exceptions.ConnectionError:
                     logger.error(f"Error de red al contactar {modelo}")

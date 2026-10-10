@@ -113,7 +113,7 @@ class RomanCalculatorUI:
                 ui.clipboard.write(texto)
                 ui.notify(f'Copiado: {texto}', type='positive', position='top')
 
-            def _desglosar_pasos_canónicos(n: int):
+            def _desglosar_pasos_canonicos(n: int):
                 """Devuelve las deducciones voraces paso a paso para convertir decimal a romano."""
                 tabla = [
                     (1000, 'M'), (900, 'CM'), (500, 'D'), (400, 'CD'),
@@ -329,7 +329,7 @@ class RomanCalculatorUI:
                                         is_loading=getattr(self.ai_panel, '_is_sending', False)
                                     )
                             with ui.column().classes('w-full p-6 gap-5 rounded-b-2xl').style('background: var(--bg-elevated); box-shadow: var(--elev-inset);'):
-                                pasos_can = _desglosar_pasos_canónicos(res_dec)
+                                pasos_can = _desglosar_pasos_canonicos(res_dec)
 
                                 with ui.column().classes('w-full gap-2'):
                                     with ui.row().classes('w-full py-3.5 px-5 rounded-xl text-base font-bold text-sec items-center border').style(
