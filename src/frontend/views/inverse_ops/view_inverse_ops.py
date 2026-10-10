@@ -35,10 +35,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
         self.historial_container: ui.column | None = None
         self.last_result: dict | None = None
 
-        # Estado del reproductor de pasos
-        self.step_result: dict | None = None
-        self.current_step: int = 0
-        self.play_timer = None
+        self.reproductor_pasos = None
         self._uid_counter = itertools.count()
 
     def build(self, handoff_token: str = ''):

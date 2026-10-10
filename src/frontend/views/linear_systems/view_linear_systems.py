@@ -7,7 +7,6 @@ from src.frontend.components.calculator import CalculatorPanel
 from src.frontend.components.ai_panel import AIPanel
 from .sync_mixin import LinearSystemsSyncMixin
 from .history_mixin import LinearSystemsHistoryMixin
-from .graphics_mixin import LinearSystemsGraphicsMixin
 from .results_mixin import LinearSystemsResultsMixin
 from .preview_mixin import LinearSystemsPreviewMixin
 
@@ -15,7 +14,6 @@ from .preview_mixin import LinearSystemsPreviewMixin
 class LinearSystemsUI(
     LinearSystemsSyncMixin,
     LinearSystemsHistoryMixin,
-    LinearSystemsGraphicsMixin,
     LinearSystemsPreviewMixin,
     LinearSystemsResultsMixin
 ):

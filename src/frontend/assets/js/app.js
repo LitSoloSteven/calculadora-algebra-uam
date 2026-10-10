@@ -145,23 +145,6 @@ function updatePlotlyTheme(theme) {
   });
 }
 
-window.updatePlotlyThemeWhenReady = function (maxWaitMs = 5000) {
-  var start = Date.now();
-  function attempt() {
-    let plots = document.querySelectorAll('.js-plotly-plot');
-    let ready = Array.from(plots).some(p => p.isConnected && p._fullLayout);
-    if (ready) {
-      let currentTheme = document.documentElement.getAttribute('data-theme') || 'papel';
-      updatePlotlyTheme(currentTheme);
-    } else if (Date.now() - start < maxWaitMs) {
-      setTimeout(attempt, 100);
-    } else {
-      console.warn("updatePlotlyThemeWhenReady: maxWaitMs expiró sin encontrar gráficas inicializadas.");
-    }
-  }
-  attempt();
-};
-
 // === ANIMACIÓN DE RECOLECCIÓN DE BASURA ===
 function animateGarbageCollection() {
   return new Promise((resolve) => {

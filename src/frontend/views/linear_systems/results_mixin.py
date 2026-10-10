@@ -1,4 +1,4 @@
-"""Mixin de resolución, gráficos y renderizado de resultados para Sistemas Lineales."""
+"""Mixin de resolución y presentación de resultados para Sistemas Lineales."""
 import json
 import asyncio
 import logging
@@ -11,19 +11,11 @@ logger = logging.getLogger(__name__)
 from src.frontend.controllers.linear_systems.controller_gauss import MatrixController
 from src.frontend.controllers.linear_systems.controller_gauss_jordan import GaussJordanController
 from src.backend.utils.parsers import SystemParser
-from src.frontend.helpers import format_step_for_mathjax, to_float
-from src.frontend.theme import (
-    CHART_PALETTE,
-    CHART_MARKER_LIGHT,
-    CHART_MARKER_BORDER,
-    CHART_GRID_COLOR,
-    CHART_ZERO_COLOR,
-    CHART_FONT_COLOR,
-)
+from src.frontend.helpers import format_step_for_mathjax
 
 
 class LinearSystemsResultsMixin:
-    """Maneja el preview en vivo, resolución de sistemas (Gauss/Gauss-Jordan), gráficos y formateo."""
+    """Resuelve sistemas lineales y presenta sus resultados y procedimientos."""
 
     async def confirmar_limpieza(self):
         if self.is_empty():
@@ -237,10 +229,6 @@ class LinearSystemsResultsMixin:
                                  ).classes('btn-ghost').props('ripple=false').tooltip('Visualiza el sistema en R² o R³')
 
         ui.run_javascript('typesetMathWhenReady();')
-
-        with self.contenedor_resultados:
-            if not is_error:
-                await self.render_graphics(matrix_A_vals, vector_b_vals, respuesta)
 
         ui.run_javascript("replayResultAnimation('resultados-container');")
         ui.run_javascript("setTimeout(() => { const el = document.getElementById('resultados-container'); if(el) el.scrollIntoView({behavior: 'smooth', block: 'start'}) }, MOTION.med);")

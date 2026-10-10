@@ -32,7 +32,7 @@ Corregir la vista previa del modo Ecuaciones de Sistemas, que actualmente no mue
 ### F3. Componente compartido y migración de Matriz inversa
 - **Archivos:** nuevo `src/frontend/components/reproductor_pasos/` (API pública, renderizado y adaptación de datos en módulos separados según responsabilidades); `src/frontend/views/inverse_ops/steps_mixin.py`, `src/frontend/views/inverse_ops/_render.py`, `src/frontend/views/inverse_ops/_config.py`, `src/frontend/views/inverse_ops/view_inverse_ops.py`; nuevo `src/frontend/assets/css/reproductor_pasos.css`; `src/frontend/theme.py` para enlazar el CSS y cualquier script nuevo desde `_HEAD_HTML`; pruebas nuevas en archivos separados dentro de `tests/` si se incorpora lógica.
 - **Criterio de aceptación:** Matriz inversa usa el componente compartido con controles, explicación, índice y Glosa funcionales; su salida visual y sus interacciones existentes se conservan. Se respetan las salidas de `InverseOpsController.process_inverse` y `InverseOpsController.build_focus_for_step`. Los assets se enlazan desde `_HEAD_HTML`, sin modificar `theme.css`.
-- **Estado:** pendiente.
+- **Estado:** implementación y pruebas focalizadas completadas (29 pasaron); suite global detenida durante `tests/test_conversor_ui_logic.py::test_cambiar_base_destino_permite_decimal[asyncio]`; verificación visual manual pendiente.
 
 ### F4. Sistemas de ecuaciones (Gauss y Gauss-Jordan)
 - **Archivos:** `src/frontend/views/linear_systems/results_mixin.py`, `src/frontend/controllers/linear_systems/controller_gauss.py`, `src/frontend/controllers/linear_systems/controller_gauss_jordan.py`, `src/frontend/controllers/linear_systems/_shared.py`, y `src/frontend/components/reproductor_pasos/`.
@@ -81,8 +81,8 @@ Estas restricciones son contrato y no se editan ni debilitan:
 | Fase | Estado |
 |---|---|
 | F1. Vista previa del modo Ecuaciones | implementada; suite global y comprobación visual manual pendientes |
-| F2. Quitar visualización gráfica de Sistemas | pendiente |
-| F3. Componente compartido y migración de Matriz inversa | pendiente |
+| F2. Quitar visualización gráfica de Sistemas | implementada; suite global y verificación visual manual pendientes |
+| F3. Componente compartido y migración de Matriz inversa | implementación y pruebas focalizadas completadas (29 pasaron); suite global detenida en una prueba del conversor; verificación visual manual pendiente |
 | F4. Sistemas de ecuaciones Gauss y Gauss-Jordan | pendiente |
 | F5. Matrices | pendiente |
 | F6. Vectores | pendiente |

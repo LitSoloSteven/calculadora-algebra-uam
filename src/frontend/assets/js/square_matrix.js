@@ -17,13 +17,6 @@ window.animateSquareResize = function (matrixId, idx, mode) {
   });
 };
 
-window.flashStepCard = function (elId) {
-  const el = document.getElementById(elId);
-  if (!el || (window.scalarisMotionOK ? !window.scalarisMotionOK() : matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-  el.animate([{ opacity: 0.55, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }],
-             { duration: 180, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
-};
-
 window.shakeMatrixCell = function (matrixId, r, c) {
   const input = document.querySelector(`input[data-matrix-id="${matrixId}"][data-matrix-row="${r}"][data-matrix-col="${c}"]`);
   if (!input) return;
