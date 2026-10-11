@@ -109,11 +109,18 @@ Llevar la totalidad del repositorio al cumplimiento estricto y verificable de la
   - Suite de 1112 pruebas pasando al 100%.
 
 ### Fase 3: Núcleo de Aplicación y Navegación Frontend (E3, E4)
-- **Estado**: Pendiente
-- **Archivos**: `src/frontend/app.py`, `navigation.py`, `routes.py`, `suggestions.py`, `flags.py`, `helpers.py`, `theme.py`, `main.py`.
-- **Criterios de aceptación**:
-  - Enrutamiento y estado centralizado limpios sin números mágicos ni rutas obsoletas.
-  - Respeto a límites duros de líneas y funciones.
+- **Estado**: Completada
+- **Archivos**: `src/main.py`, `src/frontend/app.py`, `routes.py`, `flags.py`, `helpers.py`, `suggestions.py`, `catalogo_sugerencias.py`, `theme.py`, `constantes.py`, `textos.py`, y paquete `src/frontend/navigation/` (`modelo.py`, `catalogo.py`, `consultas.py`, `redirecciones.py`, `__init__.py`).
+- **Criterios de aceptación cumplidos**:
+  - `navigation.py` modularizado en paquete de 4 submódulos (`modelo`, `catalogo`, `consultas`, `redirecciones`), todos $\le 165$ líneas y funciones $\le 40$ líneas.
+  - Resolución dinámica de `HUB_ENABLED` en tiempo de llamada conservada en `legacy_redirects`.
+  - Catálogo de sugerencias desacoplado como datos puros a `catalogo_sugerencias.py` y lógica de selección optimizada ($\le 40$ líneas, complejidad ciclomática $\le 10$).
+  - Creación de `src/frontend/constantes.py` (límites de dimensión 10 y 50, debounces 0.25, 0.3, 0.35 s, `MAX_HISTORIAL`, TTL y tamaño de handoff, anti-rebote de envío a Glosa) y migración de todos sus consumidores en el frontend.
+  - Creación de `src/frontend/textos.py` centralizando copy repetido (mensajes de handoff, avisos de secretos y anti-rebote).
+  - Paleta de gráficos en `theme.py` con contraste no textual $\ge 3.0:1$ verificado en los tres temas (`papel`, `marea`, `medianoche`) y consumida como fuente única por JS en `app.js` (`window.scalaris.graficos`).
+  - Identificadores en español ASCII sin alias (`resolver_secreto_almacenamiento`, `inicializar_aplicacion`, `ejecutar`, `registrar_rutas`, `a_flotante`, `formatear_paso_mathjax`).
+  - Ampliación de `RUTAS_AUDITADAS` en `tests/test_cumplimiento_reglas.py` a 30 archivos, pasando al 100%.
+  - Suite de 1112 pruebas pasando (`0 failed, 1112 passed`).
 
 ### Fase 4: Sistema de Estilos CSS, Scripts JS y Movimiento (E4, E5, E6)
 - **Estado**: Pendiente

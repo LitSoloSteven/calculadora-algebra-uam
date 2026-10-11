@@ -1,6 +1,7 @@
 """Vista principal de Sistemas Lineales (Gauss / Gauss-Jordan) en Scalaris."""
 from nicegui import ui
 from src.frontend.components.app_shell import create_app_shell
+from src.frontend.constantes import DIMENSION_MAXIMA_SISTEMAS
 from src.frontend.navigation import route_of
 from src.frontend.components.equation_grid import EquationGrid
 from src.frontend.components.calculator import CalculatorPanel
@@ -153,7 +154,7 @@ class LinearSystemsUI(
         self.ai_panel.build()
 
         from src.frontend.components.handoff import consume_matrix, render_handoff_notice, clean_handoff_url
-        res = consume_matrix(handoff_token, max_n=10)
+        res = consume_matrix(handoff_token, max_n=DIMENSION_MAXIMA_SISTEMAS)
         if res is not None:
             with self.handoff_slot:
                 n = len(res.data) if res.data else 0

@@ -1,25 +1,76 @@
 """Configuración de temas, paletas y assets estáticos de Scalaris."""
+import json
 from nicegui import ui
 
-CHART_PALETTE = ['#E8466D', '#2EB88A', '#4B9FE8', '#E89F42', '#8B5CF6']
-CHART_MARKER_LIGHT = '#FFFFFF'
-CHART_MARKER_BORDER = '#23262E'
-CHART_GRID_COLOR = 'rgba(128,128,128,0.2)'
-CHART_ZERO_COLOR = 'rgba(128,128,128,0.5)'
-CHART_FONT_COLOR = {'papel': '#23262E', 'marea': '#0B1F33', 'medianoche': '#EAF6FF'}
-CHART_SOLUTION_COLOR = '#E11D48'
+from src.frontend import flags
 
-_HEAD_HTML = """
-    <!-- Prevenir FOUC (Flash of Unstyled Content) de tema claro -->
+# Paletas de color con ratio de contraste no textual >= 3.0:1 verificado en cada tema
+PALETAS_POR_TEMA: dict[str, list[str]] = {
+    "papel": ["#C71F47", "#0D7A53", "#1D6FB8", "#B45309", "#6D28D9"],
+    "marea": ["#B91C47", "#0D6E48", "#145A96", "#9A4500", "#5B21B6"],
+    "medianoche": ["#FB7185", "#34D399", "#38BDF8", "#FBBF24", "#A78BFA"],
+}
+
+COLORES_SOLUCION_POR_TEMA: dict[str, str] = {
+    "papel": "#BE123C",
+    "marea": "#B91C47",
+    "medianoche": "#F43F5E",
+}
+
+COLORES_TEXTO_GRAFICOS: dict[str, str] = {
+    "papel": "#23262E",
+    "marea": "#0B1F33",
+    "medianoche": "#EAF6FF",
+}
+
+COLORES_CUADRICULA_GRAFICOS: dict[str, str] = {
+    "papel": "rgba(128,128,128,0.2)",
+    "marea": "rgba(11,31,51,0.1)",
+    "medianoche": "rgba(255,255,255,0.06)",
+}
+
+# Constantes públicas para compatibilidad con escenas existentes
+CHART_PALETTE = PALETAS_POR_TEMA["papel"]
+CHART_MARKER_LIGHT = "#FFFFFF"
+CHART_MARKER_BORDER = "#23262E"
+CHART_GRID_COLOR = "rgba(128,128,128,0.2)"
+CHART_ZERO_COLOR = "rgba(128,128,128,0.5)"
+CHART_FONT_COLOR = COLORES_TEXTO_GRAFICOS
+CHART_SOLUTION_COLOR = COLORES_SOLUCION_POR_TEMA["papel"]
+
+
+def obtener_paleta_tema(tema: str = "papel") -> list[str]:
+    """Devuelve la paleta de colores con contraste óptimo para el tema solicitado."""
+    return PALETAS_POR_TEMA.get(tema, PALETAS_POR_TEMA["papel"])
+
+
+def obtener_color_solucion(tema: str = "papel") -> str:
+    """Devuelve el color de solución con contraste garantizado para el tema."""
+    return COLORES_SOLUCION_POR_TEMA.get(tema, COLORES_SOLUCION_POR_TEMA["papel"])
+
+
+_CONFIG_GRAFICOS_JSON = json.dumps(
+    {
+        "paletas": PALETAS_POR_TEMA,
+        "solucion": COLORES_SOLUCION_POR_TEMA,
+        "texto": COLORES_TEXTO_GRAFICOS,
+        "cuadricula": COLORES_CUADRICULA_GRAFICOS,
+    }
+)
+
+_HEAD_HTML = f"""
+    <!-- Prevenir FOUC (Flash of Unstyled Content) y exponer tokens a JS -->
     <script>
-    (function () {
-      var mapa = {claro: 'papel', aqua: 'marea', oscuro: 'medianoche'};
+    (function () {{
+      var mapa = {{claro: 'papel', aqua: 'marea', oscuro: 'medianoche'}};
       var t = localStorage.getItem('theme') || 'papel';
-      if (mapa[t]) { t = mapa[t]; localStorage.setItem('theme', t); }
+      if (mapa[t]) {{ t = mapa[t]; localStorage.setItem('theme', t); }}
       var r = document.documentElement;
       r.setAttribute('data-theme', t);
       r.style.colorScheme = (t === 'medianoche') ? 'dark' : 'light';
-    })();
+      window.scalaris = window.scalaris || {{}};
+      window.scalaris.graficos = {_CONFIG_GRAFICOS_JSON};
+    }})();
     </script>
 
     <!-- Overlay Animación de Inicio -->
@@ -45,8 +96,6 @@ _HEAD_HTML = """
     <script src="/assets/js/hub.js"></script>
 """
 
-from src.frontend import flags
-
 _DOCK_HEAD_HTML = """
     <!-- Pre-paint de Glosa -->
     <script>
@@ -67,8 +116,9 @@ _DOCK_HEAD_HTML = """
     <script src="/assets/js/layout_sync.js"></script>
 """
 
+
 def setup_theme():
-    """Configura fuentes, hojas de estilo, MathJax y scripts globales."""
+    """Configura fuentes, hojas de estilo, MathJax y scripts globales de interfaz."""
     ui.add_head_html(_HEAD_HTML)
     if flags.dock_enabled():
         ui.add_head_html(_DOCK_HEAD_HTML)

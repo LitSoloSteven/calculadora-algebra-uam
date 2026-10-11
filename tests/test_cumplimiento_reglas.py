@@ -28,6 +28,21 @@ RUTAS_AUDITADAS: list[Path] = [
     RAIZ / "src" / "ai" / "clasificador_respuestas.py",
     RAIZ / "src" / "ai" / "openrouter_ai.py",
     RAIZ / "src" / "ai" / "prompts.py",
+    RAIZ / "src" / "main.py",
+    RAIZ / "src" / "frontend" / "app.py",
+    RAIZ / "src" / "frontend" / "routes.py",
+    RAIZ / "src" / "frontend" / "flags.py",
+    RAIZ / "src" / "frontend" / "helpers.py",
+    RAIZ / "src" / "frontend" / "suggestions.py",
+    RAIZ / "src" / "frontend" / "catalogo_sugerencias.py",
+    RAIZ / "src" / "frontend" / "theme.py",
+    RAIZ / "src" / "frontend" / "constantes.py",
+    RAIZ / "src" / "frontend" / "textos.py",
+    RAIZ / "src" / "frontend" / "navigation" / "__init__.py",
+    RAIZ / "src" / "frontend" / "navigation" / "modelo.py",
+    RAIZ / "src" / "frontend" / "navigation" / "catalogo.py",
+    RAIZ / "src" / "frontend" / "navigation" / "consultas.py",
+    RAIZ / "src" / "frontend" / "navigation" / "redirecciones.py",
 ]
 
 PALABRAS_INGLES_PROHIBIDAS = {

@@ -114,8 +114,8 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
         self.ai_panel.build()
 
         from src.frontend.components.handoff import consume_matrix, render_handoff_notice, clean_handoff_url
-        from src.backend.constants import INVERSE_MAX_DIMENSION
-        res = consume_matrix(handoff_token, max_n=INVERSE_MAX_DIMENSION)
+        from src.frontend.constantes import DIMENSION_MAXIMA_INVERSA
+        res = consume_matrix(handoff_token, max_n=DIMENSION_MAXIMA_INVERSA)
         if res is not None:
             with self.handoff_slot:
                 n = len(res.data) if res.data else 0

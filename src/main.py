@@ -1,18 +1,16 @@
-"""Entry point ejecutable principal de Scalaris."""
-import sys
+"""Punto de entrada ejecutable principal de Scalaris."""
 from pathlib import Path
+import sys
 from dotenv import load_dotenv
 
-# Garantizar resolución de imports raíz (src.backend, src.frontend, src.ai)
-ROOT_DIR = Path(__file__).resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+DIRECTORIO_RAIZ = Path(__file__).resolve().parent.parent
+if str(DIRECTORIO_RAIZ) not in sys.path:
+    sys.path.insert(0, str(DIRECTORIO_RAIZ))
 
-# Cargar variables de entorno (raíz y módulo AI)
-load_dotenv(ROOT_DIR / ".env")
-load_dotenv(ROOT_DIR / "src" / "ai" / ".env")
+load_dotenv(DIRECTORIO_RAIZ / ".env")
+load_dotenv(DIRECTORIO_RAIZ / "src" / "ai" / ".env")
 
-from src.frontend.app import run
+from src.frontend.app import ejecutar
 
 if __name__ in {"__main__", "__mp_main__"}:
-    run()
+    ejecutar()

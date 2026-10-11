@@ -1,21 +1,30 @@
+"""Funciones auxiliares para parseo numérico y formateo visual en la interfaz."""
 from fractions import Fraction
+from typing import Any
 
-def to_float(value) -> float:
-    """Convierte int/float/Fraction/str ('1/2', '9/7', '-3', '0.25') a float.
-    Lanza ValueError si no es convertible (incluye '1/0' y '')."""
+
+def a_flotante(valor: Any) -> float:
+    """Convierte un entero, flotante, fracción o cadena numérica a float.
+
+    Raises:
+        ValueError: si la entrada no es convertible o divide por cero.
+    """
     try:
-        return float(Fraction(str(value).strip()))
-    except (ValueError, ZeroDivisionError, OverflowError) as e:
-        raise ValueError(f"Valor no numérico: {value!r}") from e
+        return float(Fraction(str(valor).strip()))
+    except (ValueError, ZeroDivisionError, OverflowError) as error:
+        raise ValueError(f"Valor no numérico: {valor!r}") from error
 
-def format_step_for_mathjax(paso: str) -> str:
-    """Prepara un paso para ir entre $$ ... $$.
-    Si tiene prefijo de texto ('Ecuación 1: ...') lo envuelve en \\text{}.
-    Si ya viene envuelto por el backend (empieza con \\text) no lo toca."""
-    s = str(paso).strip()
-    if s.startswith('\\text'):
-        return s
-    head, sep, tail = s.partition(':')
-    if sep and head and not any(c in head for c in '\\{}^_='):
-        return rf"\text{{{head}:}}\;{tail}"
-    return s
+
+def formatear_paso_mathjax(paso: str) -> str:
+    """Prepara un paso textual o algebraico para su renderizado en MathJax.
+
+    Envuelve prefijos descriptivos antes de dos puntos en \\text{} preservando
+    las fórmulas matemáticas posteriores.
+    """
+    cadena = str(paso).strip()
+    if cadena.startswith(r"\text"):
+        return cadena
+    encabezado, separador, resto = cadena.partition(":")
+    if separador and encabezado and not any(c in encabezado for c in r"\{}^_="):
+        return rf"\text{{{encabezado}:}}\;{resto}"
+    return cadena

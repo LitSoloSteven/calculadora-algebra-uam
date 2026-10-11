@@ -5,12 +5,14 @@ from dataclasses import dataclass
 
 from nicegui import ui
 
+from src.frontend.constantes import MAX_ENTRADAS_HANDOFF, TTL_HANDOFF_SEGUNDOS
 from src.frontend.navigation import tool_by_id
+from src.frontend.textos import MSJ_HANDOFF_DATOS_INVALIDOS
 from src.backend.utils.validators import MatrixValidator
 
 
-TTL_SECONDS = 120
-_MAX_ENTRIES = 64
+TTL_SECONDS = TTL_HANDOFF_SEGUNDOS
+_MAX_ENTRIES = MAX_ENTRADAS_HANDOFF
 _STORE: dict[str, tuple[float, dict]] = {}
 _LOCK = threading.Lock()
 
@@ -44,18 +46,18 @@ def handoff_url(route: str, token: str) -> str:
 
 def validate_matrix_payload(payload, *, max_n: int) -> tuple[list[list[str]] | None, str | None]:
     if not isinstance(payload, dict):
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     if payload.get("v") != 1 or payload.get("kind") != "matrix_A" or not isinstance(payload.get("source"), str):
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     
     data = payload.get("data")
     if not isinstance(data, list) or not data:
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     
     n = len(data)
     for row in data:
         if not isinstance(row, list) or len(row) != n:
-            return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+            return None, MSJ_HANDOFF_DATOS_INVALIDOS
             
     if n > max_n:
         return None, f"La matriz es de {n}×{n} y esta herramienta admite hasta {max_n}×{max_n}. Empezamos con la herramienta vacía."
@@ -63,10 +65,10 @@ def validate_matrix_payload(payload, *, max_n: int) -> tuple[list[list[str]] | N
     for row in data:
         for cell in row:
             if not isinstance(cell, str) or not (1 <= len(cell) <= 64):
-                return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+                return None, MSJ_HANDOFF_DATOS_INVALIDOS
             ok, _, _ = MatrixValidator.parse_number_exact(cell)
             if not ok:
-                return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+                return None, MSJ_HANDOFF_DATOS_INVALIDOS
                 
     return data, None
 
@@ -157,15 +159,15 @@ def _validate_cell(cell: str) -> bool:
 
 def validate_system_payload(payload, *, max_m: int, allowed_n: set[int]) -> tuple[dict | None, str | None]:
     if not isinstance(payload, dict) or payload.get("v") != 1 or payload.get("kind") != "system":
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     data = payload.get("data")
     if not isinstance(data, dict):
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     
     A = data.get("matrix_A")
     b = data.get("vector_b")
     if not isinstance(A, list) or not isinstance(b, list):
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     
     m = len(A)
     if m == 0 or m > max_m or len(b) != m:
@@ -177,23 +179,23 @@ def validate_system_payload(payload, *, max_m: int, allowed_n: set[int]) -> tupl
     
     for i, row in enumerate(A):
         if not isinstance(row, list) or len(row) != n:
-            return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+            return None, MSJ_HANDOFF_DATOS_INVALIDOS
         for cell in row:
             if not _validate_cell(cell):
-                return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+                return None, MSJ_HANDOFF_DATOS_INVALIDOS
         if not _validate_cell(b[i]):
-            return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+            return None, MSJ_HANDOFF_DATOS_INVALIDOS
             
     return data, None
 
 
 def validate_vectors_payload(payload, *, allowed_n: set[int]) -> tuple[dict | None, str | None]:
     if not isinstance(payload, dict) or payload.get("v") != 1 or payload.get("kind") != "vectors":
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     data = payload.get("data")
     scene = payload.get("scene", "vectores")
     if not isinstance(data, list) or not data:
-        return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+        return None, MSJ_HANDOFF_DATOS_INVALIDOS
     
     n = len(data[0])
     if n not in allowed_n:
@@ -201,10 +203,10 @@ def validate_vectors_payload(payload, *, allowed_n: set[int]) -> tuple[dict | No
     
     for vec in data:
         if not isinstance(vec, list) or len(vec) != n:
-            return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+            return None, MSJ_HANDOFF_DATOS_INVALIDOS
         for cell in vec:
             if not _validate_cell(cell):
-                return None, "Los datos recibidos no son válidos, así que empezamos con la herramienta vacía."
+                return None, MSJ_HANDOFF_DATOS_INVALIDOS
                 
     return {"scene": scene, "data": data}, None
 

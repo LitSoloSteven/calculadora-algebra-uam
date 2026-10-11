@@ -4,14 +4,14 @@ from fastapi.testclient import TestClient
 import pytest
 
 from src.frontend import navigation
-from src.frontend.routes import register_legacy_redirects
+from src.frontend.routes import registrar_redirecciones_legacy
 
 
 @pytest.fixture
 def client():
     """Crea una aplicación FastAPI mínima con las redirecciones legacy registradas."""
     app = FastAPI()
-    register_legacy_redirects(app)
+    registrar_redirecciones_legacy(app)
     return TestClient(app, follow_redirects=False)
 
 
@@ -41,7 +41,7 @@ def test_legacy_routes_without_hub(monkeypatch):
     """Verifica que con HUB_ENABLED=False, '/' y '/ia' redirijan a /algebra-lineal/sistemas con 302."""
     monkeypatch.setattr(navigation, "HUB_ENABLED", False)
     app = FastAPI()
-    register_legacy_redirects(app)
+    registrar_redirecciones_legacy(app)
     c = TestClient(app, follow_redirects=False)
 
     for path in ("/", "/ia"):
@@ -85,7 +85,7 @@ def test_hub_enabled_redirects(monkeypatch):
     monkeypatch.setattr(navigation, "HUB_ENABLED", True)
 
     app = FastAPI()
-    register_legacy_redirects(app)
+    registrar_redirecciones_legacy(app)
     hub_client = TestClient(app, follow_redirects=False)
 
     # '/' no debe estar registrada en legacy_redirects (debe dar 404 en esta app mínima)

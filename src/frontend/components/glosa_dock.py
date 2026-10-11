@@ -8,10 +8,12 @@ from src.frontend.components.glosa_render import render_glosa_text
 from src.frontend.components.glosa_chips import render_chip_row, render_followups
 from src.frontend.suggestions import suggest, FOLLOW_UPS, chips_active
 from src.ai.openrouter_ai import AIResult, AIErrorKind
+from src.frontend.constantes import ANTI_REBOTE_GLOSA_SEGUNDOS, MAX_HISTORIAL
+from src.frontend.textos import MSJ_ANTI_REBOTE_GLOSA
 
 logger = logging.getLogger(__name__)
 
-MAX_HISTORY = 60
+MAX_HISTORY = MAX_HISTORIAL
 
 class GlosaDockMixin:
     def _spawn(self, coro) -> asyncio.Task:
@@ -312,8 +314,8 @@ class GlosaDockMixin:
             return
             
         now = time.monotonic()
-        if now - getattr(self, '_last_send_time', 0) < 1.5:
-            ui.notify('Espera un momento antes de enviar otra pregunta.', type='warning')
+        if now - getattr(self, '_last_send_time', 0) < ANTI_REBOTE_GLOSA_SEGUNDOS:
+            ui.notify(MSJ_ANTI_REBOTE_GLOSA, type='warning')
             return
             
         if not text or not text.strip(): return

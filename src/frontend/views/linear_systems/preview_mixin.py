@@ -7,6 +7,7 @@ import logging
 
 from nicegui import ui
 
+from src.frontend.constantes import DEBOUNCE_VISTA_PREVIA_SEGUNDOS
 from ._vista_previa import (
     MAX_CELDAS_SISTEMA,
     ResultadoVistaPrevia,
@@ -39,7 +40,7 @@ class LinearSystemsPreviewMixin:
         contenedor = getattr(self, "preview_container", None)
         if contenedor is None or contenedor.is_deleted:
             return
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(DEBOUNCE_VISTA_PREVIA_SEGUNDOS)
         if contenedor.is_deleted or contenedor is not self.preview_container:
             return
         try:

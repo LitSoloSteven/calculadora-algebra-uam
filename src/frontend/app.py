@@ -1,55 +1,69 @@
-"""Composition root de la interfaz web de Scalaris."""
-import os
+"""Punto de composición y arranque del servidor web de Scalaris."""
 import logging
+import os
+from typing import Mapping
 from nicegui import app, ui
-from src.frontend.routes import register_routes
+
+from src.frontend.routes import registrar_rutas
+from src.frontend.textos import (
+    MSJ_ERROR_PRODUCCION_SIN_SECRETO,
+    MSJ_SECRETO_DEV_INSEGURO,
+)
 from src.frontend.theme import setup_theme  # Reexport para compatibilidad
 
 logger = logging.getLogger(__name__)
 
-def resolve_storage_secret(env) -> str:
-    env_name = env.get("SCALARIS_ENV", "").strip().lower()
-    secret = env.get("STORAGE_SECRET", "").strip()
-    
-    if env_name == "production":
-        if not secret:
-            raise SystemExit("ERROR CRÍTICO: SCALARIS_ENV es production pero falta STORAGE_SECRET.")
-        return secret
-        
-    if not secret:
-        logger.warning("STORAGE_SECRET ausente. Usando secreto de desarrollo (inseguro).")
+_INICIALIZADO: bool = False
+
+
+def resolver_secreto_almacenamiento(variables_entorno: Mapping[str, str]) -> str:
+    """Resuelve la clave de cifrado para almacenamiento de sesión de NiceGUI.
+
+    Raises:
+        SystemExit: si el entorno es producción y falta STORAGE_SECRET.
+    """
+    entorno = variables_entorno.get("SCALARIS_ENV", "").strip().lower()
+    secreto = variables_entorno.get("STORAGE_SECRET", "").strip()
+
+    if entorno == "production":
+        if not secreto:
+            raise SystemExit(MSJ_ERROR_PRODUCCION_SIN_SECRETO)
+        return secreto
+
+    if not secreto:
+        logger.warning(MSJ_SECRETO_DEV_INSEGURO)
         return "scalaris_dev_secret_key"
-        
-    return secret
 
-_initialized = False
+    return secreto
 
 
-def init_app():
-    """Inicializa archivos estáticos y registro de rutas."""
-    global _initialized
-    if _initialized:
+def inicializar_aplicacion() -> None:
+    """Configura los archivos estáticos y registra las rutas de la aplicación."""
+    global _INICIALIZADO
+    if _INICIALIZADO:
         return
-    env_name = os.environ.get("SCALARIS_ENV", "").strip().lower()
-    max_cache_age = 3600 if env_name == "production" else 0
-    app.add_static_files('/assets', 'src/frontend/assets', max_cache_age=max_cache_age)
-    register_routes()
-    _initialized = True
+
+    entorno = os.environ.get("SCALARIS_ENV", "").strip().lower()
+    max_edad_cache = 3600 if entorno == "production" else 0
+    app.add_static_files("/assets", "src/frontend/assets", max_cache_age=max_edad_cache)
+    registrar_rutas()
+    _INICIALIZADO = True
 
 
-def run():
-    """Punto de arranque del servidor web de Scalaris."""
-    init_app()
-    secret = resolve_storage_secret(os.environ)
+def ejecutar() -> None:
+    """Inicia el bucle principal de servicio de la interfaz web."""
+    inicializar_aplicacion()
+    secreto = resolver_secreto_almacenamiento(os.environ)
     ui.run(
         title="Scalaris",
         favicon="src/frontend/assets/LogoOscuro.png",
-        storage_secret=secret,
+        storage_secret=secreto,
     )
 
 
 if __name__ in {"__main__", "__mp_main__"}:
     from dotenv import load_dotenv
+
     load_dotenv(".env")
     load_dotenv("src/ai/.env")
-    run()
+    ejecutar()

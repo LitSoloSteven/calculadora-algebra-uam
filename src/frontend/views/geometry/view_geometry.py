@@ -11,6 +11,7 @@ from nicegui import ui, run
 
 from src.frontend.components.app_shell import create_app_shell
 from src.frontend.components.ai_panel import AIPanel
+from src.frontend.constantes import DEBOUNCE_GEOMETRIA_SEGUNDOS
 from src.frontend.navigation import route_of
 from src.frontend.controllers.geometry.controller_geometry import GeometryController
 from .scenes_mixin import GeometryScenesMixin
@@ -264,7 +265,7 @@ class GeometryUI(GeometryControlsMixin, GeometryScenesMixin):
     async def _debounced_update(self):
         """Wait then update if payload changed."""
         try:
-            await asyncio.sleep(0.35)
+            await asyncio.sleep(DEBOUNCE_GEOMETRIA_SEGUNDOS)
             await self._update_figure()
         except asyncio.CancelledError:
             pass

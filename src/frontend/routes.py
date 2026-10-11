@@ -1,114 +1,132 @@
-"""Registro de rutas y páginas públicas de Scalaris."""
+"""Registro de rutas y páginas canónicas de Scalaris."""
 from __future__ import annotations
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
-from nicegui import app, ui, Client
+from nicegui import Client, app, ui
 
 from src.frontend import navigation
 from src.frontend.navigation import (
+    HUB_PAGE_TITLE,
+    HUB_ROUTE,
     legacy_redirects,
     redirect_location,
     route_of,
     tool_by_id,
-    HUB_ROUTE,
-    HUB_PAGE_TITLE,
 )
 from src.frontend.theme import setup_theme
 
 
-def register_legacy_redirects(target_app) -> None:
-    """Registra los manejadores HTTP GET para las rutas legacy de Scalaris.
+def registrar_redirecciones_legacy(aplicacion_destino: Any) -> None:
+    """Registra los manejadores HTTP GET para las rutas legacy de Scalaris."""
+    for regla in legacy_redirects():
 
-    Acepta una instancia de FastAPI o el objeto `app` de NiceGUI.
-    Cada ruta calcula la redirección con preservación de parámetros query
-    y devuelve un estado HTTP 301 o 302 explícito según LegacyRedirect.permanent.
-    """
-    for rule in legacy_redirects():
-        def _make_handler(current_rule):
-            async def _handler(request: Request) -> RedirectResponse:
-                incoming_items = request.query_params.multi_items()
-                target_url = redirect_location(current_rule, incoming_items)
-                status_code = 301 if current_rule.permanent else 302
-                return RedirectResponse(target_url, status_code=status_code)
-            return _handler
+        def _crear_manejador(regla_actual):
+            async def _manejador(request: Request) -> RedirectResponse:
+                items_entrantes = request.query_params.multi_items()
+                url_destino = redirect_location(regla_actual, items_entrantes)
+                codigo_estado = 301 if regla_actual.permanent else 302
+                return RedirectResponse(url_destino, status_code=codigo_estado)
 
-        target_app.get(rule.path)(_make_handler(rule))
+            return _manejador
+
+        aplicacion_destino.get(regla.path)(_crear_manejador(regla))
 
 
-def register_routes() -> None:
-    """Registra todas las redirecciones legacy y páginas canónicas de la aplicación."""
-    register_legacy_redirects(app)
+def _registrar_paginas_algebra() -> None:
+    """Registra las páginas canónicas del pilar de álgebra lineal."""
 
     @ui.page(route_of("sistemas"), title=tool_by_id("sistemas").page_title)
-    def linear_systems_page(method: str = "gauss", handoff: str = ""):
-        if method not in ("gauss", "gauss-jordan"):
-            method = "gauss"
+    def pagina_sistemas(method: str = "gauss", handoff: str = ""):
+        metodo = method if method in ("gauss", "gauss-jordan") else "gauss"
         from src.frontend.views.linear_systems.view_linear_systems import LinearSystemsUI
+
         setup_theme()
-        app_ui = LinearSystemsUI(initial_method=method)
-        app_ui.build(handoff_token=handoff)
+        LinearSystemsUI(initial_method=metodo).build(handoff_token=handoff)
 
     @ui.page(route_of("vectores"), title=tool_by_id("vectores").page_title)
-    def vector_ops_page():
+    def pagina_vectores():
         from src.frontend.views.vector_ops.view_vector_ops import VectorOpsUI
+
         setup_theme()
-        app_ui = VectorOpsUI()
-        app_ui.build()
+        VectorOpsUI().build()
 
     @ui.page(route_of("matrices"), title=tool_by_id("matrices").page_title)
-    def matrix_ops_page():
+    def pagina_matrices():
         from src.frontend.views.matrix_ops.view_matrix_ops import MatrixOpsUI
+
         setup_theme()
-        app_ui = MatrixOpsUI()
-        app_ui.build()
+        MatrixOpsUI().build()
 
     @ui.page(route_of("inversa"), title=tool_by_id("inversa").page_title)
-    def matrix_inverse_page(handoff: str = ""):
+    def pagina_inversa(handoff: str = ""):
         from src.frontend.views.inverse_ops.view_inverse_ops import InverseOpsUI
+
         setup_theme()
-        app_ui = InverseOpsUI()
-        app_ui.build(handoff_token=handoff)
+        InverseOpsUI().build(handoff_token=handoff)
+
+
+def _registrar_paginas_avanzadas() -> None:
+    """Registra las páginas de visualización y extensiones matriciales."""
 
     @ui.page(route_of("visualizador"), title=tool_by_id("visualizador").page_title)
-    def geometry_page(escena: str = "rectas-planos", handoff: str = ""):
+    def pagina_geometria(escena: str = "rectas-planos", handoff: str = ""):
         from src.frontend.views.geometry.view_geometry import GeometryUI
-        setup_theme()
-        app_ui = GeometryUI()
-        app_ui.build(escena=escena, handoff_token=handoff)
 
-    @ui.page(route_of("bases"), title=tool_by_id("bases").page_title)
-    def conversor_page():
-        from src.frontend.views.numeric_systems.view_numeric_systems import NumericSystemsUI
         setup_theme()
-        app_ui = NumericSystemsUI()
-        app_ui.build()
-
-    @ui.page(route_of("romanos"), title=tool_by_id("romanos").page_title)
-    def roman_calculator_page():
-        from src.frontend.views.numeric_systems.view_roman_calculator import RomanCalculatorUI
-        setup_theme()
-        app_ui = RomanCalculatorUI()
-        app_ui.build()
+        GeometryUI().build(escena=escena, handoff_token=handoff)
 
     @ui.page(route_of("leontief"), title=tool_by_id("leontief").page_title)
-    def leontief_page():
-        from src.frontend.views.matrix_ops.view_leontief import LeontiefUI
+    def pagina_leontief():
+        from src.frontend.views.matrix_ops.view_matrix_ops import LeontiefUI
+
         setup_theme()
-        app_ui = LeontiefUI()
-        app_ui.build()
+        LeontiefUI().build()
 
     @ui.page(route_of("transformaciones"), title=tool_by_id("transformaciones").page_title)
-    def transformaciones_page():
+    def pagina_transformaciones():
         from src.frontend.views.matrix_ops.view_transformaciones import TransformacionesUI
-        setup_theme()
-        app_ui = TransformacionesUI()
-        app_ui.build()
 
-    if navigation.HUB_ENABLED:
-        @ui.page(HUB_ROUTE, title=HUB_PAGE_TITLE)
-        async def hub_page(client: Client, glosa: str = ''):
-            from src.frontend.views.hub.view_hub import HubUI
-            setup_theme()
-            app_ui = HubUI(glosa_open=(glosa == '1'))
-            await app_ui.build(client)
+        setup_theme()
+        TransformacionesUI().build()
+
+
+def _registrar_paginas_utilidades() -> None:
+    """Registra las páginas del pilar de utilidades numéricas."""
+
+    @ui.page(route_of("bases"), title=tool_by_id("bases").page_title)
+    def pagina_bases():
+        from src.frontend.views.numeric_systems.view_numeric_systems import NumericSystemsUI
+
+        setup_theme()
+        NumericSystemsUI().build()
+
+    @ui.page(route_of("romanos"), title=tool_by_id("romanos").page_title)
+    def pagina_romanos():
+        from src.frontend.views.numeric_systems.view_roman_calculator import RomanCalculatorUI
+
+        setup_theme()
+        RomanCalculatorUI().build()
+
+
+def _registrar_pagina_hub() -> None:
+    """Registra la página de inicio (Hub) si está habilitada."""
+    if not navigation.HUB_ENABLED:
+        return
+
+    @ui.page(HUB_ROUTE, title=HUB_PAGE_TITLE)
+    async def pagina_inicio_hub(client: Client, glosa: str = ""):
+        from src.frontend.views.hub.view_hub import HubUI
+
+        setup_theme()
+        await HubUI(glosa_open=(glosa == "1")).build(client)
+
+
+def registrar_rutas() -> None:
+    """Registra todas las redirecciones legacy y páginas canónicas de la aplicación."""
+    registrar_redirecciones_legacy(app)
+    _registrar_paginas_algebra()
+    _registrar_paginas_avanzadas()
+    _registrar_paginas_utilidades()
+    _registrar_pagina_hub()

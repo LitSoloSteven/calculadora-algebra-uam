@@ -5,7 +5,10 @@ import logging
 from nicegui import ui, app
 from src.ai.openrouter_ai import OpenRouterIA
 from src.frontend import flags
-from src.frontend.components.glosa_dock import GlosaDockMixin, MAX_HISTORY
+from src.frontend.constantes import DEBOUNCE_IA_SEGUNDOS, MAX_HISTORIAL
+from src.frontend.components.glosa_dock import GlosaDockMixin
+
+MAX_HISTORY = MAX_HISTORIAL
 from src.ai.context import serialize_context
 
 logger = logging.getLogger(__name__)
@@ -113,7 +116,7 @@ class AIPanel(GlosaDockMixin):
             
         async def _debounced():
             try:
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(DEBOUNCE_IA_SEGUNDOS)
                 if hasattr(self, 'chat_area') and getattr(self.chat_area, 'is_deleted', False):
                     return
                 if hasattr(self, 'panel_container') and getattr(self.panel_container, 'is_deleted', False):

@@ -8,7 +8,7 @@ from src.backend.models.matrix import Matrix
 from src.frontend.components.reproductor_pasos.cuerpos import render_latex
 from src.frontend.components.reproductor_pasos.html_tablas import html_tabla_aumentada
 from src.frontend.components.reproductor_pasos.modelo import GrupoReproductor, PasoReproductor
-from src.frontend.helpers import format_step_for_mathjax
+from src.frontend.helpers import formatear_paso_mathjax
 
 
 class _CuerpoLatex:
@@ -140,7 +140,7 @@ def construir_pasos_reproductor(
             else:
                 expl = "Despejamos y sustituimos hacia atrás los valores conocidos para hallar la incógnita."
 
-            cuerpo = _CuerpoLatex(format_step_for_mathjax(linea))
+            cuerpo = _CuerpoLatex(formatear_paso_mathjax(linea))
             meta = {
                 "index": current_idx + 1,
                 "total": total_pasos,
@@ -184,7 +184,7 @@ def construir_pasos_reproductor(
             op_texto = _limpiar_latex_plano(linea)
             expl = "Sustituimos la solución en la ecuación original para verificar que se cumple la igualdad."
 
-            cuerpo = _CuerpoLatex(format_step_for_mathjax(linea))
+            cuerpo = _CuerpoLatex(formatear_paso_mathjax(linea))
             meta = {
                 "index": current_idx + 1,
                 "total": total_pasos,

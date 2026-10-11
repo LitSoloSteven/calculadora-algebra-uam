@@ -1,5 +1,5 @@
 /**
- * Scalaris — Global App Interactions, Animations & Utilities
+ * Scalaris - Global App Interactions, Animations & Utilities
  */
 
 // Detección de método de entrada para accesibilidad de movimiento
@@ -125,10 +125,9 @@ window.typewriterEffect = function (elementId, text, speed = 18) {
 };
 
 function updatePlotlyTheme(theme) {
-  let textColor = '#23262E';
-  let gridColor = 'rgba(128,128,128,0.2)';
-  if (theme === 'medianoche') { textColor = '#EAF6FF'; gridColor = 'rgba(255,255,255,0.06)'; }
-  if (theme === 'marea') { textColor = '#0B1F33'; gridColor = 'rgba(11,31,51,0.1)'; }
+  const g = (window.scalaris && window.scalaris.graficos) || {};
+  const textColor = (g.texto && g.texto[theme]) || '#23262E';
+  const gridColor = (g.cuadricula && g.cuadricula[theme]) || 'rgba(128,128,128,0.2)';
 
   document.querySelectorAll('.js-plotly-plot').forEach(plot => {
     if (!plot.isConnected || !plot._fullLayout) return;

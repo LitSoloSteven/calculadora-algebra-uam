@@ -7,6 +7,7 @@ import json
 import logging
 from nicegui import run, ui
 
+from src.frontend.constantes import DEBOUNCE_VISTA_PREVIA_SEGUNDOS
 from src.backend.constants import (
     INVERSE_LATEX_MAX_DIMENSION,
 )
@@ -35,7 +36,7 @@ class InverseOpsResultsMixin:
 
     async def _update_preview(self):
         """Genera y renderiza el preview de la matriz en MathJax."""
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(DEBOUNCE_VISTA_PREVIA_SEGUNDOS)
         if not self.preview_container or self.preview_container.is_deleted:
             return
 

@@ -3,14 +3,14 @@ from fastapi.testclient import TestClient
 import pytest
 
 from src.frontend import navigation
-from src.frontend.routes import register_legacy_redirects
+from src.frontend.routes import registrar_redirecciones_legacy
 
 
 @pytest.fixture
 def hub_client(monkeypatch):
     monkeypatch.setattr(navigation, "HUB_ENABLED", True)
     app = FastAPI()
-    register_legacy_redirects(app)
+    registrar_redirecciones_legacy(app)
     return TestClient(app, follow_redirects=False)
 
 
@@ -65,7 +65,7 @@ def test_f9_hub_disabled_returns_302(monkeypatch):
     """Verifica que con Hub desactivado, las rutas que dependen del flag devuelvan 302."""
     monkeypatch.setattr(navigation, "HUB_ENABLED", False)
     app = FastAPI()
-    register_legacy_redirects(app)
+    registrar_redirecciones_legacy(app)
     client = TestClient(app, follow_redirects=False)
 
     for path in ("/", "/ia"):

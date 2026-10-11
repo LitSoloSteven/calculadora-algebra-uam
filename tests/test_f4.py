@@ -1,21 +1,21 @@
 import pytest
 import os
-from src.frontend.app import resolve_storage_secret
+from src.frontend.app import resolver_secreto_almacenamiento
 from src.frontend.components.glosa_render import render_glosa_text
 from src.frontend.components.ai_panel import AIPanel
 
 def test_storage_secret_dev():
     env = {"SCALARIS_ENV": "development"}
-    assert resolve_storage_secret(env) == "scalaris_dev_secret_key"
+    assert resolver_secreto_almacenamiento(env) == "scalaris_dev_secret_key"
 
 def test_storage_secret_prod_missing():
     env = {"SCALARIS_ENV": "production"}
     with pytest.raises(SystemExit):
-        resolve_storage_secret(env)
+        resolver_secreto_almacenamiento(env)
         
 def test_storage_secret_prod_present():
     env = {"SCALARIS_ENV": "production", "STORAGE_SECRET": "my_secret"}
-    assert resolve_storage_secret(env) == "my_secret"
+    assert resolver_secreto_almacenamiento(env) == "my_secret"
 
 def test_glosa_render():
     text = "Hola\n```print('hola')```\nMás texto"
