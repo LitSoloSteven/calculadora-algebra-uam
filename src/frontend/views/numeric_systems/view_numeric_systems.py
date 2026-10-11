@@ -1,6 +1,6 @@
 """Vista principal del Conversor de Sistemas Numéricos en Scalaris."""
 from nicegui import ui
-from src.backend.solvers.numeric_systems.conversor_bases import ConversorBases
+from src.backend.resolutores.sistemas_numericos.conversor_bases import ConversorBases
 from src.frontend.components.app_shell import create_app_shell
 from src.frontend.navigation import route_of
 from src.frontend.components.ai_panel import AIPanel

@@ -3,7 +3,7 @@ Controlador frontend para el modulo de Determinantes.
 """
 from typing import Dict, Any, List
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.matrix_ops.determinant import DeterminantSolver
+from src.backend.resolutores.operaciones_matrices.determinante import ResolutorDeterminante as DeterminantSolver
 
 
 class DeterminantController:

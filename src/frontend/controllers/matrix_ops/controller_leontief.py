@@ -15,7 +15,7 @@ import logging
 from fractions import Fraction
 
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.matrix_ops.leontief import LeontiefSolver
+from src.backend.resolutores.operaciones_matrices.leontief import ResolutorModeloLeontief as LeontiefSolver
 from src.backend.utils.validators import MatrixValidator
 
 logger = logging.getLogger(__name__)

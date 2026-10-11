@@ -3,7 +3,7 @@ from fractions import Fraction
 import pytest
 
 from src.frontend.controllers.geometry.controller_geometry import GeometryController
-from src.backend.solvers.linear_systems.gauss import GaussSolver
+from src.backend.resolutores.sistemas_lineales.gauss import ResolutorGauss as GaussSolver
 
 
 # ======================================================================
@@ -197,16 +197,18 @@ def test_controller_parallel_lines():
 
 
 def test_controller_simulated_backend_without_solution_param(monkeypatch):
-    """Backend simulado sin solution_param (monkeypatch): pending_param True, set None y sin excepción."""
-    orig_solve = GaussSolver.solve
+    orig_resolver = getattr(GaussSolver, "resolver", getattr(GaussSolver, "solve", None))
 
-    def mock_solve(self):
-        res = orig_solve(self)
-        if res.get("status") == "INFINITE_SOLUTIONS":
+    def mock_resolver(self):
+        res = orig_resolver(self)
+        if res.get("status") == "INFINITE_SOLUTIONS" or res.get("estado") == "INFINITAS":
             res.pop("solution_param", None)
+            res.pop("parametros_solucion", None)
         return res
 
-    monkeypatch.setattr(GaussSolver, "solve", mock_solve)
+    monkeypatch.setattr(GaussSolver, "resolver", mock_resolver)
+    if hasattr(GaussSolver, "solve"):
+        monkeypatch.setattr(GaussSolver, "solve", mock_resolver)
 
     payload = json.dumps({
         "matrix_A": [["1", "1"]],

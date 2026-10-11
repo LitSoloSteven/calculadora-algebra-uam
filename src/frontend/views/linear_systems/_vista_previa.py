@@ -5,9 +5,9 @@ from fractions import Fraction
 import re
 
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.vector_ops.formatters import (
-    augmented_gauss_matrix_to_latex,
-    format_linear_expression,
+from src.backend.resolutores.operaciones_vectores.formateadores import (
+    matriz_aumentada_gauss_a_latex as augmented_gauss_matrix_to_latex,
+    formatear_expresion_lineal as format_linear_expression,
 )
 from src.backend.utils.formatters import format_variable_for_latex, number_to_latex
 from src.backend.utils.parsers import SystemParser

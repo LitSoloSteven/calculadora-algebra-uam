@@ -1,7 +1,7 @@
 import json
 
-from src.backend.solvers.linear_systems.gauss import GaussSolver
-from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
+from src.backend.resolutores.sistemas_lineales.gauss import ResolutorGauss as GaussSolver
+from src.backend.resolutores.operaciones_matrices.formateadores import matriz_a_latex as matrix_to_latex
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers._agrupar_pasos import agrupar_pasos_eliminacion
 from src.frontend.controllers.linear_systems._shared import (
@@ -26,7 +26,7 @@ class MatrixController:
         variables = data.get("variables")
 
         # --- Ejecución del solver ---
-        solver = GaussSolver(matrix, variable_names=variables)
+        solver = GaussSolver(matrix, nombres_variables=variables)
         result = solver.resolver() if hasattr(solver, "resolver") else solver.solve()
 
         # --- Formateo de la respuesta ---

@@ -2,8 +2,8 @@ import json
 import logging
 from src.backend.exceptions import AlgebraLinealError
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.vector_ops.operations import VectorOpsSolver
-from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+from src.backend.resolutores.operaciones_vectores.operaciones import ResolutorOperacionesVectores as VectorOpsSolver
+from src.backend.resolutores.operaciones_vectores.combinacion_lineal import ResolutorCombinacionLineal as LinearCombinationSolver
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.vector_ops._shared import parse_payload
 
@@ -102,7 +102,7 @@ class VectorOpsController:
 
     @classmethod
     def _enrich_linear_combination_response(cls, res: dict, vectors: list[Matrix]) -> None:
-        from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
+        from src.backend.resolutores.operaciones_matrices.formateadores import matriz_a_latex as matrix_to_latex
         from src.frontend.controllers._agrupar_pasos import agrupar_pasos_eliminacion
         from src.frontend.controllers.linear_systems._shared import (
             build_steps_meta,

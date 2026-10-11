@@ -21,8 +21,8 @@ from src.backend.constants import (
     INVERSE_MAX_DIMENSION,
 )
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
-from src.backend.solvers.matrix_ops.inverse import MatrixInverseSolver
+from src.backend.resolutores.operaciones_matrices.formateadores import matriz_a_latex as matrix_to_latex
+from src.backend.resolutores.operaciones_matrices.inversa import ResolutorInversa as MatrixInverseSolver
 from src.backend.utils.formatters import format_fraction_str
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.linear_systems._shared import parse_payload
@@ -284,11 +284,15 @@ class InverseOpsController:
         if mat is None:
             return {"rows_before": {}, "rows_after": {}, "cols": None}
 
-        rows = [[mat.get(r, c) for c in range(mat.cols)] for r in range(mat.rows)]
+        cols_cnt = getattr(mat, "columnas", getattr(mat, "cols", 0))
+        rows_cnt = getattr(mat, "filas", getattr(mat, "rows", 0))
+        rows = [[mat.obtener(r, c) if hasattr(mat, "obtener") else mat.get(r, c) for c in range(cols_cnt)] for r in range(rows_cnt)]
 
         prev_step = steps[i - 1] if i > 0 else step
         prev_mat = prev_step.get("matrix", mat)
-        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if prev_mat else rows
+        p_cols = getattr(prev_mat, "columnas", getattr(prev_mat, "cols", cols_cnt)) if prev_mat else cols_cnt
+        p_rows = getattr(prev_mat, "filas", getattr(prev_mat, "rows", rows_cnt)) if prev_mat else rows_cnt
+        prev_rows = [[prev_mat.obtener(r, c) if hasattr(prev_mat, "obtener") else prev_mat.get(r, c) for c in range(p_cols)] for r in range(p_rows)] if prev_mat else rows
 
         desc = step.get("description", "")
         parsed = classify_step(desc)

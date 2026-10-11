@@ -2,8 +2,9 @@ import json
 import logging
 from fractions import Fraction
 
+from src.backend.modelos.matriz import Matriz
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.matrix_ops.evaluator import MatrixExpressionEvaluator
+from src.backend.resolutores.operaciones_matrices.evaluador import EvaluadorExpresionesMatriciales as MatrixExpressionEvaluator
 from src.backend.utils.validators import MatrixValidator
 
 logger = logging.getLogger(__name__)
@@ -11,8 +12,18 @@ logger = logging.getLogger(__name__)
 
 class MatrixEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, Matrix):
-            return {"rows": obj.rows, "cols": obj.cols, "data": obj.data}
+        if isinstance(obj, (Matrix, Matriz)):
+            filas = getattr(obj, "filas", getattr(obj, "rows", 0))
+            columnas = getattr(obj, "columnas", getattr(obj, "cols", 0))
+            datos = getattr(obj, "datos", getattr(obj, "data", []))
+            return {
+                "rows": filas,
+                "cols": columnas,
+                "data": datos,
+                "filas": filas,
+                "columnas": columnas,
+                "datos": datos,
+            }
         if isinstance(obj, Fraction):
             return f"{obj.numerator}/{obj.denominator}" if obj.denominator != 1 else str(obj.numerator)
         return super().default(obj)

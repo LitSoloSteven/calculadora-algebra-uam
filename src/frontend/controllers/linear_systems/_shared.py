@@ -172,14 +172,18 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
     total = len(raw_steps)
     current_pivot_col = 0
     for i, step in enumerate(raw_steps):
-        desc = step["description"]
-        mat = step["matrix"]
-        rows = [[mat.get(r, c) for c in range(mat.cols)] for r in range(mat.rows)]
+        desc = step.get("description", step.get("descripcion", ""))
+        mat = step.get("matrix", step.get("matriz"))
+        m_cols = getattr(mat, "columnas", getattr(mat, "cols", 0)) if mat else 0
+        m_rows = getattr(mat, "filas", getattr(mat, "rows", 0)) if mat else 0
+        rows = [[mat.obtener(r, c) if hasattr(mat, "obtener") else mat.get(r, c) for c in range(m_cols)] for r in range(m_rows)]
         parsed = classify_step(desc)
         kind = parsed["kind"]
         prev_mat = raw_steps[i - 1]["matrix"] if i > 0 else (initial if initial is not None else mat)
+        pm_cols = getattr(prev_mat, "columnas", getattr(prev_mat, "cols", m_cols))
+        pm_rows = getattr(prev_mat, "filas", getattr(prev_mat, "rows", m_rows))
         prev_rows = (
-            [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)]
+            [[prev_mat.obtener(r, c) if hasattr(prev_mat, "obtener") else prev_mat.get(r, c) for c in range(pm_cols)] for r in range(pm_rows)]
             if (i > 0 or initial is not None)
             else rows
         )
@@ -202,12 +206,14 @@ def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
 
 def serialize_matrix(mat: Matrix) -> dict:
     """Serializa una Matrix a un diccionario con filas, columnas y datos en cadenas exactas."""
+    m_cols = getattr(mat, "columnas", getattr(mat, "cols", 0))
+    m_rows = getattr(mat, "filas", getattr(mat, "rows", 0))
     return {
-        "rows": mat.rows,
-        "cols": mat.cols,
+        "rows": m_rows,
+        "cols": m_cols,
         "data": [
-            [format_fraction_str(mat.get(r, c)) for c in range(mat.cols)]
-            for r in range(mat.rows)
+            [format_fraction_str(mat.obtener(r, c) if hasattr(mat, "obtener") else mat.get(r, c)) for c in range(m_cols)]
+            for r in range(m_rows)
         ],
     }
 

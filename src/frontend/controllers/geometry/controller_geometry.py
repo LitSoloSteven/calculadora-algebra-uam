@@ -19,8 +19,8 @@ from fractions import Fraction
 
 from src.backend.exceptions import AlgebraLinealError
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.linear_systems.gauss import GaussSolver
-from src.backend.solvers.vector_ops.linear_combination import LinearCombinationSolver
+from src.backend.resolutores.sistemas_lineales.gauss import ResolutorGauss as GaussSolver
+from src.backend.resolutores.operaciones_vectores.combinacion_lineal import ResolutorCombinacionLineal as LinearCombinationSolver
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers.linear_systems._shared import (
     parse_payload,
@@ -30,7 +30,10 @@ from src.frontend.controllers.geometry._solution_set import (
     from_gauss_result,
 )
 from src.frontend.controllers.vector_ops.controller_vector_ops import build_vector_from_dict
-from src.backend.solvers.vector_ops.formatters import format_linear_expression, vector_to_latex
+from src.backend.resolutores.operaciones_vectores.formateadores import (
+    formatear_expresion_lineal as format_linear_expression,
+    vector_a_latex as vector_to_latex,
+)
 from src.backend.utils.formatters import number_to_latex
 
 logger = logging.getLogger(__name__)
@@ -278,7 +281,7 @@ class GeometryController:
 
         # Solve with Gauss
         solver = GaussSolver(aug_matrix)
-        result = solver.solve()
+        result = solver.resolver() if hasattr(solver, "resolver") else solver.solve()
         solution_status = result["status"]
 
         # Classify solution set
@@ -661,7 +664,7 @@ class GeometryController:
         # Solve with LinearCombinationSolver
         try:
             solver = LinearCombinationSolver()
-            result = solver.solve(b_mat, col_mats)
+            result = solver.resolver(b_mat, col_mats) if hasattr(solver, "resolver") else solver.solve(b_mat, col_mats)
         except (AlgebraLinealError, ValueError) as e:
             return {"status": "ERROR", "message": str(e), "error_cell": None}
         except Exception:
@@ -671,15 +674,15 @@ class GeometryController:
         sol_status = result.get("status", "ERROR")
 
         # Extract b as floats
-        b_float = [_safe_float(Fraction(b_mat.get(i, 0))) for i in range(n)]
-        b_exact = [_frac_str(Fraction(b_mat.get(i, 0))) for i in range(n)]
+        b_float = [_safe_float(Fraction(b_mat.obtener(i, 0) if hasattr(b_mat, "obtener") else b_mat.get(i, 0))) for i in range(n)]
+        b_exact = [_frac_str(Fraction(b_mat.obtener(i, 0) if hasattr(b_mat, "obtener") else b_mat.get(i, 0))) for i in range(n)]
 
         # Extract vectors as floats
         vecs_float = []
         vecs_exact = []
         for v_mat in col_mats:
-            vf = [_safe_float(Fraction(v_mat.get(i, 0))) for i in range(n)]
-            ve = [_frac_str(Fraction(v_mat.get(i, 0))) for i in range(n)]
+            vf = [_safe_float(Fraction(v_mat.obtener(i, 0) if hasattr(v_mat, "obtener") else v_mat.get(i, 0))) for i in range(n)]
+            ve = [_frac_str(Fraction(v_mat.obtener(i, 0) if hasattr(v_mat, "obtener") else v_mat.get(i, 0))) for i in range(n)]
             vecs_float.append(vf)
             vecs_exact.append(ve)
 

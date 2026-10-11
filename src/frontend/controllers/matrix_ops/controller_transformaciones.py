@@ -13,7 +13,7 @@ import json
 import logging
 
 from src.backend.models.matrix import Matrix
-from src.backend.solvers.matrix_ops.transformations import LinearTransformationSolver
+from src.backend.resolutores.operaciones_matrices.transformaciones import ResolutorTransformacionesLineales as LinearTransformationSolver
 from src.backend.utils.validators import MatrixValidator
 
 logger = logging.getLogger(__name__)

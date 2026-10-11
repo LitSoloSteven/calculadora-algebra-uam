@@ -111,7 +111,7 @@ def agrupar_pasos_eliminacion(
             pivot = (r - 1, c - 1)
             rows_changed = []
             p_val = (
-                format_fraction_str(mat.get(r - 1, c - 1))
+                format_fraction_str(mat.obtener(r - 1, c - 1) if hasattr(mat, "obtener") else mat.get(r - 1, c - 1))
                 if mat is not None
                 else ""
             )

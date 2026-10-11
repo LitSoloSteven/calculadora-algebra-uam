@@ -10,11 +10,13 @@ from src.backend.constants import (
 )
 from src.backend.exceptions import MatrixDataError
 
+from src.backend.modelos.matriz import Matriz
+
 Numeric = Union[float, Fraction, int]
 NumericLike = Union[Numeric, str]
 
 
-class Matrix:
+class Matrix(Matriz):
     def __init__(self, rows: int, cols: int, data: list[list[Numeric]] | None = None):
         if not isinstance(rows, int) or not isinstance(cols, int):
             raise MatrixDataError(
@@ -25,22 +27,10 @@ class Matrix:
                 f"Las dimensiones deben ser positivas (recibido {rows}×{cols})."
             )
 
-        self.rows = rows
-        self.cols = cols
-
-        if data is not None:
-            if len(data) != rows:
-                raise MatrixDataError(
-                    f"Se esperaban {rows} filas; 'data' trae {len(data)}."
-                )
-            for i, row in enumerate(data):
-                if len(row) != cols:
-                    raise MatrixDataError(
-                        f"Fila {i + 1} tiene {len(row)} columnas; se esperaban {cols}."
-                    )
-            self.data = [[self._normalize_val(val) for val in row] for row in data]
-        else:
-            self.data = [[Fraction(0) for _ in range(cols)] for _ in range(rows)]
+        super().__init__(filas=rows, columnas=cols, datos=data)
+        self.rows = self.filas
+        self.cols = self.columnas
+        self.data = self.datos
 
     @staticmethod
     def _normalizar_valor(valor: NumericLike) -> Numeric:
@@ -94,16 +84,28 @@ class Matrix:
     _check_bounds = _verificar_limites
 
     @property
-    def filas(self) -> int:
-        return self.rows
+    def rows(self) -> int:
+        return self.filas
+
+    @rows.setter
+    def rows(self, valor: int) -> None:
+        self.filas = valor
 
     @property
-    def columnas(self) -> int:
-        return self.cols
+    def cols(self) -> int:
+        return self.columnas
+
+    @cols.setter
+    def cols(self, valor: int) -> None:
+        self.columnas = valor
 
     @property
-    def datos(self) -> list[list[Numeric]]:
-        return self.data
+    def data(self) -> list[list[Numeric]]:
+        return self.datos
+
+    @data.setter
+    def data(self, valor: list[list[Numeric]]) -> None:
+        self.datos = valor
 
     def obtener(self, fila: int, columna: int) -> Numeric:
         self._verificar_limites(fila, columna)

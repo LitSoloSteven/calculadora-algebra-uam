@@ -1,7 +1,7 @@
 import json
 
-from src.backend.solvers.linear_systems.gauss_jordan import GaussJordanSolver
-from src.backend.solvers.matrix_ops.formatters import matrix_to_latex
+from src.backend.resolutores.sistemas_lineales.gauss_jordan import ResolutorGaussJordan as GaussJordanSolver
+from src.backend.resolutores.operaciones_matrices.formateadores import matriz_a_latex as matrix_to_latex
 from src.backend.utils.validators import MatrixValidator
 from src.frontend.controllers._agrupar_pasos import agrupar_pasos_eliminacion
 from src.frontend.controllers.linear_systems._shared import (
@@ -26,7 +26,7 @@ class GaussJordanController:
         variables = data.get("variables")
 
         # --- Ejecución del solver ---
-        solver = GaussJordanSolver(matrix, variable_names=variables)
+        solver = GaussJordanSolver(matrix, nombres_variables=variables)
         result = solver.resolver()
 
         classification = result.get("message", "")

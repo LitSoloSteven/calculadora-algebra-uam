@@ -75,7 +75,7 @@ Llevar la totalidad del repositorio al cumplimiento estricto y verificable de la
   - Inventario inicial medido entregado.
 
 ### Fase 1: Capa de Dominio y Backend (`src/backend`) (E1, E3, E4, E7)
-- **Estado**: En progreso (Sub-entrega 1.1 completada; Sub-entregas 1.2 y 1.3 pendientes)
+- **Estado**: Completada
 - **Sub-entregas**:
   - **Sub-entrega 1.1: Modelos y Utilidades** [COMPLETADA]
     - Modelos: `src/backend/modelos/matriz.py`, `src/backend/modelos/__init__.py`.
@@ -83,17 +83,24 @@ Llevar la totalidad del repositorio al cumplimiento estricto y verificable de la
     - Constantes y Excepciones: `src/backend/constantes.py`, `src/backend/excepciones.py`.
     - Eliminado `src/backend/test_backend.py` (movido a `tests/`).
     - Auditado con `tests/test_cumplimiento_reglas.py` y `tests/test_backend_modelos_utilidades.py`.
-  - **Sub-entrega 1.2: Sistemas Lineales y Operaciones Matriciales** [PENDIENTE]
-    - Resolutores: `gauss.py`, `gauss_jordan.py`, `operations.py`, `inverse.py`, `evaluator.py`, `determinant.py`, `transformations.py`, `leontief.py`.
-    - Modularización de `solve`, `_back_substitute`, `_eliminate` ($\le 40$ líneas).
-    - Eliminación de código muerto en transformaciones y deduplicación de determinante.
-  - **Sub-entrega 1.3: Vectores y Sistemas Numéricos** [PENDIENTE]
-    - `linear_combination.py`, `operations.py`, `_base.py`, `conversor_bases.py`, `roman_calculator.py`.
-    - Deduplicación de transpuesta entre solvers, eliminación de paquetes antiguos y cierre de backend completo.
-- **Criterios de aceptación**:
-  - Modelos y utilidades en español ASCII sin alias.
-  - Módulos $\le 300$ líneas, funciones $\le 40$ líneas.
-  - Pruebas matemáticas exactas pasando con resultados numéricos idénticos.
+  - **Sub-entrega 1.2: Sistemas Lineales y Operaciones Matriciales** [COMPLETADA]
+    - Paquete `src/backend/resolutores/trazado.py` (`TrazadorPasos`).
+    - Subpaquete `src/backend/resolutores/sistemas_lineales/` (`modelo_solucion.py`, `analisis_rouche.py`, `sustitucion.py`, `gauss.py`, `gauss_jordan.py`, `__init__.py`).
+    - Subpaquete `src/backend/resolutores/operaciones_matrices/` (`formateadores.py`, `operaciones.py`, `determinante.py`, `inversa.py`, `evaluador.py`, `analizador_expresiones.py`, `transformaciones.py`, `leontief.py`, `__init__.py`).
+    - Modularización estricta ($\le 300$ líneas por módulo, $\le 40$ líneas por función, $\le 200$ líneas por clase, $\le 5$ parámetros, anidamiento $\le 3$, complejidad $\le 10$).
+    - Eliminación de código muerto en transformaciones y deduplicación de determinante (LU).
+    - Auditado en `tests/test_cumplimiento_reglas.py` y verificado con `tests/test_backend_resolutores_matriciales.py`.
+  - **Sub-entrega 1.3: Vectores y Sistemas Numéricos** [COMPLETADA]
+    - Paquete `src/backend/resolutores/operaciones_vectores/` (`base.py`, `formateadores.py`, `planteamiento.py`, `operaciones.py`, `combinacion_lineal.py`, `__init__.py`).
+    - Paquete `src/backend/resolutores/sistemas_numericos/` (`conversor_bases.py`, `calculadora_romana.py`, `__init__.py`).
+    - Consolidación de exportaciones canónicas en `src/backend/resolutores/__init__.py`.
+    - Modularización y límites auditados ($\le 300$ líneas por archivo, $\le 40$ por función, $\le 5$ parámetros).
+    - Compatibilidad de contratos duales E4 garantizada entre backend, controladores y vistas.
+    - Suite de pruebas de 1128 tests pasando al 100% y arnés de reglas `test_cumplimiento_reglas.py` con 34 módulos auditados en verde.
+- **Criterios de aceptación cumplidos**:
+  - Modelos, utilidades y resolutores en español ASCII canónico.
+  - Módulos $\le 300$ líneas, funciones $\le 40$ líneas, clases $\le 200$ líneas.
+  - Exactitud aritmética con `Fraction` preservada y resultados numéricos idénticos.
 
 ### Fase 2: Módulo de IA y Contratos de Contexto (`src/ai`) (E3, E4)
 - **Estado**: Completada

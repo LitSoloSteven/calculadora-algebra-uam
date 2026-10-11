@@ -9,9 +9,9 @@ from typing import Any
 from nicegui import ui
 
 from src.ai.context import AIContext, fingerprint, is_stale, sanitize_user_string
-from src.backend.solvers.numeric_systems.roman_calculator import (
-    RomanCalculator,
-    RomanNumeralError,
+from src.backend.resolutores.sistemas_numericos.calculadora_romana import (
+    CalculadoraRomana as RomanCalculator,
+    ErrorNumeroRomano as RomanNumeralError,
 )
 from src.frontend.components.ai_panel import AIPanel
 from src.frontend.components.app_shell import create_app_shell
