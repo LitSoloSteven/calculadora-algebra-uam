@@ -48,6 +48,52 @@ def parse_payload(json_payload: str) -> tuple[dict | None, str | None]:
     return data, None
 
 
+def _validar_dimensiones_aumentada(
+    matrix_A_raw: list, vector_b_raw: list
+) -> tuple[int, int, str | None]:
+    """Valida la consistencia de forma y dimensiones entre matriz y vector."""
+    m = len(matrix_A_raw)
+    if m == 0:
+        return 0, 0, json.dumps({"status": "ERROR", "message": "La matriz A está vacía."})
+    if not isinstance(matrix_A_raw[0], list):
+        return 0, 0, json.dumps({"status": "ERROR", "message": "La matriz A debe ser una lista de filas."})
+    n = len(matrix_A_raw[0])
+    if n == 0:
+        return 0, 0, json.dumps({"status": "ERROR", "message": "La matriz A no puede tener 0 columnas."})
+    valido, mensaje = MatrixValidator.validate_matrix_data(matrix_A_raw, m, n)
+    if not valido:
+        return 0, 0, json.dumps({"status": "ERROR", "message": mensaje})
+    if len(vector_b_raw) != m:
+        msg = f"El vector b tiene {len(vector_b_raw)} valores; se esperaban {m} (uno por fila de A)."
+        return 0, 0, json.dumps({"status": "ERROR", "message": msg})
+    return m, n, None
+
+
+def _parsear_celdas_a_fracciones(
+    matrix_A_raw: list, vector_b_raw: list, m: int
+) -> tuple[list[list[Fraction]] | None, list[Fraction] | None, str | None]:
+    """Convierte celdas de matriz y vector a fracciones exactas con coordenadas."""
+    A_fractions: list[list[Fraction]] = []
+    for i, row in enumerate(matrix_A_raw):
+        fila_frac: list[Fraction] = []
+        for j, cell in enumerate(row):
+            raw = str(cell).strip() if cell is not None and str(cell).strip() else "0"
+            ok, val, err = MatrixValidator.parse_number_exact(raw)
+            if not ok:
+                return None, None, json.dumps({"status": "ERROR", "message": f"Error en A[{i+1},{j+1}]: {err}"})
+            fila_frac.append(val)
+        A_fractions.append(fila_frac)
+
+    b_fractions: list[Fraction] = []
+    for i, cell in enumerate(vector_b_raw):
+        raw = str(cell).strip() if cell is not None and str(cell).strip() else "0"
+        ok, val, err = MatrixValidator.parse_number_exact(raw)
+        if not ok:
+            return None, None, json.dumps({"status": "ERROR", "message": f"Error en b[{i+1}]: {err}"})
+        b_fractions.append(val)
+    return A_fractions, b_fractions, None
+
+
 def validate_and_build_augmented(
     data: dict,
 ) -> tuple[
@@ -60,16 +106,8 @@ def validate_and_build_augmented(
 ]:
     """Valida el payload y construye la matriz aumentada [A | b].
 
-    Reglas aplicadas (idénticas para Gauss y Gauss-Jordan):
-      1. A no puede estar vacía ni tener 0 columnas.
-      2. A debe ser lista de filas con shape consistente.
-      3. len(b) debe coincidir EXACTAMENTE con len(A). No se rellena con 0:
-         hacerlo produciría la solución de un sistema distinto al ingresado.
-      4. Cada celda se parsea con `parse_number_exact` (Fraction exacto).
-         Los errores reportan coordenada [i,j] para A y [i] para b.
-
     Args:
-        data: dict ya validado por `parse_payload`.
+        data: dict ya validado por parse_payload.
 
     Returns:
         (matrix, A_fractions, b_fractions, m, n, None) si OK.
@@ -78,153 +116,92 @@ def validate_and_build_augmented(
     matrix_A_raw = data.get("matrix_A", [])
     vector_b_raw = data.get("vector_b", [])
 
-    # --- 1. Validación de forma ---
-    m = len(matrix_A_raw)
-    if m == 0:
-        return None, None, None, 0, 0, json.dumps({
-            "status": "ERROR",
-            "message": "La matriz A está vacía."
-        })
+    m, n, error_dim = _validar_dimensiones_aumentada(matrix_A_raw, vector_b_raw)
+    if error_dim is not None:
+        return None, None, None, 0, 0, error_dim
 
-    if not isinstance(matrix_A_raw[0], list):
-        return None, None, None, 0, 0, json.dumps({
-            "status": "ERROR",
-            "message": "La matriz A debe ser una lista de filas."
-        })
+    A_fractions, b_fractions, error_parse = _parsear_celdas_a_fracciones(matrix_A_raw, vector_b_raw, m)
+    if error_parse is not None or A_fractions is None or b_fractions is None:
+        return None, None, None, 0, 0, error_parse
 
-    n = len(matrix_A_raw[0])
-    if n == 0:
-        return None, None, None, 0, 0, json.dumps({
-            "status": "ERROR",
-            "message": "La matriz A no puede tener 0 columnas."
-        })
-
-    valid_shape, msg_shape = MatrixValidator.validate_matrix_data(matrix_A_raw, m, n)
-    if not valid_shape:
-        return None, None, None, 0, 0, json.dumps({
-            "status": "ERROR",
-            "message": msg_shape
-        })
-
-    if len(vector_b_raw) != m:
-        return None, None, None, 0, 0, json.dumps({
-            "status": "ERROR",
-            "message": (
-                f"El vector b tiene {len(vector_b_raw)} valores; "
-                f"se esperaban {m} (uno por fila de A)."
-            )
-        })
-
-    # --- 2. Conversión a Fraction con coordenadas en errores ---
-    A_fractions: list[list[Fraction]] = []
-    for i, row in enumerate(matrix_A_raw):
-        fila_frac: list[Fraction] = []
-        for j, cell in enumerate(row):
-            raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
-            ok, val, err = MatrixValidator.parse_number_exact(raw)
-            if not ok:
-                return None, None, None, 0, 0, json.dumps({
-                    "status": "ERROR",
-                    "message": f"Error en A[{i+1},{j+1}]: {err}"
-                })
-            fila_frac.append(val)
-        A_fractions.append(fila_frac)
-
-    b_fractions: list[Fraction] = []
-    for i, cell in enumerate(vector_b_raw):
-        raw = str(cell).strip() if cell is not None and str(cell).strip() else '0'
-        ok, val, err = MatrixValidator.parse_number_exact(raw)
-        if not ok:
-            return None, None, None, 0, 0, json.dumps({
-                "status": "ERROR",
-                "message": f"Error en b[{i+1}]: {err}"
-            })
-        b_fractions.append(val)
-
-    # --- 3. Construcción de la matriz aumentada [A | b] ---
     try:
         augmented_data = [A_fractions[i] + [b_fractions[i]] for i in range(m)]
         matrix = Matrix(m, n + 1, augmented_data)
     except MatrixDataError as e:
-        return None, None, None, 0, 0, json.dumps({
-            "status": "ERROR",
-            "message": f"Datos inválidos: {e}"
-        })
+        return None, None, None, 0, 0, json.dumps({"status": "ERROR", "message": f"Datos inválidos: {e}"})
 
     return matrix, A_fractions, b_fractions, m, n, None
 
-def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
+
+def _extraer_detalles_paso(
+    kind: str,
+    parsed: dict,
+    current_pivot_col: int,
+    prev_rows: list,
+    rows: list,
+) -> tuple[list[int] | None, dict, dict, list | None, int]:
+    """Calcula pivote y extractos de filas antes y después según el tipo de operación."""
     from src.ai.context import excerpt_rows
+
+    pivot, rows_before, rows_after, cols_range = None, {}, {}, None
+    if kind == "pivote" and parsed["row1"] is not None and parsed["col"] is not None:
+        return [parsed["row1"], parsed["col"]], rows_before, rows_after, None, parsed["col"]
+    if kind == "intercambio" and parsed["row1"] is not None and parsed["row2"] is not None:
+        r1, r2 = parsed["row1"], parsed["row2"]
+        pivot = [r1, current_pivot_col]
+        rows_before, cols_range = excerpt_rows(prev_rows, [r1, r2], current_pivot_col)
+        rows_after, _ = excerpt_rows(rows, [r1, r2], current_pivot_col)
+    elif kind == "eliminacion" and parsed["row1"] is not None and parsed["row2"] is not None:
+        t, p = parsed["row1"], parsed["row2"]
+        pivot = [p, current_pivot_col]
+        rows_before, cols_range = excerpt_rows(prev_rows, [t, p], current_pivot_col)
+        rows_after, _ = excerpt_rows(rows, [t], current_pivot_col)
+    elif kind == "normalizacion" and parsed["row1"] is not None:
+        r = parsed["row1"]
+        pivot = [r, current_pivot_col]
+        rows_before, cols_range = excerpt_rows(prev_rows, [r], current_pivot_col)
+        rows_after, _ = excerpt_rows(rows, [r], current_pivot_col)
+    return pivot, rows_before, rows_after, cols_range, current_pivot_col
+
+
+def build_steps_meta(raw_steps: list[dict], initial: Any = None) -> list[dict]:
+    """Genera metadatos estructurados de pasos para renderizado y explicaciones pedagógicas."""
     from src.frontend.controllers._step_classifier import classify_step
 
     meta = []
     total = len(raw_steps)
     current_pivot_col = 0
-    
     for i, step in enumerate(raw_steps):
         desc = step["description"]
         mat = step["matrix"]
         rows = [[mat.get(r, c) for c in range(mat.cols)] for r in range(mat.rows)]
-        
         parsed = classify_step(desc)
         kind = parsed["kind"]
-        
-        pivot = None
-        rows_before = {}
-        rows_after = {}
-        cols_range = None
-        
-        prev_mat = raw_steps[i-1]["matrix"] if i > 0 else (initial if initial is not None else mat)
-        prev_rows = [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)] if (i > 0 or initial is not None) else rows
-        
-        if kind == "pivote":
-            r = parsed["row1"]
-            c = parsed["col"]
-            if r is not None and c is not None:
-                pivot = [r, c]
-                current_pivot_col = c
-        elif kind == "intercambio":
-            r1 = parsed["row1"]
-            r2 = parsed["row2"]
-            if r1 is not None and r2 is not None:
-                pivot = [r1, current_pivot_col]
-                rows_before, cols_range = excerpt_rows(prev_rows, [r1, r2], current_pivot_col)
-                rows_after, _ = excerpt_rows(rows, [r1, r2], current_pivot_col)
-        elif kind == "eliminacion":
-            t = parsed["row1"]
-            p = parsed["row2"]
-            if t is not None and p is not None:
-                pivot = [p, current_pivot_col]
-                rows_before, cols_range = excerpt_rows(prev_rows, [t, p], current_pivot_col)
-                rows_after, _ = excerpt_rows(rows, [t], current_pivot_col)
-        elif kind == "normalizacion":
-            r = parsed["row1"]
-            if r is not None:
-                pivot = [r, current_pivot_col]
-                rows_before, cols_range = excerpt_rows(prev_rows, [r], current_pivot_col)
-                rows_after, _ = excerpt_rows(rows, [r], current_pivot_col)
-            
+        prev_mat = raw_steps[i - 1]["matrix"] if i > 0 else (initial if initial is not None else mat)
+        prev_rows = (
+            [[prev_mat.get(r, c) for c in range(prev_mat.cols)] for r in range(prev_mat.rows)]
+            if (i > 0 or initial is not None)
+            else rows
+        )
+        pivot, before, after, cols, current_pivot_col = _extraer_detalles_paso(
+            kind, parsed, current_pivot_col, prev_rows, rows
+        )
         meta.append({
             "index": i + 1,
             "total": total,
             "kind": kind,
             "op": desc,
             "pivot": pivot,
-            "rows_before": rows_before,
-            "rows_after": rows_after,
-            "cols": list(cols_range) if cols_range else None
+            "rows_before": before,
+            "rows_after": after,
+            "cols": list(cols) if cols else None,
         })
     return meta
 
 
-<<<<<<< HEAD
-# Alias canónicos en castellano
-parsear_payload = parse_payload
-validar_y_construir_aumentada = validate_and_build_augmented
-construir_metadatos_pasos = build_steps_meta
-=======
+
 def serialize_matrix(mat: Matrix) -> dict:
-    """Serializa una Matrix a un diccionario con filas, columnas y datos en strings exactos."""
+    """Serializa una Matrix a un diccionario con filas, columnas y datos en cadenas exactas."""
     return {
         "rows": mat.rows,
         "cols": mat.cols,
@@ -233,5 +210,4 @@ def serialize_matrix(mat: Matrix) -> dict:
             for r in range(mat.rows)
         ],
     }
->>>>>>> origin/develop
 

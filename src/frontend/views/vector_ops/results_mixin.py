@@ -141,24 +141,6 @@ class VectorOpsResultsMixin(VectorOpsStepsMixin):
             url = handoff_url(route_of("visualizador"), token) + f"&escena={scene_name}"
             ui.navigate.to(url)
 
-<<<<<<< HEAD
-        # 3. ACORDEÓN DE SUSTITUCIÓN HACIA ATRÁS
-        back_steps = res.get('back_substitution_steps', [])
-        if back_steps:
-            with ui.expansion('Ver Sustitución Hacia Atrás', icon='arrow_upward').classes(
-                'w-full panel-card rounded-xl overflow-hidden'
-            ).props('header-class="text-main font-bold"'):
-                with ui.column().classes('w-full p-4 gap-4 bg-[var(--input-bg)]'):
-                    for bs in back_steps:
-                        ui.html(
-                            f'<div class="math-scroll-container math-label bg-[var(--bg-elevated)] p-3 rounded-lg shadow-sm border border-[var(--border-input)]">$$ {bs} $$</div>'
-                        )
-
-    # Alias canónicos en castellano
-    renderizar_estado_vacio = render_empty_state
-    renderizar_resultado = render_result
-
-=======
         with ui.row().classes("mt-6"):
             ui.button(
                 "Ver en el Visualizador", icon="explore", color=None,
@@ -192,4 +174,3 @@ class VectorOpsResultsMixin(VectorOpsStepsMixin):
                     return [b_data] + others, "combinacion"
 
         return [], ""
->>>>>>> origin/develop
