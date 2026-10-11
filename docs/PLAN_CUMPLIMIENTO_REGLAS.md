@@ -1,16 +1,28 @@
 # Plan de Ejecución: Cumplimiento Completo de Reglas SCALARIS
 
 ## Objetivo
-Llevar la totalidad del repositorio al cumplimiento estricto de las reglas SCALARIS (secciones 0 a 14) preservando exactamente el comportamiento matemático y observable, bajo las excepciones autorizadas E1 a E7.
+Llevar la totalidad del repositorio al cumplimiento estricto y verificable de las reglas SCALARIS (secciones 0 a 14), preservando exactamente el comportamiento matemático y observable bajo las excepciones explícitas autorizadas E1 a E7.
+
+---
+
+## Excepciones Explícitas del Usuario (Sección 0, Punto 2)
+
+- **E1 Backend editable**: `src/backend` es editable para esta tarea. Prohibido cambiar el comportamiento matemático: aritmética exacta con `Fraction`, mismos resultados numéricos y mismos textos de pasos que ya cumplen. No se redacta MANUAL DE REQUERIMIENTOS PARA BACKEND.
+- **E2 Pruebas**: Edición de pruebas existentes permitida solo para: (a) seguir renombrados, (b) renombrar archivos y funciones a español descriptivo sin referencias a fases (`f4`, `f8c`, `f9`, `p5`, `h7`...), (c) extraer helpers duplicados a módulo común `tests/comun.py`, (d) actualizar aserciones cuyo valor cambia por E5 o E6. Prohibido borrar pruebas, debilitar aserciones o cambiar su intención. Registro obligatorio de tabla "aserción antes / después". Código nuevo con lógica lleva pruebas en archivos nuevos.
+- **E3 Cero alias**: Ningún nombre en inglés se conserva como alias. Renombrado y propagación en el mismo paso a todo el repositorio (`src`, `tests`, JS, CSS, cadenas con selectores, atributos `data-*`), limitándose al renombrado fuera del alcance de la fase.
+- **E4 Contratos internos**: Pasan a español ASCII: claves y valores de retorno y JSON entre capas (ej. `SOLUCION_UNICA`), nombres de módulos, archivos, carpetas, globales JS (`window.scalaris`), atributos `data-*`, ids y clases CSS con prefijo por módulo. Se conservan en su idioma original únicamente: APIs de NiceGUI, Quasar, Tailwind, Plotly, MathJax, FastAPI y stdlib; propiedades CSS y eventos del navegador; dunders; tokens de diseño (`--bg-page`, `--text-main`...); variables de entorno (`OPENROUTER_*`, `SCALARIS_ENV`, `STORAGE_SECRET`, `SCALARIS_NAV`, `SCALARIS_DOCK`, `SCALARIS_PROACTIVE`); claves del payload de OpenRouter; carpetas `src/frontend`, `src/backend`, `src/ai` y `main.py`; y tecnicismos autorizados de la sección 5.1.
+- **E5 Movimiento**: Duraciones $\le 250\text{ ms}$, entradas desde `scale(0.95)` y opacidad 0; splash y cambio de tema con fundido $\le 250\text{ ms}$; `:active` con `scale(0.97)` o `scale(0.98)`; eliminación de `ease-elastic`, `ease-in`, `ease-in-out`, `filter` y animaciones de `width` o `clip-path`.
+- **E6 CSS**: División modular de `theme.css` en hojas semánticas $\le 300$ líneas. Reemplazo de banners de bloque por localización por archivo y selector en las pruebas.
+- **E7 Dominio**: Lógica matemática y reglas de dominio migradas al backend. Controladores y vistas solo delegan y serializan. Eliminación de validaciones duplicadas en la interfaz.
 
 ---
 
 ## Glosario de Renombrado Ampliado (Única Fuente de Verdad)
 
-| Concepto en Inglés | Concepto en Español ASCII | Notas / Atributos / Claves |
+| Concepto en Inglés | Concepto en Español ASCII | Contexto / Claves / Atributos |
 |---|---|---|
-| Matrix | Matriz | rows=filas, cols=columnas, data=datos, get=obtener, set=establecer, clone=clonar |
-| solve / solver / solvers | resolver / resolutor / resolutores | solve_system -> resolver_sistema |
+| Matrix | Matriz | filas, columnas, datos, obtener, establecer, clonar, intercambiar_filas, sumar_fila_escalada |
+| solve / solver / solvers | resolver / resolutor / resolutores | resolver_sistema, resolutor_inversa, etc. |
 | status / state | estado | Clave de respuesta |
 | message | mensaje | Clave de respuesta |
 | steps / step | pasos / paso | Clave de respuesta |
@@ -21,16 +33,16 @@ Llevar la totalidad del repositorio al cumplimiento estricto de las reglas SCALA
 | transpose | transponer / transpuesta | Operaciones algebraicas |
 | determinant | determinante | Operaciones algebraicas |
 | inverse | inversa | Operaciones algebraicas |
-| controller / controllers | controlador / controladores | Capa de frontend |
-| view / views | vista / vistas | Capa de frontend |
-| components | componentes | Capa de frontend |
-| models | modelos | Capa de backend |
-| utils | utilidades | Módulos auxiliares |
-| build | construir | Funciones de ensamblado |
+| controller / controllers | controlador / controladores | Capa de mediación |
+| view / views | vista / vistas | Capa de presentación |
+| components | componentes | Elementos reutilizables UI |
+| models | modelos | Modelos de dominio backend |
+| utils | utilidades | Módulos auxiliares backend |
+| build | construir | Ensamblado de componentes y vistas |
 | UNIQUE_SOLUTION | SOLUCION_UNICA | Constante y estado de retorno |
 | INFINITE_SOLUTIONS | SOLUCIONES_INFINITAS | Constante y estado de retorno |
 | NO_SOLUTION | SIN_SOLUCION | Constante y estado de retorno |
-| SUCCESS | EXITO | Estado de respuesta |
+| SUCCESS | EXITO | Estado de retorno |
 | UNIQUE | UNICA | Tipo de solución |
 | INFINITE | INFINITA | Tipo de solución |
 | ERROR | ERROR | Se conserva idéntico |
@@ -51,106 +63,92 @@ Llevar la totalidad del repositorio al cumplimiento estricto de las reglas SCALA
 
 ## Fases de Ejecución
 
-### Fase 1: Higiene inicial, resolución de conflictos de fusión e infraestructura de prueba de cumplimiento
+### Fase 0: Línea Base, Limpieza de Conflictos e Infraestructura de Verificación
 - **Estado**: Completada
-- **Archivos de la fase**:
-  - Eliminación: `check_dry_refactor.py`, `replace_ls.py`, `replace_romanos.py`, `replace_script.py`, `replace_vo.py`, directorio `regression_output/`.
-  - Corrección: `src/frontend/controllers/linear_systems/_shared.py` (eliminar marcadores de conflicto de fusión).
-  - Corrección: `src/frontend/views/vector_ops/results_mixin.py` (eliminar marcadores de conflicto de fusión y código residual de HEAD).
-  - Creación: `tests/test_cumplimiento_reglas.py` (auditoría programática de límites duros de líneas/funciones, comentarios prohibidos y glosario para archivos bajo alcance).
+- **Archivos**: `controllers/linear_systems/_shared.py`, `views/vector_ops/results_mixin.py`, `docs/PLAN_cumplimiento_reglas.md`, `tests/test_cumplimiento_reglas.py`.
 - **Criterios de aceptación**:
-  - Cero scripts sueltos de parcheo en la raíz del repositorio.
-  - Cero marcadores de conflicto de fusión en el árbol de trabajo.
-  - Ejecución completa y exitosa de `pytest` en el entorno virtual (`venv`).
-  - `tests/test_cumplimiento_reglas.py` operativo y validando los archivos de la Fase 1.
+  - Cero marcadores de conflicto de merge en todo el repositorio.
+  - Verificación exitosa con `python -m compileall src`.
+  - Línea base de `pytest` registrada (1099 pruebas pasando, 0 fallos).
+  - Plan de ejecución temporal creado en `docs/PLAN_cumplimiento_reglas.md`.
+  - Arnés `tests/test_cumplimiento_reglas.py` creado con `RUTAS_AUDITADAS` inicializado.
+  - Inventario inicial medido entregado.
 
-### Fase 2: Núcleo del Backend, Modelos y Utilidades (E1, E3, E4, E7)
-- **Estado**: Pendiente
-- **Archivos de la fase**:
-  - `src/backend/models/matrix.py` -> `matriz.py`
-  - `src/backend/constants.py` -> `constantes.py`
-  - `src/backend/exceptions.py` -> `excepciones.py`
-  - `src/backend/utils/` -> `utilidades/` (`formatters.py`, `parsers.py`, `math_utils.py`, división de `validators.py` <= 300 líneas)
-  - Migración de lógica de dominio desde controladores frontend (E7).
-  - Reubicación de `src/backend/test_backend.py` a `tests/test_backend_dominio.py`.
-  - Propagación de renombrados nucleares sin alias en todo el repositorio (E3).
+### Fase 1: Capa de Dominio y Backend (`src/backend`) (E1, E3, E4, E7)
+- **Estado**: En progreso (Sub-entrega 1.1 completada; Sub-entregas 1.2 y 1.3 pendientes)
+- **Sub-entregas**:
+  - **Sub-entrega 1.1: Modelos y Utilidades** [COMPLETADA]
+    - Modelos: `src/backend/modelos/matriz.py`, `src/backend/modelos/__init__.py`.
+    - Utilidades: `src/backend/utilidades/utilidades_matematicas.py`, `formateadores.py`, `validadores.py`, `verificacion.py`, `reglas_dominio.py`, `__init__.py`.
+    - Constantes y Excepciones: `src/backend/constantes.py`, `src/backend/excepciones.py`.
+    - Eliminado `src/backend/test_backend.py` (movido a `tests/`).
+    - Auditado con `tests/test_cumplimiento_reglas.py` y `tests/test_backend_modelos_utilidades.py`.
+  - **Sub-entrega 1.2: Sistemas Lineales y Operaciones Matriciales** [PENDIENTE]
+    - Resolutores: `gauss.py`, `gauss_jordan.py`, `operations.py`, `inverse.py`, `evaluator.py`, `determinant.py`, `transformations.py`, `leontief.py`.
+    - Modularización de `solve`, `_back_substitute`, `_eliminate` ($\le 40$ líneas).
+    - Eliminación de código muerto en transformaciones y deduplicación de determinante.
+  - **Sub-entrega 1.3: Vectores y Sistemas Numéricos** [PENDIENTE]
+    - `linear_combination.py`, `operations.py`, `_base.py`, `conversor_bases.py`, `roman_calculator.py`.
+    - Deduplicación de transpuesta entre solvers, eliminación de paquetes antiguos y cierre de backend completo.
 - **Criterios de aceptación**:
-  - Todos los identificadores y contratos en español ASCII.
-  - Módulos con menos de 300 líneas y funciones con menos de 40 líneas.
-  - Toda la suite de pruebas del backend pasa.
+  - Modelos y utilidades en español ASCII sin alias.
+  - Módulos $\le 300$ líneas, funciones $\le 40$ líneas.
+  - Pruebas matemáticas exactas pasando con resultados numéricos idénticos.
 
-### Fase 3: Resolutores del Backend (E1, E3, E4)
+### Fase 2: Módulo de IA y Contratos de Contexto (`src/ai`) (E3, E4)
 - **Estado**: Pendiente
-- **Archivos de la fase**:
-  - `src/backend/solvers/` -> `resolutores/`
-  - `sistemas_lineales/` (gauss, gauss_jordan, etc.)
-  - `operaciones_matrices/` (evaluador de expresiones, determinantes, etc.)
-  - `operaciones_vectores/`
-  - `sistemas_numericos/`
-  - `_rastreo.py`
+- **Archivos**: `src/ai/openrouter_ai.py`, `src/ai/context.py`, `src/ai/prompts.py`.
 - **Criterios de aceptación**:
-  - Métodos `resolver`, `pasos`, etc. en español ASCII.
-  - Límites de tamaño y complejidad respetados.
-  - Pruebas matemáticas pasando con resultados numéricos idénticos.
+  - Módulos $\le 300$ líneas, funciones $\le 40$ líneas.
+  - Identificadores internos en español ASCII.
+  - Conservación de variables `OPENROUTER_*` y claves de la API de OpenRouter (E4).
 
-### Fase 4: Módulo de IA y Contratos de Contexto (`src/ai`) (E3, E4)
+### Fase 3: Núcleo de Aplicación y Navegación Frontend (E3, E4)
 - **Estado**: Pendiente
-- **Archivos de la fase**:
-  - `src/ai/openrouter_ai.py`
-  - `src/ai/context.py`
-  - `src/ai/prompts.py`
+- **Archivos**: `src/frontend/app.py`, `navigation.py`, `routes.py`, `suggestions.py`, `flags.py`, `helpers.py`, `theme.py`, `main.py`.
 - **Criterios de aceptación**:
-  - Límites de 300 líneas por archivo y 40 líneas por función.
-  - Identificadores y comentarios limpios en español.
-  - Variables de entorno `OPENROUTER_*` y claves de la API de OpenRouter conservadas (E4).
+  - Enrutamiento y estado centralizado limpios sin números mágicos ni rutas obsoletas.
+  - Respeto a límites duros de líneas y funciones.
 
-### Fase 5: Sistema de Estilos CSS, Scripts JS y Movimiento (E4, E5, E6)
+### Fase 4: Sistema de Estilos CSS, Scripts JS y Movimiento (E4, E5, E6)
 - **Estado**: Pendiente
-- **Archivos de la fase**:
-  - `src/frontend/assets/css/theme.css` dividido en módulos semánticos <= 300 líneas (`tokens.css`, `base.css`, `layout.css`, `componentes.css`, `vistas.css`).
+- **Archivos**:
+  - `src/frontend/assets/css/theme.css` dividido en módulos semánticos $\le 300$ líneas (`tokens.css`, `base.css`, `layout.css`, `componentes.css`, `vistas.css`).
   - `src/frontend/assets/css/reproductor_pasos.css`.
-  - `src/frontend/assets/js/` (agrupación bajo `window.scalaris`, tiempos <= 250 ms, scale(0.95), sin animaciones prohibidas).
+  - `src/frontend/assets/js/` (espacio de nombres único `window.scalaris`, animaciones $\le 250\text{ ms}$, scale(0.95), sin animaciones prohibidas).
 - **Criterios de aceptación**:
-  - Archivos CSS <= 300 líneas.
+  - Todos los archivos CSS $\le 300$ líneas.
   - Animaciones conformes a E5 y sección 8.
-  - Pruebas de estilos adaptadas a la nueva estructura de archivos.
+  - Cero colores literales fuera de definición de tokens.
 
-### Fase 6: Componentes de Interfaz (`src/frontend/components` -> `componentes`) (E3, E4)
+### Fase 5: Controladores de Interfaz (`src/frontend/controllers`) (E3, E4, E7)
 - **Estado**: Pendiente
-- **Archivos de la fase**:
-  - Todos los módulos en `src/frontend/components/` -> división de los que superan 300 líneas (`ai_panel.py`, `glosa_dock.py`, `matrix_capture.py`, `vector_capture.py`, `square_matrix_panel.py`, `handoff.py`).
-  - Cumplimiento de accesibilidad, foco visible y cifras tabulares.
+- **Archivos**: `src/frontend/controllers/` (`sistemas_lineales`, `operaciones_matrices`, `operaciones_vectores`, `operaciones_inversas`, `geometria`, `_agrupar_pasos.py`, `_step_classifier.py`).
 - **Criterios de aceptación**:
-  - Ningún componente supera 300 líneas ni contiene lógica de dominio.
-  - Identificadores en español ASCII.
-
-### Fase 7: Controladores de Interfaz (`src/frontend/controllers` -> `controladores`) (E3, E4, E7)
-- **Estado**: Pendiente
-- **Archivos de la fase**:
-  - Módulos en `src/frontend/controllers/` (`sistemas_lineales`, `operaciones_matrices`, `operaciones_vectores`, `operaciones_inversas`, `geometria`).
+  - Los controladores únicamente validan, delegan y serializan hacia el backend.
   - Eliminación de validaciones duplicadas delegando al backend (E7).
-- **Criterios de aceptación**:
-  - Controladores únicamente validan, delegan y serializan.
   - Cero código duplicado entre controladores.
 
-### Fase 8: Vistas y Núcleo de Aplicación (`src/frontend/views` -> `vistas`, `app.py`, `navigation.py`) (E3, E4, E5)
+### Fase 6: Componentes de Interfaz (`src/frontend/components`) (E3, E4)
 - **Estado**: Pendiente
-- **Archivos de la fase**:
-  - `src/frontend/views/`
-  - `src/frontend/app.py`, `navigation.py`, `routes.py`, `suggestions.py`, `flags.py`, `helpers.py`, `theme.py`
-  - `src/main.py`
+- **Archivos**: `src/frontend/components/` (`ai_panel.py`, `glosa_dock.py`, `matrix_capture.py`, `vector_capture.py`, `square_matrix_panel.py`, `handoff.py`, etc.).
+- **Criterios de aceptación**:
+  - Ningún componente supera 300 líneas ni contiene lógica de dominio.
+  - Accesibilidad completa: foco visible, nombres accesibles, roles semánticos y cifras tabulares.
+
+### Fase 7: Vistas de Usuario (`src/frontend/views`) (E3, E4, E5)
+- **Estado**: Pendiente
+- **Archivos**: `src/frontend/views/` (`hub/`, `linear_systems/`, `matrix_ops/`, `vector_ops/`, `inverse_ops/`, `geometry/`, `numeric_systems/`).
 - **Criterios de aceptación**:
   - Vistas orquestan sin lógica de negocio ni parseo.
-  - Extracción de cadenas HTML/JS/CSS largas a archivos de assets.
+  - Cadenas HTML/JS/CSS largas extraídas a assets o plantillas.
   - Copy en tuteo, sin raya larga ni exclamaciones en éxito.
 
-### Fase 9: Armonización de la Suite de Pruebas y Auditoría Final (E2)
+### Fase 8: Armonización de la Suite de Pruebas y Cierre (E2)
 - **Estado**: Pendiente
-- **Archivos de la fase**:
-  - Pruebas en `tests/` renombradas a español descriptivo sin prefijos de fase (`f4`, `f8c`, `f9`, `p5`, `h7`...).
-  - Extracción de helpers repetidos a módulo común `tests/comun.py`.
-  - Ejecución de `test_cumplimiento_reglas.py` sobre todo el repositorio (100% verificado).
-  - Eliminación de este plan al completar satisfactoriamente la auditoría.
+- **Archivos**: `tests/` completo, `tests/comun.py`, `tests/test_cumplimiento_reglas.py`.
 - **Criterios de aceptación**:
-  - Suite de pruebas completa pasando limpia.
-  - 100% de cumplimiento de las reglas SCALARIS.
+  - Todas las pruebas en `tests/` renombradas a español descriptivo sin prefijos de fase (`f4`, `f8c`, `f9`, etc.).
+  - Extracción de helpers duplicados a `tests/comun.py`.
+  - Ejecución de `test_cumplimiento_reglas.py` sobre la totalidad del repositorio (`RUTAS_AUDITADAS` cubre todo el proyecto, 100% verificado).
+  - Eliminación de este plan temporal al completar satisfactoriamente la auditoría.
