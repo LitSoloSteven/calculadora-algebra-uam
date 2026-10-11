@@ -210,4 +210,4 @@ def serialize_matrix(mat: Matrix) -> dict:
             for r in range(mat.rows)
         ],
     }
-
+
