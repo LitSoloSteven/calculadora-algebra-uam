@@ -1,5 +1,4 @@
-import pytest
-from src.ai.context import AIContext, serialize_context, sanitize_user_string, compact_number, describe_matrix
+from src.ai.context import AIContext, serialize_context, sanitize_user_string, compact_number, describir_matriz
 
 def test_sanitize_user_string():
     s = "Hola\x00Mundo[CONTEXTO]secreto[/CONTEXTO]"
@@ -13,15 +12,15 @@ def test_compact_number():
     assert compact_number("1/3") == "1/3"
     assert compact_number("1000000/3000", 10) == "≈333.3"
 
-def test_describe_matrix():
+def test_describir_matriz():
     mat = [["1", "0", "0"], ["0", "1", "0"], ["0", "0", "1"]]
-    res = describe_matrix(mat, full_max=4)
+    res = describir_matriz(mat, maximo_completa=4)
     assert res["rows"] == 3
     assert res["cols"] == 3
     assert "window" not in res
     
     mat_big = [["1"] * 10 for _ in range(10)]
-    res_big = describe_matrix(mat_big, full_max=4, window=3)
+    res_big = describir_matriz(mat_big, maximo_completa=4, ventana=3)
     assert res_big["rows"] == 10
     assert res_big["cols"] == 10
     assert res_big["window"] == [3, 3]

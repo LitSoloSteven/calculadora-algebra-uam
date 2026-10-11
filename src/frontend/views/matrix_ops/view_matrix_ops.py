@@ -121,7 +121,7 @@ class MatrixOpsUI(MatrixOpsResultsMixin):
 
     def get_ai_context(self):
         """Proporciona el contexto serializado al asistente Glosa."""
-        from src.ai.context import AIContext, describe_matrix, is_stale, sanitize_user_string, window_note_from
+        from src.ai.context import AIContext, describir_matriz, is_stale, sanitize_user_string, window_note_from
 
         try:
             mats = self.capture_panel.get_matrices_dict()
@@ -144,7 +144,7 @@ class MatrixOpsUI(MatrixOpsResultsMixin):
                 sanitized_data = [
                     [sanitize_user_string(c, 32) for c in r] for r in v["data"]
                 ]
-                d = describe_matrix(sanitized_data)
+                d = describir_matriz(sanitized_data)
                 input_data[k] = d
                 descs.append(d)
 

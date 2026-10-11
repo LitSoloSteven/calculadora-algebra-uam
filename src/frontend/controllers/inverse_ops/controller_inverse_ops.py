@@ -265,8 +265,8 @@ class InverseOpsController:
 
     @classmethod
     def build_focus_for_step(cls, steps: list[dict], idx: int) -> dict:
-        """Construye rows_before, rows_after y cols para un paso dado usando excerpt_rows."""
-        from src.ai.context import excerpt_rows
+        """Construye rows_before, rows_after y cols para un paso dado usando extraer_filas."""
+        from src.ai.context import extraer_filas
         from src.frontend.controllers._step_classifier import classify_step
 
         if not steps:
@@ -317,8 +317,8 @@ class InverseOpsController:
                 if swap:
                     r1, r2 = swap
             if r1 is not None and r2 is not None:
-                rows_before, cols_range = excerpt_rows(prev_rows, [r1, r2], center_col)
-                rows_after, _ = excerpt_rows(rows, [r1, r2], center_col)
+                rows_before, cols_range = extraer_filas(prev_rows, [r1, r2], center_col)
+                rows_after, _ = extraer_filas(rows, [r1, r2], center_col)
         elif kind == "eliminacion":
             t = parsed.get("row1")
             p = parsed.get("row2")
@@ -330,8 +330,8 @@ class InverseOpsController:
             if p is not None and p not in target_rows:
                 target_rows.append(p)
             
-            rows_before, cols_range = excerpt_rows(prev_rows, target_rows if target_rows else [0], center_col)
-            rows_after, _ = excerpt_rows(rows, [t] if t is not None else target_rows, center_col)
+            rows_before, cols_range = extraer_filas(prev_rows, target_rows if target_rows else [0], center_col)
+            rows_after, _ = extraer_filas(rows, [t] if t is not None else target_rows, center_col)
         elif kind in ("normalizacion", "pivote"):
             r = parsed.get("row1")
             if r is None and step.get("rows_changed"):
@@ -339,16 +339,16 @@ class InverseOpsController:
             if r is None and step.get("pivot"):
                 r = step["pivot"][0]
             r_idx = r if r is not None else 0
-            rows_before, cols_range = excerpt_rows(prev_rows, [r_idx], center_col)
-            rows_after, _ = excerpt_rows(rows, [r_idx], center_col)
+            rows_before, cols_range = extraer_filas(prev_rows, [r_idx], center_col)
+            rows_after, _ = extraer_filas(rows, [r_idx], center_col)
         else:
             target_rows = list(step.get("rows_changed", []))
             if not target_rows and step.get("pivot"):
                 target_rows = [step["pivot"][0]]
             if not target_rows:
                 target_rows = [0]
-            rows_before, cols_range = excerpt_rows(prev_rows, target_rows, center_col)
-            rows_after, _ = excerpt_rows(rows, target_rows, center_col)
+            rows_before, cols_range = extraer_filas(prev_rows, target_rows, center_col)
+            rows_after, _ = extraer_filas(rows, target_rows, center_col)
 
         return {
             "rows_before": rows_before,

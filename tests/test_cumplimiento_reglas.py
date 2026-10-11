@@ -22,6 +22,12 @@ RUTAS_AUDITADAS: list[Path] = [
     RAIZ / "src" / "backend" / "utilidades" / "validadores.py",
     RAIZ / "src" / "backend" / "utilidades" / "verificacion.py",
     RAIZ / "src" / "backend" / "utilidades" / "reglas_dominio.py",
+    RAIZ / "src" / "ai" / "constantes.py",
+    RAIZ / "src" / "ai" / "context.py",
+    RAIZ / "src" / "ai" / "estrategias_recorte.py",
+    RAIZ / "src" / "ai" / "clasificador_respuestas.py",
+    RAIZ / "src" / "ai" / "openrouter_ai.py",
+    RAIZ / "src" / "ai" / "prompts.py",
 ]
 
 PALABRAS_INGLES_PROHIBIDAS = {

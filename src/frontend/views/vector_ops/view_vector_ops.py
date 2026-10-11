@@ -217,7 +217,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
             self.btn_calculate.props(remove='loading')
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale
+        from src.ai.context import AIContext, describir_matriz, sanitize_user_string, is_stale
         try:
             vecs = self.vector_panel.get_vectors_dict()
         except Exception:
@@ -231,7 +231,7 @@ class VectorOpsUI(VectorOpsResultsMixin):
         for k, v in vecs.items():
             if "data" in v:
                 sanitized_data = [[sanitize_user_string(str(x), 32)] for x in v["data"]]
-                input_data[k] = describe_matrix(sanitized_data)
+                input_data[k] = describir_matriz(sanitized_data)
                 input_data[k]["orientation"] = v.get("orientation", "column")
                 
         ctx = AIContext("vector_ops", "Vectores", f"Operación: {self.active_op}", input_data)

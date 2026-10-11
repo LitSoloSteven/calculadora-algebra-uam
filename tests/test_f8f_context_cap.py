@@ -4,9 +4,9 @@ import pytest
 from src.ai.context import (
     AIContext,
     StepRef,
-    MAX_CONTEXT_CHARS,
+    MAXIMO_CARACTERES_CONTEXTO,
     serialize_context,
-    describe_matrix,
+    describir_matriz,
     sanitize_user_string,
     window_note_from,
 )
@@ -24,7 +24,7 @@ def extract_inner_json(serialized: str) -> dict:
 def test_inversa_50x50_densa():
     cell_val = "1234567890123456789/9876543210987654321"
     raw_data = [[cell_val] * 50 for _ in range(50)]
-    desc_a = describe_matrix(raw_data)
+    desc_a = describir_matriz(raw_data)
     ctx = AIContext(
         tool="inversa",
         view="Matriz Inversa",
@@ -33,7 +33,7 @@ def test_inversa_50x50_densa():
         window_note=window_note_from(desc_a),
     )
     res = serialize_context(ctx)
-    assert len(res) <= MAX_CONTEXT_CHARS
+    assert len(res) <= MAXIMO_CARACTERES_CONTEXTO
     data = extract_inner_json(res)
     assert isinstance(data, dict)
     assert "meta" in data
@@ -53,7 +53,7 @@ def test_matrices_10x10_fracciones_largas():
         input=mats,
     )
     res = serialize_context(ctx)
-    assert len(res) <= MAX_CONTEXT_CHARS
+    assert len(res) <= MAXIMO_CARACTERES_CONTEXTO
     data = extract_inner_json(res)
     assert isinstance(data, dict)
     assert data.get("meta", {}).get("truncated") is True
@@ -74,7 +74,7 @@ def test_vectores_dimension_10_con_9_vectores():
         input=vecs,
     )
     res = serialize_context(ctx)
-    assert len(res) <= MAX_CONTEXT_CHARS
+    assert len(res) <= MAXIMO_CARACTERES_CONTEXTO
     data = extract_inner_json(res)
     assert isinstance(data, dict)
     assert data.get("meta", {}).get("truncated") is True
@@ -102,7 +102,7 @@ def test_foco_12_columnas_fracciones_largas():
         focus=focus,
     )
     res = serialize_context(ctx)
-    assert len(res) <= MAX_CONTEXT_CHARS
+    assert len(res) <= MAXIMO_CARACTERES_CONTEXTO
     data = extract_inner_json(res)
     assert isinstance(data, dict)
 
@@ -124,7 +124,7 @@ def test_fuerza_ultimo_recorte_sin_frozen_instance_error():
         tool="sistemas",
         view="Sistemas Lineales",
         label="Paso 1",
-        input={"M": describe_matrix(mat_big)},
+        input={"M": describir_matriz(mat_big)},
         result={"status": "OK", "steps": ["paso1", "paso2"], "message": "Resuelto"},
         focus=focus,
     )

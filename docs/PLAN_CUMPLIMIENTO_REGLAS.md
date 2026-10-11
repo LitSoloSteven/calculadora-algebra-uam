@@ -96,12 +96,17 @@ Llevar la totalidad del repositorio al cumplimiento estricto y verificable de la
   - Pruebas matemáticas exactas pasando con resultados numéricos idénticos.
 
 ### Fase 2: Módulo de IA y Contratos de Contexto (`src/ai`) (E3, E4)
-- **Estado**: Pendiente
-- **Archivos**: `src/ai/openrouter_ai.py`, `src/ai/context.py`, `src/ai/prompts.py`.
-- **Criterios de aceptación**:
-  - Módulos $\le 300$ líneas, funciones $\le 40$ líneas.
-  - Identificadores internos en español ASCII.
-  - Conservación de variables `OPENROUTER_*` y claves de la API de OpenRouter (E4).
+- **Estado**: Completada
+- **Archivos**: `src/ai/constantes.py`, `src/ai/clasificador_respuestas.py`, `src/ai/estrategias_recorte.py`, `src/ai/openrouter_ai.py`, `src/ai/context.py`, `src/ai/prompts.py`.
+- **Criterios de aceptación cumplidos**:
+  - Módulos $\le 300$ líneas, funciones $\le 40$ líneas, clases $\le 200$ líneas, anidamiento $\le 3$, complejidad ciclomática $\le 10$.
+  - Desacoplamiento de `_serialize_context_core` en 6 estrategias atómicas de recorte y `OpenRouterIA.ask` en pasos nombrados.
+  - Eliminación de código muerto (`analizar_sistema`, variable `nonzero` en `describir_matriz`, imports a mitad de archivo, Protocol huérfano).
+  - Unificación de constantes (TTL 3600 s, caché 128, deadline 40 s, timeouts, códigos transitorios y límites de contexto) en `src/ai/constantes.py`.
+  - Inyectables de pruebas renombrados a español ASCII (`_bloqueo_cache`, `_cache_respuestas`, `_peticiones_post`, `_tiempo_monotonico`, `_tiempo_dormir`, `MODELO_PRIMARIO`, `MODELOS_RESERVA`) y propagados con cero alias (E3, E4).
+  - Prompts y mensajes en español con tuteo, sin raya larga (`—`) y sin filtración de detalles internos.
+  - Ampliación de `RUTAS_AUDITADAS` en `tests/test_cumplimiento_reglas.py` con todos los módulos de `src/ai`.
+  - Suite de 1112 pruebas pasando al 100%.
 
 ### Fase 3: Núcleo de Aplicación y Navegación Frontend (E3, E4)
 - **Estado**: Pendiente

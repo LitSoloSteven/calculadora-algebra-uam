@@ -20,12 +20,12 @@ class MockResponse:
 def reset_openrouter_state(monkeypatch):
     import src.ai.openrouter_ai as oai
 
-    with oai._cache_lock:
-        oai._response_cache.clear()
-    monkeypatch.setattr(OpenRouterIA, "FALLBACK_MODELS", [])
+    with oai._bloqueo_cache:
+        oai._cache_respuestas.clear()
+    monkeypatch.setattr(OpenRouterIA, "MODELOS_RESERVA", [])
     yield
-    with oai._cache_lock:
-        oai._response_cache.clear()
+    with oai._bloqueo_cache:
+        oai._cache_respuestas.clear()
 
 
 def test_sin_clave_no_key_y_sin_llamada_red(monkeypatch):
@@ -37,7 +37,7 @@ def test_sin_clave_no_key_y_sin_llamada_red(monkeypatch):
         call_count += 1
         return MockResponse(200)
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
     res = client.ask("¿Qué es una matriz?")
     assert res.ok is False
@@ -53,7 +53,7 @@ def test_200_con_contenido_ok(monkeypatch):
         calls.append((url, json))
         return MockResponse(200, {"choices": [{"message": {"content": "Una matriz es un arreglo bidimensional."}}]})
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is True
@@ -67,7 +67,7 @@ def test_200_sin_choices_empty(monkeypatch):
     def mock_post(url, headers=None, json=None, timeout=None):
         return MockResponse(200, {"choices": []})
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is False
@@ -82,7 +82,7 @@ def test_401_auth_sin_reintento(monkeypatch):
         calls.append(url)
         return MockResponse(401, text="Unauthorized: invalid api key")
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is False
@@ -104,8 +104,8 @@ def test_429_primario_sleep_y_reintento(monkeypatch):
     def mock_sleep(secs):
         sleeps.append(secs)
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
-    monkeypatch.setattr(OpenRouterIA, "_time_sleep", staticmethod(mock_sleep))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_dormir", staticmethod(mock_sleep))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is True
@@ -118,7 +118,7 @@ def test_429_primario_sleep_y_reintento(monkeypatch):
 def test_429_persistente_con_fallback_segundo_modelo(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     fallback_name = "backup/model-secondary:free"
-    monkeypatch.setattr(OpenRouterIA, "FALLBACK_MODELS", [fallback_name])
+    monkeypatch.setattr(OpenRouterIA, "MODELOS_RESERVA", [fallback_name])
     calls = []
     sleeps = []
 
@@ -132,26 +132,26 @@ def test_429_persistente_con_fallback_segundo_modelo(monkeypatch):
     def mock_sleep(secs):
         sleeps.append(secs)
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
-    monkeypatch.setattr(OpenRouterIA, "_time_sleep", staticmethod(mock_sleep))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_dormir", staticmethod(mock_sleep))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is True
     assert res.text == "Respuesta desde fallback"
     assert res.model == fallback_name
-    assert calls.count(OpenRouterIA.PRIMARY_MODEL) == 2
+    assert calls.count(OpenRouterIA.MODELO_PRIMARIO) == 2
     assert calls.count(fallback_name) == 1
 
 
 def test_429_sin_fallback_rate_limit(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setattr(OpenRouterIA, "FALLBACK_MODELS", [])
+    monkeypatch.setattr(OpenRouterIA, "MODELOS_RESERVA", [])
 
     def mock_post(url, headers=None, json=None, timeout=None):
         return MockResponse(429, text="Rate limit")
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
-    monkeypatch.setattr(OpenRouterIA, "_time_sleep", staticmethod(lambda s: None))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_dormir", staticmethod(lambda s: None))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is False
@@ -163,26 +163,26 @@ def test_timeout_con_y_sin_fallback(monkeypatch):
 
     # 1. Con fallback
     fallback_name = "backup/model-timeout"
-    monkeypatch.setattr(OpenRouterIA, "FALLBACK_MODELS", [fallback_name])
+    monkeypatch.setattr(OpenRouterIA, "MODELOS_RESERVA", [fallback_name])
 
     def mock_post_with_fallback(url, headers=None, json=None, timeout=None):
-        if json.get("model") == OpenRouterIA.PRIMARY_MODEL:
+        if json.get("model") == OpenRouterIA.MODELO_PRIMARIO:
             raise requests.exceptions.Timeout("Timeout en primario")
         return MockResponse(200, {"choices": [{"message": {"content": "Respuesta exitosa en fallback"}}]})
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post_with_fallback))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post_with_fallback))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is True
     assert res.model == fallback_name
 
     # 2. Sin fallback
-    monkeypatch.setattr(OpenRouterIA, "FALLBACK_MODELS", [])
+    monkeypatch.setattr(OpenRouterIA, "MODELOS_RESERVA", [])
 
     def mock_post_timeout(url, headers=None, json=None, timeout=None):
         raise requests.exceptions.Timeout("Timeout total")
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post_timeout))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post_timeout))
     client2 = OpenRouterIA()
     res2 = client2.ask("pregunta")
     assert res2.ok is False
@@ -195,7 +195,7 @@ def test_connection_error_network(monkeypatch):
     def mock_post(url, headers=None, json=None, timeout=None):
         raise requests.exceptions.ConnectionError("Error de socket")
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is False
@@ -211,7 +211,7 @@ def test_cancel_antes_de_llamar_cancelled_sin_llamada(monkeypatch):
         call_count += 1
         return MockResponse(200)
 
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
     cancel = threading.Event()
     cancel.set()
@@ -234,9 +234,9 @@ def test_deadline_agotado_con_reloj_simulado_service(monkeypatch):
         simulated_time = 139.5
         return MockResponse(500, text="Transient error")
 
-    monkeypatch.setattr(OpenRouterIA, "_time_monotonic", staticmethod(mock_time))
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
-    monkeypatch.setattr(OpenRouterIA, "_time_sleep", staticmethod(lambda s: None))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_monotonico", staticmethod(mock_time))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_dormir", staticmethod(lambda s: None))
     client = OpenRouterIA()
     res = client.ask("pregunta")
     assert res.ok is False
@@ -257,8 +257,8 @@ def test_cacheable_comportamiento_completo(monkeypatch):
         network_calls += 1
         return MockResponse(200, {"choices": [{"message": {"content": f"Respuesta #{network_calls}"}}]})
 
-    monkeypatch.setattr(OpenRouterIA, "_time_monotonic", staticmethod(mock_time))
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(mock_post))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_monotonico", staticmethod(mock_time))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(mock_post))
     client = OpenRouterIA()
 
     # 1. Primera llamada con cacheable=True -> llamada de red
@@ -317,32 +317,32 @@ def test_ningun_airesult_text_contiene_palabras_prohibidas(monkeypatch):
     r_cancelled = client.ask("hola", cancel=cancel)
 
     # AUTH (401)
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(lambda *a, **k: MockResponse(401, text="Auth err")))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(lambda *a, **k: MockResponse(401, text="Auth err")))
     r_auth = client.ask("hola")
 
     # EMPTY (200 sin choices)
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(lambda *a, **k: MockResponse(200, {"choices": []})))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(lambda *a, **k: MockResponse(200, {"choices": []})))
     r_empty = client.ask("hola")
 
     # RATE_LIMIT (429)
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(lambda *a, **k: MockResponse(429, text="Rate limit")))
-    monkeypatch.setattr(OpenRouterIA, "_time_sleep", staticmethod(lambda s: None))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(lambda *a, **k: MockResponse(429, text="Rate limit")))
+    monkeypatch.setattr(OpenRouterIA, "_tiempo_dormir", staticmethod(lambda s: None))
     r_rate = client.ask("hola")
 
     # TIMEOUT
     def raise_timeout(*a, **k):
         raise requests.exceptions.Timeout("timeout")
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(raise_timeout))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(raise_timeout))
     r_timeout = client.ask("hola")
 
     # NETWORK
     def raise_conn(*a, **k):
         raise requests.exceptions.ConnectionError("conn")
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(raise_conn))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(raise_conn))
     r_network = client.ask("hola")
 
     # SERVICE (deadline/500)
-    monkeypatch.setattr(OpenRouterIA, "_requests_post", staticmethod(lambda *a, **k: MockResponse(500, text="error")))
+    monkeypatch.setattr(OpenRouterIA, "_peticiones_post", staticmethod(lambda *a, **k: MockResponse(500, text="error")))
     r_service = client.ask("hola")
 
     todos_los_resultados = [

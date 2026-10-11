@@ -297,8 +297,8 @@ class GlosaDockMixin:
             
         self.set_explain_focus(step_meta)
         
-        from src.ai.prompts import build_explain_step_question
-        question = build_explain_step_question(
+        from src.ai.prompts import construir_pregunta_explicar_paso
+        question = construir_pregunta_explicar_paso(
             step_meta.get("kind", "otro"),
             step_meta.get("index", 1),
             step_meta.get("total", 1),

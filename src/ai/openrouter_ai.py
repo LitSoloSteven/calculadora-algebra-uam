@@ -1,22 +1,38 @@
-import os
-import time
-import requests
-import threading
-import json
-import hashlib
-from enum import Enum
-from dataclasses import dataclass
-from dotenv import load_dotenv
-import logging
+"""Cliente para la API de OpenRouter con reintentos, caché y tolerancia a fallos."""
 
-from src.ai.prompts import build_messages, SYSTEM_PROMPT
+from dataclasses import dataclass
+from enum import Enum
+import hashlib
+import logging
+import os
+import threading
+import time
+
+from dotenv import load_dotenv
+import requests
+
+from src.ai.clasificador_respuestas import (
+    ContextoIntento,
+    clasificar_error_http,
+    procesar_respuesta_exitosa,
+)
+from src.ai.constantes import (
+    CAPACIDAD_MAXIMA_CACHE, LIMITE_TIEMPO_TOTAL_SEGUNDOS, MODELO_PRIMARIO_DEFECTO,
+    TIEMPO_ESPERA_REINTENTO_SEGUNDOS, TIEMPO_MINIMO_RESTANTE_SEGUNDOS,
+    TIEMPO_VIDA_CACHE_SEGUNDOS, TIMEOUT_CONEXION_MAXIMO_SEGUNDOS,
+    TIMEOUT_LECTURA_MAXIMO_SEGUNDOS, URL_OPENROUTER,
+)
+from src.ai.prompts import build_messages
 
 logger = logging.getLogger(__name__)
 
 load_dotenv(".env")
 load_dotenv("src/ai/.env")
 
+
 class AIErrorKind(str, Enum):
+    """Categorías granulares de error al consultar el servicio de IA."""
+
     NO_KEY = "NO_KEY"
     AUTH = "AUTH"
     TIMEOUT = "TIMEOUT"
@@ -26,164 +42,248 @@ class AIErrorKind(str, Enum):
     SERVICE = "SERVICE"
     CANCELLED = "CANCELLED"
 
+
 @dataclass(frozen=True)
 class AIResult:
+    """Resultado inmutable de una consulta a Glosa."""
+
     ok: bool
     text: str
     kind: AIErrorKind | None = None
     model: str | None = None
     cached: bool = False
 
-# Caché LRU a nivel de clase
-_cache_lock = threading.Lock()
-_response_cache = {}  # sha256 -> (resultado, timestamp)
+
+_bloqueo_cache = threading.Lock()
+_cache_respuestas: dict[str, tuple[AIResult, float]] = {}
+
+
+def _calcular_hash_cache(
+    pregunta: str,
+    bloque_contexto: str | None,
+    mas_simple: bool,
+    modelos: list[str],
+) -> str:
+    """Genera hash SHA-256 único para la combinación de parámetros de consulta."""
+    datos = f"{pregunta}|{bloque_contexto}|{mas_simple}|{','.join(modelos)}"
+    return hashlib.sha256(datos.encode("utf-8")).hexdigest()
+
+
+def _leer_cache(clave_cache: str, ahora: float) -> AIResult | None:
+    """Limpia entradas vencidas y devuelve resultado en caché si existe."""
+    with _bloqueo_cache:
+        expiradas = [
+            k
+            for k, v in _cache_respuestas.items()
+            if ahora - v[1] > TIEMPO_VIDA_CACHE_SEGUNDOS
+        ]
+        for k in expiradas:
+            del _cache_respuestas[k]
+
+        if clave_cache in _cache_respuestas:
+            res, _ = _cache_respuestas[clave_cache]
+            return AIResult(True, res.text, model=res.model, cached=True)
+    return None
+
+
+def _guardar_en_cache(clave_cache: str, resultado: AIResult, ahora: float) -> None:
+    """Almacena un resultado exitoso aplicando desalojo LRU al superar la capacidad."""
+    with _bloqueo_cache:
+        if len(_cache_respuestas) >= CAPACIDAD_MAXIMA_CACHE:
+            mas_antiguo = min(_cache_respuestas.keys(), key=lambda k: _cache_respuestas[k][1])
+            del _cache_respuestas[mas_antiguo]
+        _cache_respuestas[clave_cache] = (resultado, ahora)
+
+
+def _manejar_excepcion_red(
+    exc: Exception, modelo: str, idx_modelo: int, total_modelos: int
+) -> tuple[AIResult | None, bool]:
+    """Clasifica errores de red y timeout devolviendo resultado o señal de fin."""
+    if isinstance(exc, requests.exceptions.Timeout):
+        logger.warning("Tiempo de espera agotado al contactar %s", modelo)
+        if idx_modelo == 0 and total_modelos > 1:
+            return None, False
+        msg = "Glosa tardó demasiado en responder. Vuelve a intentarlo en unos segundos."
+        return AIResult(False, msg, AIErrorKind.TIMEOUT), True
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        logger.error("Error de conexión al contactar %s", modelo)
+        msg = "No hay conexión con el servicio de IA. Revisa tu red y vuelve a intentarlo."
+        return AIResult(False, msg, AIErrorKind.NETWORK), True
+    logger.error("Excepción de red en %s: %s", modelo, exc)
+    return None, False
+
 
 class OpenRouterIA:
-    PRIMARY_MODEL = os.getenv("OPENROUTER_PRIMARY_MODEL", "nex-agi/nex-n2.5-pro:free")
-    FALLBACK_MODELS = [m.strip() for m in os.getenv("OPENROUTER_FALLBACK_MODELS", "").split(",") if m.strip()]
-    
-    TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504, 520, 521, 522, 523, 524, 525, 526}
+    """Cliente de comunicación con modelos de lenguaje vía OpenRouter."""
 
-    # Inyección de dependencias para testing
-    _time_monotonic = time.monotonic
-    _time_sleep = time.sleep
-    _requests_post = staticmethod(requests.post)
+    MODELO_PRIMARIO = os.getenv("OPENROUTER_PRIMARY_MODEL", MODELO_PRIMARIO_DEFECTO)
+    MODELOS_RESERVA = [
+        m.strip()
+        for m in os.getenv("OPENROUTER_FALLBACK_MODELS", "").split(",")
+        if m.strip()
+    ]
 
-    def __init__(self):
+    _tiempo_monotonico = time.monotonic
+    _tiempo_dormir = time.sleep
+    _peticiones_post = staticmethod(requests.post)
+
+    def __init__(self) -> None:
+        """Inicializa credenciales y URL base del servicio."""
         self.api_key = os.getenv("OPENROUTER_API_KEY")
-        self.url = "https://openrouter.ai/api/v1/chat/completions"
+        self.url = URL_OPENROUTER
 
-    def _get_cache_key(self, question: str, context_block: str, simpler: bool, models: list[str]) -> str:
-        data = f"{question}|{context_block}|{simpler}|{','.join(models)}"
-        return hashlib.sha256(data.encode('utf-8')).hexdigest()
+    def _validar_precondiciones(
+        self, cancel: threading.Event | None
+    ) -> AIResult | None:
+        """Valida estado de cancelación y disponibilidad de la clave API."""
+        if cancel and cancel.is_set():
+            return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED)
+        if not self.api_key:
+            msg = "Glosa no está configurada en este servidor. Avisa a quien administra Scalaris."
+            return AIResult(False, msg, AIErrorKind.NO_KEY)
+        return None
 
-    def _call_model(self, model: str, messages: list, timeout: tuple) -> requests.Response:
-        headers = {
+    def _ejecutar_llamada_red(
+        self, modelo: str, mensajes: list, tiempo_restante: float
+    ) -> requests.Response:
+        """Emite petición HTTP POST a OpenRouter con timeouts dinámicos."""
+        t_conn = min(TIMEOUT_CONEXION_MAXIMO_SEGUNDOS, tiempo_restante)
+        t_read = min(TIMEOUT_LECTURA_MAXIMO_SEGUNDOS, tiempo_restante)
+        cabeceras = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://calculadora-algebra-uam.local",
             "X-Title": "Calculadora Algebra Lineal UAM",
         }
-        data = {
-            "model": model,
-            "messages": messages,
-        }
-        return self._requests_post(self.url, headers=headers, json=data, timeout=timeout)
+        return self._peticiones_post(
+            self.url,
+            headers=cabeceras,
+            json={"model": modelo, "messages": mensajes},
+            timeout=(t_conn, t_read),
+        )
 
-    def ask(self, question: str, history: list = None, *, context_block: str = None, 
-            cancel: threading.Event = None, cacheable: bool = False, simpler: bool = False) -> AIResult:
-        
-        if cancel and cancel.is_set():
-            return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED)
+    def _procesar_respuesta_intento(
+        self,
+        resp: requests.Response,
+        modelo: str,
+        ctx_intento: ContextoIntento,
+    ) -> tuple[AIResult | None, str]:
+        """Procesa código HTTP 200 u otros códigos de la respuesta recibida."""
+        if resp.status_code == 200:
+            return procesar_respuesta_exitosa(resp, modelo, AIResult, AIErrorKind), "exito"
+        res, accion = clasificar_error_http(
+            resp.status_code,
+            resp.text,
+            modelo,
+            ctx_intento,
+            ai_result_cls=AIResult,
+            error_kind_cls=AIErrorKind,
+        )
+        return res, accion
 
-        if not self.api_key:
-            return AIResult(False, "Glosa no está configurada en este servidor. Avisa a quien administra Scalaris.", AIErrorKind.NO_KEY)
+    def _ejecutar_un_intento(
+        self,
+        modelo: str,
+        mensajes: list,
+        tiempo_restante: float,
+        cancel: threading.Event | None,
+        ctx: ContextoIntento,
+    ) -> tuple[AIResult | None, str]:
+        """Ejecuta una petición individual y clasifica su resultado o excepción."""
+        try:
+            resp = self._ejecutar_llamada_red(modelo, mensajes, tiempo_restante)
+            if cancel and cancel.is_set():
+                return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED), "terminar"
+            return self._procesar_respuesta_intento(resp, modelo, ctx)
+        except requests.exceptions.RequestException as e:
+            res, terminar = _manejar_excepcion_red(e, modelo, ctx.idx_modelo, ctx.total_modelos)
+            accion = "terminar" if (terminar or res) else "interrumpir"
+            return res, accion
 
-        if history is None:
-            history = []
-            
-        modelos_a_intentar = [self.PRIMARY_MODEL]
-        if self.FALLBACK_MODELS:
-            modelos_a_intentar.append(self.FALLBACK_MODELS[0])
+    def _intentar_modelo(
+        self,
+        modelo: str,
+        mensajes: list,
+        fecha_limite: float,
+        cancel: threading.Event | None,
+        config_intento: tuple[int, int, int],
+    ) -> tuple[AIResult | None, bool]:
+        """Ejecuta los intentos configurados para un modelo específico."""
+        max_intentos, idx_modelo, total_modelos = config_intento
+        for intento in range(max_intentos):
+            if cancel and cancel.is_set():
+                return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED), True
 
+            tiempo_restante = fecha_limite - self._tiempo_monotonico()
+            if tiempo_restante < TIEMPO_MINIMO_RESTANTE_SEGUNDOS:
+                return None, True
+
+            ctx = ContextoIntento(intento, idx_modelo, tiempo_restante, total_modelos)
+            res, accion = self._ejecutar_un_intento(modelo, mensajes, tiempo_restante, cancel, ctx)
+            if accion in ("exito", "terminar"):
+                return res, True
+            if accion == "reintentar":
+                self._tiempo_dormir(TIEMPO_ESPERA_REINTENTO_SEGUNDOS)
+                continue
+            break
+
+        return None, False
+
+    def _paso_cache(
+        self, question: str, context: str | None, simpler: bool, modelos: list[str]
+    ) -> tuple[str, AIResult | None]:
+        """Paso de caché: calcula hash y busca resultado existente si aplica."""
+        clave = _calcular_hash_cache(question, context, simpler, modelos)
+        return clave, _leer_cache(clave, self._tiempo_monotonico())
+
+    def _paso_cascada_modelos(
+        self,
+        modelos: list[str],
+        mensajes: list,
+        cancel: threading.Event | None,
+        clave_cache: str,
+    ) -> AIResult:
+        """Paso de intento por modelo: recorre los modelos hasta obtener respuesta."""
+        fecha_limite = self._tiempo_monotonico() + LIMITE_TIEMPO_TOTAL_SEGUNDOS
+        for idx, modelo in enumerate(modelos):
+            max_intentos = 2 if idx == 0 else 1
+            res, terminar = self._intentar_modelo(
+                modelo, mensajes, fecha_limite, cancel, (max_intentos, idx, len(modelos))
+            )
+            if terminar and res:
+                if res.ok and clave_cache:
+                    _guardar_en_cache(clave_cache, res, self._tiempo_monotonico())
+                return res
+        return AIResult(
+            False,
+            "Glosa no pudo responder ahora. Vuelve a intentarlo en un momento.",
+            AIErrorKind.SERVICE,
+        )
+
+    def ask(
+        self,
+        question: str,
+        history: list | None = None,
+        *,
+        context_block: str | None = None,
+        cancel: threading.Event | None = None,
+        cacheable: bool = False,
+        simpler: bool = False,
+    ) -> AIResult:
+        """Realiza una consulta a Glosa orquestando validación, caché y llamadas de red."""
+        res_val = self._validar_precondiciones(cancel)
+        if res_val:
+            return res_val
+
+        modelos = [self.MODELO_PRIMARIO]
+        if self.MODELOS_RESERVA:
+            modelos.append(self.MODELOS_RESERVA[0])
+
+        clave_cache = ""
         if cacheable:
-            cache_key = self._get_cache_key(question, context_block, simpler, modelos_a_intentar)
-            with _cache_lock:
-                # Cleanup and check cache
-                now = self._time_monotonic()
-                keys_to_delete = [k for k, v in _response_cache.items() if now - v[1] > 3600]
-                for k in keys_to_delete:
-                    del _response_cache[k]
-                    
-                if cache_key in _response_cache:
-                    cached_res, _ = _response_cache[cache_key]
-                    return AIResult(True, cached_res.text, model=cached_res.model, cached=True)
+            clave_cache, res_cache = self._paso_cache(question, context_block, simpler, modelos)
+            if res_cache:
+                return res_cache
 
-        messages = build_messages(history, question, context_block, simpler=simpler)
-        
-        deadline = self._time_monotonic() + 40.0
-        
-        for idx, modelo in enumerate(modelos_a_intentar):
-            max_intentos = 2 if idx == 0 else 1  # El primario permite 2 intentos (backoff), fallback 1
-            
-            for intento in range(max_intentos):
-                if cancel and cancel.is_set():
-                    return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED)
-                    
-                time_left = deadline - self._time_monotonic()
-                if time_left < 2.0:
-                    break
-                    
-                connect_timeout = min(5.0, time_left)
-                read_timeout = min(25.0, time_left)
-                
-                try:
-                    response = self._call_model(modelo, messages, timeout=(connect_timeout, read_timeout))
-                    
-                    if cancel and cancel.is_set():
-                        return AIResult(False, "Operación cancelada", AIErrorKind.CANCELLED)
-                        
-                    if response.status_code == 200:
-                        try:
-                            data = response.json()
-                            choices = data.get("choices") or []
-                            content = (choices[0].get("message") or {}).get("content") if choices else None
-                            if content:
-                                res = AIResult(True, content, model=modelo)
-                                if cacheable:
-                                    with _cache_lock:
-                                        if len(_response_cache) >= 128:
-                                            oldest = min(_response_cache.keys(), key=lambda k: _response_cache[k][1])
-                                            del _response_cache[oldest]
-                                        _response_cache[cache_key] = (res, self._time_monotonic())
-                                return res
-                            else:
-                                logger.error(f"Respuesta de IA VACÍA. Estado 200 sin choices. Modelo: {modelo}")
-                                return AIResult(False, "Glosa no devolvió una respuesta. Reformula la pregunta o inténtalo de nuevo.", AIErrorKind.EMPTY)
-                        except Exception as e:
-                            logger.error(f"Error parseando json de AI: {e}")
-                            
-                    elif response.status_code in {401, 403}:
-                        logger.error(f"Error de autenticación con OpenRouter: {response.status_code} - {response.text[:200]}")
-                        return AIResult(False, "Glosa no pudo autenticarse con el servicio de IA. Avisa a quien administra Scalaris.", AIErrorKind.AUTH)
-                        
-                    elif response.status_code == 429:
-                        logger.warning(f"Rate limit de OpenRouter: {response.status_code} en {modelo}")
-                        if intento == 0 and idx == 0 and (deadline - self._time_monotonic()) > 8.0:
-                            self._time_sleep(1.0)
-                            continue
-                        elif idx == 0 and len(modelos_a_intentar) > 1:
-                            break  # Pasar al fallback
-                        else:
-                            return AIResult(False, "Glosa está recibiendo muchas consultas ahora. Espera unos segundos y vuelve a intentarlo.", AIErrorKind.RATE_LIMIT)
-                            
-                    elif response.status_code in self.TRANSIENT_STATUS_CODES:
-                        logger.warning(f"Error {response.status_code} en {modelo}: {response.text[:200]}")
-                        if intento == 0 and idx == 0 and (deadline - self._time_monotonic()) > 8.0:
-                            self._time_sleep(1.0)
-                            continue
-                        else:
-                            break  # Fallback o termina
-                            
-                    else:
-                        logger.error(f"Error {response.status_code} en {modelo}: {response.text[:200]}")
-                        break
-                        
-                except requests.exceptions.Timeout:
-                    logger.warning(f"Timeout al contactar {modelo}")
-                    if idx == 0 and len(modelos_a_intentar) > 1:
-                        break  # Pasa a fallback
-                    return AIResult(False, "Glosa tardó demasiado en responder. Vuelve a intentarlo en unos segundos.", AIErrorKind.TIMEOUT)
-                except requests.exceptions.ConnectionError:
-                    logger.error(f"Error de red al contactar {modelo}")
-                    return AIResult(False, "No hay conexión con el servicio de IA. Revisa tu red y vuelve a intentarlo.", AIErrorKind.NETWORK)
-                except requests.exceptions.RequestException as e:
-                    logger.error(f"Error de requests al contactar {modelo}: {e}")
-                    break
-
-        return AIResult(False, "Glosa no pudo responder ahora. Vuelve a intentarlo en un momento.", AIErrorKind.SERVICE)
-
-    def analizar_sistema(self, prompt_text: str, history: list = None) -> tuple[bool, str]:
-        # Envoltorio de compatibilidad
-        result = self.ask(prompt_text, history=history)
-        return result.ok, result.text
+        mensajes = build_messages(history or [], question, context_block, simpler=simpler)
+        return self._paso_cascada_modelos(modelos, mensajes, cancel, clave_cache)

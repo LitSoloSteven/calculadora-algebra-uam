@@ -125,7 +125,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
             clean_handoff_url()
 
     def get_ai_context(self):
-        from src.ai.context import AIContext, describe_matrix, sanitize_user_string, is_stale, window_note_from
+        from src.ai.context import AIContext, describir_matriz, sanitize_user_string, is_stale, window_note_from
         n = self.square_panel.n
         if self.square_panel.is_empty():
             return AIContext(tool="inversa", view="Matriz inversa", label="Matriz A", input={}, empty=True)
@@ -139,7 +139,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                 row.append(sanitize_user_string(val, 32))
             data_sanitized.append(row)
                     
-        desc_a = describe_matrix(data_sanitized)
+        desc_a = describir_matriz(data_sanitized)
         ctx = AIContext(
             tool="inversa",
             view="Matriz inversa",
@@ -162,7 +162,7 @@ class InverseOpsUI(InverseOpsResultsMixin, InverseOpsStepsMixin, InverseOpsHisto
                 if n <= AI_CONTEXT_MAX_N and inv_obj:
                     inv_rows = inv_obj.data if hasattr(inv_obj, 'data') else inv_obj
                     formatted_rows = [[format_fraction_str(c) for c in row] for row in inv_rows]
-                    res_dict["inverse"] = describe_matrix(formatted_rows)
+                    res_dict["inverse"] = describir_matriz(formatted_rows)
                 else:
                     res_dict["inverse_omitted"] = True
                 ctx.result = res_dict

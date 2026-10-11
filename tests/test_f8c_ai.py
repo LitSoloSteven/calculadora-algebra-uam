@@ -2,7 +2,7 @@ import pytest
 from fractions import Fraction
 
 from src.ai.prompts import build_messages, trim_history
-from src.ai.context import serialize_context, AIContext, fingerprint, is_stale, MAX_CONTEXT_CHARS
+from src.ai.context import serialize_context, AIContext, fingerprint, is_stale, MAXIMO_CARACTERES_CONTEXTO
 from src.frontend.components.glosa_chips import _is_keyboard_event
 from src.backend.models.matrix import Matrix
 
@@ -57,7 +57,7 @@ def test_serialize_context_with_matrix_and_fraction():
     serialized = serialize_context(ctx)
     assert isinstance(serialized, str)
     assert "[CONTEXTO]" in serialized
-    assert len(serialized) <= MAX_CONTEXT_CHARS
+    assert len(serialized) <= MAXIMO_CARACTERES_CONTEXTO
     assert "rows" in serialized
 
 def test_fingerprint_and_is_stale():

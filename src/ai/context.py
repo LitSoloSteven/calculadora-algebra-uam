@@ -1,331 +1,289 @@
+"""Módulo de contexto y serialización para el asistente de IA.
+
+Proporciona estructuras de datos y funciones para capturar el estado matemático
+actual y empaquetarlo en un bloque JSON estructurado con control estricto de tamaño.
+"""
+
+from dataclasses import dataclass
+import hashlib
 import json
 import re
-from dataclasses import dataclass
-from typing import Any, Dict, List, Protocol, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
-MAX_CONTEXT_CHARS = 4000
-FULL_MATRIX_MAX = 8
-WINDOW = 6
-NUMBER_MAX_LEN = 14
+from src.ai.constantes import (
+    COLUMNAS_MAXIMAS_RECORTE,
+    LONGITUD_MAXIMA_CADENA_USUARIO,
+    LONGITUD_MAXIMA_NUMERO,
+    MAXIMO_CARACTERES_CONTEXTO,
+    MAXIMO_MATRIZ_COMPLETA,
+    TAMANIO_VENTANA_MATRIZ,
+)
+from src.ai.estrategias_recorte import (
+    _build_minimal_fallback,
+    ejecutar_cascada_recortes,
+)
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, init=False)
 class StepRef:
-    index: int
+    """Referencia inmutable al paso enfocado para explicación pedagógica."""
+
+    indice: int
     total: int
-    kind: str
-    op: str
-    rows_before: Dict[str, List[str]]
-    rows_after: Dict[str, List[str]]
-    cols: Tuple[int, int] | None = None
-    detail: Dict[str, Any] | None = None
+    tipo: str
+    operacion: str
+    filas_antes: Dict[str, List[str]]
+    filas_despues: Dict[str, List[str]]
+    columnas: Tuple[int, int] | None
+    detalle: Dict[str, Any] | None
 
-@dataclass
+    def __init__(
+        self,
+        indice: int = 0,
+        total: int = 0,
+        tipo: str = "",
+        operacion: str = "",
+        *,
+        filas_antes: Dict[str, List[str]] | None = None,
+        filas_despues: Dict[str, List[str]] | None = None,
+        columnas: Tuple[int, int] | None = None,
+        detalle: Dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        object.__setattr__(self, "indice", kwargs.get("index", indice))
+        object.__setattr__(self, "total", kwargs.get("total", total))
+        object.__setattr__(self, "tipo", kwargs.get("kind", tipo))
+        object.__setattr__(self, "operacion", kwargs.get("op", operacion))
+        object.__setattr__(self, "filas_antes", kwargs.get("rows_before", filas_antes) or {})
+        object.__setattr__(self, "filas_despues", kwargs.get("rows_after", filas_despues) or {})
+        object.__setattr__(self, "columnas", kwargs.get("cols", columnas))
+        object.__setattr__(self, "detalle", kwargs.get("detail", detalle))
+
+    def __getattr__(self, n: str) -> Any:
+        m = {
+            "index": "indice", "kind": "tipo", "op": "operacion",
+            "rows_before": "filas_antes", "rows_after": "filas_despues",
+            "cols": "columnas", "detail": "detalle",
+        }
+        if n in m:
+            return getattr(self, m[n])
+        raise AttributeError(f"'{type(self).__name__}' no tiene atributo '{n}'")
+
+
+@dataclass(init=False)
 class AIContext:
-    tool: str
-    view: str
-    label: str
-    input: Dict[str, Any]
-    result: Dict[str, Any] | None = None
-    focus: StepRef | None = None
-    window_note: str | None = None
-    stale: bool = False
-    empty: bool = False
+    """Contenedor de estado para el bloque de contexto enviado a la IA."""
 
-class AIContextProvider(Protocol):
-    def get_ai_context(self) -> AIContext | None: ...
+    herramienta: str
+    vista: str
+    etiqueta: str
+    entrada: Dict[str, Any]
+    resultado: Dict[str, Any] | None
+    foco: StepRef | None
+    nota_ventana: str | None
+    desactualizado: bool
+    vacio: bool
 
-def clip_text(s: str, max_len: int) -> str:
-    s = str(s)
-    if len(s) <= max_len:
+    def __init__(
+        self,
+        herramienta: str = "",
+        vista: str = "",
+        etiqueta: str = "",
+        entrada: Dict[str, Any] | None = None,
+        *,
+        resultado: Dict[str, Any] | None = None,
+        foco: StepRef | None = None,
+        nota_ventana: str | None = None,
+        desactualizado: bool = False,
+        vacio: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        self.herramienta = kwargs.get("tool", herramienta)
+        self.vista = kwargs.get("view", vista)
+        self.etiqueta = kwargs.get("label", etiqueta)
+        self.entrada = kwargs.get("input", entrada) if entrada is not None else kwargs.get("input", {})
+        self.resultado = kwargs.get("result", resultado)
+        self.foco = kwargs.get("focus", foco)
+        self.nota_ventana = kwargs.get("window_note", nota_ventana)
+        self.desactualizado = kwargs.get("stale", desactualizado)
+        self.vacio = kwargs.get("empty", vacio)
+
+    def __getattr__(self, n: str) -> Any:
+        m = {
+            "tool": "herramienta", "view": "vista", "label": "etiqueta",
+            "input": "entrada", "result": "resultado", "focus": "foco",
+            "window_note": "nota_ventana", "stale": "desactualizado", "empty": "vacio",
+        }
+        if n in m:
+            return getattr(self, m[n])
+        raise AttributeError(f"'{type(self).__name__}' no tiene atributo '{n}'")
+
+    def __setattr__(self, n: str, v: Any) -> None:
+        m = {
+            "tool": "herramienta", "view": "vista", "label": "etiqueta",
+            "input": "entrada", "result": "resultado", "focus": "foco",
+            "window_note": "nota_ventana", "stale": "desactualizado", "empty": "vacio",
+        }
+        super().__setattr__(m.get(n, n), v)
+
+
+def clip_text(texto: str, longitud_maxima: int) -> str:
+    """Recorta una cadena al tamaño indicado añadiendo puntos suspensivos si excede."""
+    s = str(texto)
+    if len(s) <= longitud_maxima:
         return s
-    return s[:max_len - 1] + "…"
+    return s[:longitud_maxima - 1] + "…"
 
-def sanitize_user_string(s: str, limit: int) -> str:
-    s = str(s)
-    s = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', s)
-    s = re.sub(r'(?i)\[/?CONTEXTO\]', '', s)
-    return clip_text(s, limit)
 
-def compact_number(s: str, max_len: int = NUMBER_MAX_LEN) -> str:
-    s = str(s).strip()
-    if len(s) <= max_len:
+def sanitize_user_string(
+    cadena: str, limite: int = LONGITUD_MAXIMA_CADENA_USUARIO
+) -> str:
+    """Limpia caracteres de control y etiquetas de contexto en texto de usuario."""
+    s = str(cadena)
+    s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", s)
+    s = re.sub(r"(?i)\[/?CONTEXTO\]", "", s)
+    return clip_text(s, limite)
+
+
+def compact_number(valor: str, longitud_maxima: int = LONGITUD_MAXIMA_NUMERO) -> str:
+    """Formatea valores numéricos largos aproximando fracciones cuando excede el límite."""
+    s = str(valor).strip()
+    if len(s) <= longitud_maxima:
         return s
-
     if "/" in s:
         try:
             num, den = s.split("/")
-            val = float(num) / float(den)
-            aprox = f"≈{val:.1f}"
-            if len(aprox) <= max_len:
+            aprox = f"≈{float(num) / float(den):.1f}"
+            if len(aprox) <= longitud_maxima:
                 return aprox
         except Exception:
             pass
+    return clip_text(s, longitud_maxima)
 
-    return clip_text(s, max_len)
 
-def describe_matrix(rows: Sequence[Sequence[Any]], *, full_max=FULL_MATRIX_MAX, window=WINDOW) -> dict:
-    n_rows = len(rows)
-    n_cols = len(rows[0]) if n_rows > 0 else 0
-    
-    if n_rows <= full_max and n_cols <= full_max:
-        data = [[compact_number(c) for c in r] for r in rows]
-        nonzero = sum(1 for r in rows for c in r if str(c).strip() not in ('0', '', '0.0'))
-        return {"rows": n_rows, "cols": n_cols, "data": data}
-        
-    w_rows = min(n_rows, window)
-    w_cols = min(n_cols, window)
-    
-    data = []
-    nonzero = 0
-    invalid = 0
-    for i in range(n_rows):
-        row_data = []
-        for j in range(n_cols):
-            val = str(rows[i][j]).strip()
-            if val not in ('0', '', '0.0'):
-                try:
-                    if "/" in val:
-                        float(val.split("/")[0])
-                    else:
-                        float(val)
-                    nonzero += 1
-                except Exception:
-                    invalid += 1
-            if i < w_rows and j < w_cols:
-                row_data.append(compact_number(val))
-        if i < w_rows:
-            data.append(row_data)
-            
-    res = {"rows": n_rows, "cols": n_cols, "window": [w_rows, w_cols], "data": data, "nonzero": nonzero}
-    if invalid > 0:
-        res["invalid"] = invalid
+def _es_celda_invalida(val: str) -> bool:
+    """Evalúa si una celda contiene un valor textual no numérico o inválido."""
+    if val in ("0", "", "0.0"):
+        return False
+    try:
+        float(val.split("/")[0]) if "/" in val else float(val)
+        return False
+    except Exception:
+        return True
+
+
+def describir_matriz(
+    filas: Sequence[Sequence[Any]],
+    *,
+    maximo_completa: int = MAXIMO_MATRIZ_COMPLETA,
+    ventana: int = TAMANIO_VENTANA_MATRIZ,
+) -> dict:
+    """Genera descriptor estructurado de una matriz para el contexto de IA."""
+    total_filas = len(filas)
+    total_columnas = len(filas[0]) if total_filas > 0 else 0
+    if total_filas <= maximo_completa and total_columnas <= maximo_completa:
+        datos = [[compact_number(c) for c in r] for r in filas]
+        return {"rows": total_filas, "cols": total_columnas, "data": datos}
+
+    filas_v, columnas_v = min(total_filas, ventana), min(total_columnas, ventana)
+    datos, invalidos = [], 0
+    for i in range(total_filas):
+        fila_datos = []
+        for j in range(total_columnas):
+            val = str(filas[i][j]).strip()
+            if _es_celda_invalida(val):
+                invalidos += 1
+            if i < filas_v and j < columnas_v:
+                fila_datos.append(compact_number(val))
+        if i < filas_v:
+            datos.append(fila_datos)
+
+    res = {
+        "rows": total_filas, "cols": total_columnas,
+        "window": [filas_v, columnas_v], "data": datos,
+    }
+    if invalidos > 0:
+        res["invalid"] = invalidos
     return res
 
-def window_note_from(*descs: dict) -> str | None:
-    """Si algún dict de describe_matrix trae 'window', devuelve
-    'ventana {w}×{c} de {rows}×{cols}' para el de mayor tamaño; si no, None."""
-    windowed = [
-        d for d in descs
-        if isinstance(d, dict) and "window" in d and isinstance(d["window"], (list, tuple)) and len(d["window"]) >= 2
+
+def window_note_from(*descriptores: dict) -> str | None:
+    """Devuelve nota descriptiva de la ventana si alguna matriz está truncada."""
+    con_ventana = [
+        d for d in descriptores
+        if isinstance(d, dict) and isinstance(d.get("window"), (list, tuple)) and len(d["window"]) >= 2
     ]
-    if not windowed:
+    if not con_ventana:
         return None
-    largest = max(windowed, key=lambda d: d.get("rows", 0) * d.get("cols", 0))
-    w, c = largest["window"][0], largest["window"][1]
-    rows, cols = largest.get("rows", 0), largest.get("cols", 0)
-    return f"ventana {w}×{c} de {rows}×{cols}"
+    mayor = max(con_ventana, key=lambda d: d.get("rows", 0) * d.get("cols", 0))
+    w, c = mayor["window"][0], mayor["window"][1]
+    filas, columnas = mayor.get("rows", 0), mayor.get("cols", 0)
+    return f"ventana {w}×{c} de {filas}×{columnas}"
 
-def excerpt_rows(rows, row_indices, center_col, max_cols=12) -> Tuple[Dict[str, List[str]], Tuple[int, int] | None]:
-    n_cols = len(rows[0]) if rows else 0
-    start_col = 0
-    end_col = n_cols
-    cols_range = None
-    
-    if n_cols > max_cols:
-        start_col = max(0, center_col - max_cols // 2)
-        end_col = min(n_cols, start_col + max_cols)
-        if end_col - start_col < max_cols:
-            start_col = max(0, end_col - max_cols)
-        cols_range = (start_col + 1, end_col)
-        
-    result = {}
-    for r_idx in row_indices:
-        if 0 <= r_idx < len(rows):
-            row_data = rows[r_idx]
-            result[str(r_idx + 1)] = [compact_number(c) for c in row_data[start_col:end_col]]
-            
-    return result, cols_range
 
-from fractions import Fraction
-import hashlib
+def extraer_filas(
+    filas_datos: Sequence[Sequence[Any]],
+    indices_filas: Sequence[int],
+    columna_centro: int,
+    columnas_maximas: int = COLUMNAS_MAXIMAS_RECORTE,
+) -> Tuple[Dict[str, List[str]], Tuple[int, int] | None]:
+    """Extrae un subconjunto de filas y columnas centrado alrededor de un pivote."""
+    total_columnas = len(filas_datos[0]) if filas_datos else 0
+    inicio_columna, fin_columna, rango_columnas = 0, total_columnas, None
 
-def _json_default(o):
-    if isinstance(o, Fraction):
-        return str(o)
-    if hasattr(o, "rows") and hasattr(o, "cols") and hasattr(o, "data"):
-        return {"rows": o.rows, "cols": o.cols}
-    return clip_text(str(o), 40)
+    if total_columnas > columnas_maximas:
+        inicio_columna = max(0, columna_centro - columnas_maximas // 2)
+        fin_columna = min(total_columnas, inicio_columna + columnas_maximas)
+        if fin_columna - inicio_columna < columnas_maximas:
+            inicio_columna = max(0, fin_columna - columnas_maximas)
+        rango_columnas = (inicio_columna + 1, fin_columna)
 
-def _normalize_for_fp(o: Any) -> Any:
-    if isinstance(o, dict):
-        return {str(k): _normalize_for_fp(v) for k, v in o.items()}
-    if isinstance(o, (list, tuple)):
-        return [_normalize_for_fp(x) for x in o]
-    return o
+    resultado = {}
+    for indice in indices_filas:
+        if 0 <= indice < len(filas_datos):
+            fila = filas_datos[indice]
+            resultado[str(indice + 1)] = [
+                compact_number(c) for c in fila[inicio_columna:fin_columna]
+            ]
+    return resultado, rango_columnas
 
-def fingerprint(obj: Any) -> str:
-    serialized = json.dumps(_normalize_for_fp(obj), sort_keys=True, default=str)
-    return hashlib.sha1(serialized.encode("utf-8")).hexdigest()
 
-def is_stale(current_input: Any, result_fp: str | None) -> bool:
-    if result_fp is None:
+def _normalizar_para_huella(objeto: Any) -> Any:
+    """Normaliza recursivamente estructuras de datos para generar huella determinista."""
+    if isinstance(objeto, dict):
+        return {str(k): _normalizar_para_huella(v) for k, v in objeto.items()}
+    if isinstance(objeto, (list, tuple)):
+        return [_normalizar_para_huella(x) for x in objeto]
+    return objeto
+
+
+def fingerprint(objeto: Any) -> str:
+    """Calcula el hash SHA-1 determinista de una estructura de datos de entrada."""
+    serializado = json.dumps(_normalizar_para_huella(objeto), sort_keys=True, default=str)
+    return hashlib.sha1(serializado.encode("utf-8")).hexdigest()
+
+
+def is_stale(entrada_actual: Any, huella_resultado: str | None) -> bool:
+    """Verifica si la entrada actual difiere de la huella del resultado previo."""
+    if huella_resultado is None:
         return False
-    return fingerprint(current_input) != result_fp
+    return fingerprint(entrada_actual) != huella_resultado
 
-def _build_minimal_fallback(tool: str, view: str, max_chars: int) -> str:
-    t = clip_text(str(tool or ""), 60)
-    v = clip_text(str(view or ""), 60)
-    min_dict = {
-        "v": 1,
-        "tool": t,
-        "view": v,
-        "meta": {"truncated": True}
-    }
-    min_json = json.dumps(min_dict, ensure_ascii=False, separators=(',', ':'))
-    if len(min_json) > max_chars:
-        base_len = len('{"v":1,"tool":"","view":"","meta":{"truncated":true}}')
-        avail = max(0, max_chars - base_len)
-        t_len = min(len(t), avail // 2)
-        v_len = min(len(v), avail - t_len)
-        min_dict["tool"] = t[:t_len]
-        min_dict["view"] = v[:v_len]
-        min_json = json.dumps(min_dict, ensure_ascii=False, separators=(',', ':'))
-    return f"[CONTEXTO]\n{min_json}\n[/CONTEXTO]"
 
-def _serialize_context_core(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
-    import copy
-    working_ctx = copy.deepcopy(ctx)
-    
-    def build_dict(c: AIContext, truncated: bool) -> dict:
-        d = {
-            "v": 1,
-            "tool": c.tool,
-            "view": c.view,
-            "input": c.input,
-        }
-        if c.result is not None:
-            d["result"] = c.result
-        if c.focus is not None:
-            d["focus"] = {
-                "index": c.focus.index,
-                "total": c.focus.total,
-                "kind": c.focus.kind,
-                "op": c.focus.op,
-                "rows_before": c.focus.rows_before,
-                "rows_after": c.focus.rows_after,
-            }
-            if c.focus.cols:
-                d["focus"]["cols"] = list(c.focus.cols)
-            if c.focus.detail:
-                d["focus"]["detail"] = c.focus.detail
-                
-        meta = {}
-        if c.window_note:
-            meta["window"] = c.window_note
-        elif isinstance(c.input, dict):
-            wn = window_note_from(*c.input.values())
-            if wn:
-                meta["window"] = wn
-        if c.stale:
-            meta["stale"] = True
-        if truncated:
-            meta["truncated"] = True
-            
-        if meta:
-            d["meta"] = meta
-        return d
-        
-    def get_str(c: AIContext, is_truncated: bool = False) -> str:
-        d = build_dict(c, is_truncated)
-        res = json.dumps(d, ensure_ascii=False, separators=(',', ':'), default=_json_default)
-        return f"[CONTEXTO]\n{res}\n[/CONTEXTO]"
-        
-    res_str = get_str(working_ctx)
-    if len(res_str) <= max_chars:
-        return res_str
-        
-    is_truncated = True
-    
-    # 1. Quitar detail del foco
-    if working_ctx.focus and working_ctx.focus.detail:
-        import dataclasses
-        working_ctx.focus = dataclasses.replace(working_ctx.focus, detail=None)
-            
-    res_str = get_str(working_ctx, is_truncated)
-    if len(res_str) <= max_chars: return res_str
-    
-    # 2. Quitar extras opcionales
-    if working_ctx.result:
-        for k in ["inverse", "steps", "segment_steps", "pasos"]:
-            working_ctx.result.pop(k, None)
-            
-    res_str = get_str(working_ctx, is_truncated)
-    if len(res_str) <= max_chars: return res_str
-    
-    # 2. Reducir ventanas de entrada
-    def reduce_matrix(m_dict, target_w):
-        if not isinstance(m_dict, dict) or "data" not in m_dict: return
-        if "window" not in m_dict:
-            m_dict["window"] = [len(m_dict["data"]), len(m_dict["data"][0])] if m_dict["data"] else [0,0]
-        
-        w_r, w_c = m_dict["window"]
-        new_w_r, new_w_c = min(w_r, target_w), min(w_c, target_w)
-        if new_w_r == 0:
-            m_dict.pop("data", None)
-            m_dict["window"] = [0, 0]
-            return
-            
-        m_dict["data"] = [row[:new_w_c] for row in m_dict["data"][:new_w_r]]
-        m_dict["window"] = [new_w_r, new_w_c]
-        
-    for step_w in [4, 3, 0]:
-        if "data" in working_ctx.input: # Para matrices puras (inversa)
-            reduce_matrix(working_ctx.input, step_w)
-        else: # Para diccionarios de matrices (sistemas, matrix_ops, vector_ops)
-            for k, v in working_ctx.input.items():
-                if isinstance(v, dict) and "rows" in v and "cols" in v and "data" in v:
-                    reduce_matrix(v, step_w)
-                elif isinstance(v, dict) and "data" in v and "orientation" in v:
-                    # Vectores
-                    if len(v["data"]) > step_w:
-                        v["data"] = v["data"][:step_w]
-                        if "window" not in v:
-                            v["window"] = [step_w, 1] if v["orientation"] == "column" else [1, step_w]
-        
-        res_str = get_str(working_ctx, is_truncated)
-        if len(res_str) <= max_chars: return res_str
+def _serialize_context_core(
+    ctx: AIContext, *, max_chars: int = MAXIMO_CARACTERES_CONTEXTO
+) -> str:
+    """Delega la ejecución de la cascada de recorte al motor especializado."""
+    return ejecutar_cascada_recortes(ctx, max_chars=max_chars)
 
-    # 3. Reducir result a status+línea
-    if working_ctx.result:
-        status = working_ctx.result.get("status", "")
-        line = working_ctx.result.get("message") or working_ctx.result.get("clasificacion") or ""
-        working_ctx.result = {"status": status}
-        if line:
-            working_ctx.result["message"] = line
-        
-        res_str = get_str(working_ctx, is_truncated)
-        if len(res_str) <= max_chars: return res_str
-        
-    # 4. Recortar filas del foco
-    if working_ctx.focus:
-        for d in [working_ctx.focus.rows_before, working_ctx.focus.rows_after]:
-            if len(d) > 1:
-                first_key = next(iter(d.keys()))
-                keys_to_remove = list(d.keys())[1:]
-                for k in keys_to_remove:
-                    d.pop(k)
-                    
-        res_str = get_str(working_ctx, is_truncated)
-        if len(res_str) <= max_chars: return res_str
-        
-        for d in [working_ctx.focus.rows_before, working_ctx.focus.rows_after]:
-            for k in d:
-                d[k] = d[k][:4]
-        
-        import dataclasses
-        working_ctx.focus = dataclasses.replace(working_ctx.focus, cols=None)
-        res_str = get_str(working_ctx, is_truncated)
-        if len(res_str) <= max_chars:
-            return res_str
-                
-    res_str = get_str(working_ctx, is_truncated)
-    if len(res_str) <= max_chars:
-        return res_str
 
-    return _build_minimal_fallback(working_ctx.tool, working_ctx.view, max_chars)
-
-def serialize_context(ctx: AIContext, *, max_chars=MAX_CONTEXT_CHARS) -> str:
+def serialize_context(
+    ctx: AIContext, *, max_chars: int = MAXIMO_CARACTERES_CONTEXTO
+) -> str:
+    """Serializa el contexto a bloque seguro [CONTEXTO] con fallback robusto ante errores."""
     try:
-        return _serialize_context_core(ctx, max_chars=max_chars)
+        return ejecutar_cascada_recortes(ctx, max_chars=max_chars)
     except Exception:
-        return _build_minimal_fallback(getattr(ctx, 'tool', ''), getattr(ctx, 'view', ''), max_chars)
+        h = getattr(ctx, "herramienta", getattr(ctx, "tool", ""))
+        v = getattr(ctx, "vista", getattr(ctx, "view", ""))
+        return _build_minimal_fallback(h, v, max_chars)

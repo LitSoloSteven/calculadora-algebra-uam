@@ -141,7 +141,7 @@ def _extraer_detalles_paso(
     rows: list,
 ) -> tuple[list[int] | None, dict, dict, list | None, int]:
     """Calcula pivote y extractos de filas antes y después según el tipo de operación."""
-    from src.ai.context import excerpt_rows
+    from src.ai.context import extraer_filas
 
     pivot, rows_before, rows_after, cols_range = None, {}, {}, None
     if kind == "pivote" and parsed["row1"] is not None and parsed["col"] is not None:
@@ -149,18 +149,18 @@ def _extraer_detalles_paso(
     if kind == "intercambio" and parsed["row1"] is not None and parsed["row2"] is not None:
         r1, r2 = parsed["row1"], parsed["row2"]
         pivot = [r1, current_pivot_col]
-        rows_before, cols_range = excerpt_rows(prev_rows, [r1, r2], current_pivot_col)
-        rows_after, _ = excerpt_rows(rows, [r1, r2], current_pivot_col)
+        rows_before, cols_range = extraer_filas(prev_rows, [r1, r2], current_pivot_col)
+        rows_after, _ = extraer_filas(rows, [r1, r2], current_pivot_col)
     elif kind == "eliminacion" and parsed["row1"] is not None and parsed["row2"] is not None:
         t, p = parsed["row1"], parsed["row2"]
         pivot = [p, current_pivot_col]
-        rows_before, cols_range = excerpt_rows(prev_rows, [t, p], current_pivot_col)
-        rows_after, _ = excerpt_rows(rows, [t], current_pivot_col)
+        rows_before, cols_range = extraer_filas(prev_rows, [t, p], current_pivot_col)
+        rows_after, _ = extraer_filas(rows, [t], current_pivot_col)
     elif kind == "normalizacion" and parsed["row1"] is not None:
         r = parsed["row1"]
         pivot = [r, current_pivot_col]
-        rows_before, cols_range = excerpt_rows(prev_rows, [r], current_pivot_col)
-        rows_after, _ = excerpt_rows(rows, [r], current_pivot_col)
+        rows_before, cols_range = extraer_filas(prev_rows, [r], current_pivot_col)
+        rows_after, _ = extraer_filas(rows, [r], current_pivot_col)
     return pivot, rows_before, rows_after, cols_range, current_pivot_col
 
 
